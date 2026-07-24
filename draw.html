@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>게스트하우스 신청서 (직접 쓰기)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    background: #f4f5f7; color: #222;
+  }
+  main { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  .back-link { display: inline-block; margin-bottom: 16px; font-size: 13px; color: #2f6fed; text-decoration: none; }
+  .back-link:hover { text-decoration: underline; }
+  canvas {
+    width: 100%; height: auto; display: block;
+    border: 1px solid #ccc; background: #fff; touch-action: none;
+  }
+  .summary { margin: 0; font-size: 13px; color: #555; }
+  .toolbar {
+    display: grid; gap: 8px; margin: 12px 0;
+    padding: 10px; background: #fff; border: 1px solid #d8dade; border-radius: 6px;
+  }
+  .tool-row { display: grid; grid-auto-flow: column; gap: 8px; align-items: center; }
+  .tool-row .label { font-size: 12px; color: #666; width: 44px; flex: none; }
+  .swatch {
+    width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%;
+    border: 2px solid transparent; cursor: pointer; position: relative;
+  }
+  .swatch.active { border-color: #2f6fed; box-shadow: 0 0 0 2px #fff inset; }
+  .actions { display: grid; grid-auto-flow: column; gap: 8px; margin-bottom: 12px; }
+  button {
+    font: inherit; font-size: 15px; padding: 12px; border-radius: 6px;
+    border: 1px solid #c4c7cc; background: #fff; cursor: pointer; min-height: 44px;
+  }
+  button.primary { background: #2f6fed; border-color: #2f6fed; color: #fff; font-weight: bold; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.toggle.active { background: #2f6fed; border-color: #2f6fed; color: #fff; font-weight: bold; }
+</style>
+</head>
+<body>
+<main>
+  <h1>게스트하우스 신청서 (직접 쓰기)</h1>
+  <a class="back-link" href="index.html">← 타이핑으로 작성</a>
+
+  <canvas id="canvas" width="707" height="1000"></canvas>
+
+  <div class="toolbar">
+    <div class="tool-row">
+      <span class="label">색</span>
+      <button type="button" class="swatch active" id="colorBlack" style="background:#000000" aria-label="검정"></button>
+      <button type="button" class="swatch" id="colorBlue" style="background:#1a3fae" aria-label="파랑"></button>
+      <button type="button" class="swatch" id="colorRed" style="background:#c0392b" aria-label="빨강"></button>
+    </div>
+    <div class="tool-row">
+      <span class="label">굵기</span>
+      <button type="button" class="toggle active" id="widthThin">얇게</button>
+      <button type="button" class="toggle" id="widthThick">굵게</button>
+      <button type="button" class="toggle" id="eraser">지우개</button>
+    </div>
+    <div class="tool-row">
+      <button type="button" id="undo" disabled>되돌리기</button>
+      <button type="button" id="clearAll">전체 지우기</button>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button type="button" id="share" class="primary" disabled>이미지 만들어 보내기</button>
+    <button type="button" id="download" disabled>이미지 저장</button>
+  </div>
+  <p id="status" class="summary"></p>
+</main>
+
+<script type="module">
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// 오프스크린 잉크 캔버스. 사용자가 그린 획은 오직 여기에만 그려서
+// 지우개가 서식 이미지를 절대 지우지 못하게 한다.
+const inkCanvas = document.createElement('canvas');
+inkCanvas.width = W;
+inkCanvas.height = H;
+const inkCtx = inkCanvas.getContext('2d');
+
+// 'loading' | 'ready' | 'error'
+let imageState = 'loading';
+
+const formImage = new Image();
+const imageReady = new Promise((resolve, reject) => {
+  formImage.onload = () => { imageState = 'ready'; resolve(); };
+  formImage.onerror = () => {
+    imageState = 'error';
+    reject(new Error('서식 이미지를 불러오지 못했습니다.'));
+  };
+});
+formImage.src = 'form.jpg';
+
+function redraw() {
+  ctx.clearRect(0, 0, W, H);
+  if (imageState !== 'ready') return;
+  try {
+    ctx.drawImage(formImage, 0, 0, W, H);
+  } catch {
+    imageState = 'error';
+    return;
+  }
+  ctx.drawImage(inkCanvas, 0, 0);
+}
+
+const $ = (id) => document.getElementById(id);
+
+function setStatus(msg) { $('status').textContent = msg; }
+
+function syncButtons() {
+  const blocked = imageState !== 'ready';
+  $('share').disabled = blocked;
+  $('download').disabled = blocked;
+  if (imageState === 'error') {
+    setStatus('서식 이미지를 불러오지 못했습니다. 새로고침해 주세요.');
+  } else if (imageState === 'loading') {
+    setStatus('서식 이미지를 불러오는 중입니다...');
+  } else {
+    setStatus('');
+  }
+}
+
+// ---- 도구 상태 ----
+let currentColor = '#000000';
+let currentWidth = 3;
+let erasing = false;
+
+const colorButtons = {
+  '#000000': $('colorBlack'),
+  '#1a3fae': $('colorBlue'),
+  '#c0392b': $('colorRed'),
+};
+
+function setColor(color) {
+  currentColor = color;
+  erasing = false;
+  for (const [c, btn] of Object.entries(colorButtons)) {
+    btn.classList.toggle('active', c === color);
+  }
+  $('eraser').classList.remove('active');
+}
+
+$('colorBlack').addEventListener('click', () => setColor('#000000'));
+$('colorBlue').addEventListener('click', () => setColor('#1a3fae'));
+$('colorRed').addEventListener('click', () => setColor('#c0392b'));
+
+function setWidth(w) {
+  currentWidth = w;
+  $('widthThin').classList.toggle('active', w === 3);
+  $('widthThick').classList.toggle('active', w === 7);
+}
+$('widthThin').addEventListener('click', () => setWidth(3));
+$('widthThick').addEventListener('click', () => setWidth(7));
+
+$('eraser').addEventListener('click', () => {
+  erasing = !erasing;
+  $('eraser').classList.toggle('active', erasing);
+});
+
+// ---- 되돌리기 스택 ----
+const UNDO_LIMIT = 12;
+let undoStack = [];
+
+function pushUndoSnapshot() {
+  undoStack.push(inkCtx.getImageData(0, 0, W, H));
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  $('undo').disabled = false;
+}
+
+$('undo').addEventListener('click', () => {
+  const snapshot = undoStack.pop();
+  if (!snapshot) return;
+  inkCtx.putImageData(snapshot, 0, 0);
+  redraw();
+  $('undo').disabled = undoStack.length === 0;
+});
+
+$('clearAll').addEventListener('click', () => {
+  pushUndoSnapshot();
+  inkCtx.clearRect(0, 0, W, H);
+  redraw();
+});
+
+// ---- 그리기 (포인터 이벤트: 손가락/마우스/스타일러스 공용) ----
+let drawing = false;
+let lastX = 0, lastY = 0;
+
+function toCanvasCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) * (canvas.width / rect.width),
+    y: (e.clientY - rect.top) * (canvas.height / rect.height),
+  };
+}
+
+function strokeSegment(x0, y0, x1, y1) {
+  inkCtx.globalCompositeOperation = erasing ? 'destination-out' : 'source-over';
+  inkCtx.strokeStyle = currentColor;
+  inkCtx.lineWidth = currentWidth;
+  inkCtx.lineCap = 'round';
+  inkCtx.lineJoin = 'round';
+  inkCtx.beginPath();
+  inkCtx.moveTo(x0, y0);
+  inkCtx.lineTo(x1, y1);
+  inkCtx.stroke();
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (imageState !== 'ready') return;
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+  pushUndoSnapshot();
+  drawing = true;
+  const { x, y } = toCanvasCoords(e);
+  lastX = x; lastY = y;
+  // 점만 찍어도 자국이 남도록 같은 점에 짧은 선을 그린다.
+  strokeSegment(x, y, x, y);
+  redraw();
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (!drawing) return;
+  e.preventDefault();
+  const { x, y } = toCanvasCoords(e);
+  strokeSegment(lastX, lastY, x, y);
+  lastX = x; lastY = y;
+  redraw();
+});
+
+function endStroke(e) {
+  if (!drawing) return;
+  drawing = false;
+  e.preventDefault();
+}
+canvas.addEventListener('pointerup', endStroke);
+canvas.addEventListener('pointercancel', endStroke);
+
+// ---- 내보내기 (신청일 필드가 없으므로 오늘 날짜로 파일명 생성) ----
+function toJpegFile() {
+  const stamp = new Date().toLocaleDateString('sv-SE').replace(/-/g, '');
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return reject(new Error('이미지 생성에 실패했습니다.'));
+        resolve(new File([blob], `게스트하우스신청서_${stamp}.jpg`, { type: 'image/jpeg' }));
+      },
+      'image/jpeg',
+      0.92
+    );
+  });
+}
+
+$('share').addEventListener('click', async () => {
+  try {
+    const file = await toJpegFile();
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: '게스트하우스 신청서' });
+      setStatus('');
+      return;
+    }
+    setStatus('이 브라우저는 공유를 지원하지 않습니다. "이미지 저장"을 눌러 주세요.');
+  } catch (err) {
+    if (err.name === 'AbortError') { setStatus(''); return; }
+    setStatus('공유하지 못했습니다. "이미지 저장"을 눌러 저장한 뒤 문자메시지에 직접 첨부해 주세요.');
+  }
+});
+
+$('download').addEventListener('click', async () => {
+  try {
+    const file = await toJpegFile();
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus('저장했습니다.');
+  } catch (err) {
+    setStatus(`이미지를 만들지 못했습니다: ${err.message}`);
+  }
+});
+
+// 최상위 await를 쓰지 않는다 — 구형 브라우저에서 모듈 파싱이 실패하는 것을 피한다.
+redraw();
+syncButtons();
+imageReady.then(() => { redraw(); syncButtons(); }).catch(() => { syncButtons(); });
+</script>
+</body>
+</html>

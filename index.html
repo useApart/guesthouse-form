@@ -12,7 +12,9 @@
     background: #f4f5f7; color: #222;
   }
   main { max-width: 480px; margin: 0 auto; }
-  h1 { font-size: 20px; margin: 0 0 16px; }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  .back-link { display: inline-block; margin-bottom: 16px; font-size: 13px; color: #2f6fed; text-decoration: none; }
+  .back-link:hover { text-decoration: underline; }
   canvas {
     width: 100%; height: auto; display: block;
     border: 1px solid #ccc; background: #fff;
@@ -51,6 +53,7 @@
 <body>
 <main>
   <h1>게스트하우스 신청서</h1>
+  <a class="back-link" href="draw.html">손으로 직접 쓰기 →</a>
   <form id="form" autocomplete="on">
     <label>신청일 <input type="date" id="applyDate"></label>
     <label>성명 <input type="text" id="name" placeholder="홍길동" maxlength="20"></label>
