@@ -47,6 +47,16 @@
   .status-msg { margin: 0; font-size: 13px; color: #7A8177; min-height: 1.2em; }
   .toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: 90vw; text-align: center; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .mini-preview { position: fixed; right: 16px; bottom: 16px; z-index: 50; display: flex; flex-direction: column; align-items: center; gap: 4px; background: #fff; border: 1px solid #E8E6DE; border-radius: 12px; box-shadow: 0 2px 8px rgba(30,37,30,.18); padding: 6px 8px; cursor: pointer; }
+  .mini-preview[hidden] { display: none; }
+  .mini-preview canvas { width: 84px; height: 119px; display: block; border-radius: 6px; background: #FBFAF7; }
+  .mini-caption { font-size: 10px; color: #7A8177; font-weight: 600; white-space: nowrap; }
+  .preview-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; }
+  .preview-overlay[hidden] { display: none; }
+  .preview-overlay-backdrop { position: absolute; inset: 0; background: rgba(30,37,30,.72); }
+  .preview-overlay-content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 92vw; max-height: 92vh; }
+  .preview-overlay-content canvas { max-width: 92vw; max-height: 78vh; width: auto; height: auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.35); background: #fff; }
+  .preview-close-btn { height: 44px; padding: 0 24px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; border: none; background: #fff; color: #3C443B; }
 </style>
 </head>
 <body>
@@ -135,6 +145,19 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<div class="mini-preview" id="miniPreview" hidden>
+  <canvas id="miniCanvas" width="84" height="119"></canvas>
+  <div class="mini-caption">미리보기 · 탭하면 크게</div>
+</div>
+
+<div class="preview-overlay" id="previewOverlay" hidden>
+  <div class="preview-overlay-backdrop" id="previewBackdrop"></div>
+  <div class="preview-overlay-content">
+    <canvas id="largeCanvas" width="707" height="1000"></canvas>
+    <button type="button" class="preview-close-btn" id="previewCloseBtn">닫기</button>
+  </div>
+</div>
+
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -142,7 +165,7 @@
   // ---- 서식 이미지 로딩 ('loading' | 'ready' | 'error') ----
   var imageState = 'loading';
   var formImage = new Image();
-  formImage.onload = function () { imageState = 'ready'; syncButtons(); };
+  formImage.onload = function () { imageState = 'ready'; syncButtons(); markPreviewDirty(); };
   formImage.onerror = function () { imageState = 'error'; syncButtons(); };
   formImage.src = 'form.jpg';
 
@@ -174,6 +197,7 @@
     var blocked = imageState !== 'ready';
     $('sendBtn').disabled = blocked;
     $('saveBtn').disabled = blocked;
+    $('miniPreview').hidden = imageState !== 'ready';
     if (imageState === 'error') {
       setStatus('서식 이미지를 불러오지 못했습니다. 새로고침해 주세요.');
     } else if (imageState === 'loading') {
@@ -247,6 +271,7 @@
       b.lastPoint = getPoint(canvas, e);
       b.midPoint = null;
       canvas.setPointerCapture(e.pointerId);
+      markPreviewDirty();
     });
 
     canvas.addEventListener('pointermove', function (e) {
@@ -267,6 +292,7 @@
         b.midPoint = mid;
         b.lastPoint = pt;
       });
+      markPreviewDirty();
     });
 
     function end(e) {
@@ -275,6 +301,7 @@
       b.lastPoint = null;
       b.midPoint = null;
       b.activePointerId = null;
+      markPreviewDirty();
     }
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
@@ -325,11 +352,13 @@
       var canvas = document.getElementById(btn.dataset.target);
       var b = boards.find(function (x) { return x.canvas === canvas; });
       if (b) clearBoard(b);
+      markPreviewDirty();
     });
   });
 
   $('clearAllBtn').addEventListener('click', function () {
     boards.forEach(clearBoard);
+    markPreviewDirty();
   });
 
   // ---- 내보내기: 각 필드 잉크를 실제 서식(form.jpg) 위 해당 칸에 합성 ----
@@ -350,20 +379,70 @@
     ctx.drawImage(canvas, 0, 0, iw, ih, dx, dy, w, h);
   }
 
-  function buildComposite() {
-    var out = document.createElement('canvas');
-    out.width = 707;
-    out.height = 1000;
-    var ctx = out.getContext('2d');
-    ctx.drawImage(formImage, 0, 0, 707, 1000);
+  // 항상 존재하는 하나의 합성 캔버스. 미리보기와 내보내기가 동일한 결과를
+  // 보도록 이 캔버스만을 통해 렌더링한다.
+  var compositeCanvas = document.createElement('canvas');
+  compositeCanvas.width = 707;
+  compositeCanvas.height = 1000;
+  var compositeCtx = compositeCanvas.getContext('2d');
+
+  function renderComposite() {
+    if (imageState !== 'ready') return;
+    compositeCtx.clearRect(0, 0, 707, 1000);
+    compositeCtx.drawImage(formImage, 0, 0, 707, 1000);
     boards.forEach(function (b) {
       var key = b.canvas.id.replace(/^c-/, '');
       var cell = CELLS[key];
       if (!cell) return;
-      drawFieldInto(ctx, b.canvas, cell);
+      drawFieldInto(compositeCtx, b.canvas, cell);
     });
-    return out;
   }
+
+  function buildComposite() {
+    renderComposite();
+    return compositeCanvas;
+  }
+
+  // ---- 실시간 미니 미리보기 (더티 플래그 + rAF, 변경 없으면 재렌더링 안 함) ----
+  var previewDirty = false;
+  function markPreviewDirty() { previewDirty = true; }
+
+  var miniPreview = $('miniPreview');
+  var miniCanvas = $('miniCanvas');
+  var miniCtx = miniCanvas.getContext('2d');
+
+  function previewLoop() {
+    if (previewDirty && imageState === 'ready') {
+      previewDirty = false;
+      renderComposite();
+      miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
+      miniCtx.drawImage(compositeCanvas, 0, 0, 707, 1000, 0, 0, miniCanvas.width, miniCanvas.height);
+    }
+    requestAnimationFrame(previewLoop);
+  }
+  requestAnimationFrame(previewLoop);
+
+  // ---- 탭하면 크게 보기 ----
+  var previewOverlay = $('previewOverlay');
+  var largeCanvas = $('largeCanvas');
+
+  function openPreviewOverlay() {
+    if (imageState !== 'ready') return;
+    renderComposite();
+    var lctx = largeCanvas.getContext('2d');
+    lctx.clearRect(0, 0, largeCanvas.width, largeCanvas.height);
+    lctx.drawImage(compositeCanvas, 0, 0);
+    previewOverlay.hidden = false;
+  }
+  function closePreviewOverlay() {
+    previewOverlay.hidden = true;
+  }
+  miniPreview.addEventListener('click', openPreviewOverlay);
+  $('previewBackdrop').addEventListener('click', closePreviewOverlay);
+  $('previewCloseBtn').addEventListener('click', closePreviewOverlay);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !previewOverlay.hidden) closePreviewOverlay();
+  });
 
   function toJpegFile() {
     var stamp = new Date().toLocaleDateString('sv-SE').replace(/-/g, '');
