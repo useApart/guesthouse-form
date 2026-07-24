@@ -400,6 +400,18 @@
   $('saveBtn').addEventListener('click', function () {
     if (imageState !== 'ready') return;
     toJpegFile().then(function (file) {
+      // 폰에서는 <a download>로 사진함에 저장되지 않는다. 공유 시트를 열면
+      // 사용자가 '이미지 저장'을 눌러 사진함에 바로 저장할 수 있다.
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: '게스트하우스 신청서' }).then(function () {
+          setStatus('');
+        }).catch(function (err) {
+          if (err && err.name === 'AbortError') { setStatus(''); return; }
+          setStatus('저장하지 못했습니다. 다시 시도해 주세요.');
+        });
+        return;
+      }
+      // 공유 파일이 지원되지 않는 환경(주로 PC)에서는 파일로 내려받는다.
       downloadFile(file);
       setStatus('');
       showToast('저장했습니다.');

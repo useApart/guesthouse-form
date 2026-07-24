@@ -22,7 +22,7 @@
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   input[type="text"], input[type="tel"], input[type="date"] {
     height: 50px; width: 100%; border-radius: 12px; border: 1px solid #DDDBD2; padding: 0 14px;
-    font-size: 15px; font-family: inherit; color: #1E251E; background: #fff;
+    font-size: 16px; font-family: inherit; color: #1E251E; background: #fff;
   }
   input[type="date"] { background: #FBFAF7; }
   input.date-in[readonly] { cursor: pointer; background: #FBFAF7; }
@@ -129,17 +129,17 @@
 
         <div class="field">
           <label for="name">성명</label>
-          <input type="text" id="name" placeholder="홍길동" maxlength="20">
+          <input type="text" id="name" placeholder="이름을 입력하세요" maxlength="20">
         </div>
 
         <div class="row2">
           <div class="field">
             <label for="unit">동·호수</label>
-            <input type="text" id="unit" placeholder="101동 1001호" maxlength="20">
+            <input type="text" id="unit" placeholder="예: 101동 1201호" maxlength="20">
           </div>
           <div class="field">
             <label for="phone">연락처</label>
-            <input type="tel" id="phone" placeholder="010-1234-5678" maxlength="20">
+            <input type="tel" id="phone" placeholder="010-0000-0000" maxlength="20">
           </div>
         </div>
 
@@ -473,6 +473,13 @@ $('share').addEventListener('click', async () => {
 $('download').addEventListener('click', async () => {
   try {
     const file = await toJpegFile();
+    // 폰(iOS/안드로이드)에서는 <a download>로는 사진함에 저장되지 않는다.
+    // 공유 시트를 열면 사용자가 '이미지 저장'을 눌러 사진함에 바로 저장할 수 있다.
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: '게스트하우스 신청서' });
+      return;
+    }
+    // 공유 파일이 지원되지 않는 환경(주로 PC)에서는 파일로 내려받는다.
     const url = URL.createObjectURL(file);
     const a = document.createElement('a');
     a.href = url;
@@ -483,6 +490,7 @@ $('download').addEventListener('click', async () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     showToast('저장했습니다.');
   } catch (err) {
+    if (err.name === 'AbortError') { return; }
     showToast(`이미지를 만들지 못했습니다: ${err.message}`);
   }
 });
@@ -674,7 +682,8 @@ for (const id of ['applyDate', 'deposit', 'checkIn', 'checkOut']) {
   el.addEventListener('focus', () => openCalendar(el));
 }
 
-const ACCOUNT_NUMBER = '85690100129046'; // 하이픈 없는 값. 금융앱이 하이픈을 거부하는 경우가 있다.
+// 토스·카카오페이 등의 '붙여넣기'가 은행과 계좌번호를 함께 인식하도록 은행명을 붙여 복사한다.
+const ACCOUNT_NUMBER = '국민은행 856901-00-129046';
 
 async function copyText(text, button) {
   const original = button.dataset.label || button.textContent;
