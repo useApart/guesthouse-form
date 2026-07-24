@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { countNights, calcAmount, RATE } from './calc.js';
+import { countNights, calcAmount } from './calc.js';
 
 // 2026-07-27(월) ~ 2026-07-29(수): 월·화 두 밤 모두 평일
 test('평일 2박 2인은 70,000원', () => {
@@ -23,7 +23,7 @@ test('금·토 2박 2인은 80,000원', () => {
 test('목·금 2박 4인은 95,000원', () => {
   assert.equal(
     calcAmount({ checkIn: '2026-07-23', checkOut: '2026-07-25', people: 4, holiday: false }),
-    35000 + 40000 + 2 * RATE.EXTRA_PER_PERSON_NIGHT * 2
+    95000
   );
 });
 
@@ -46,4 +46,20 @@ test('퇴실일이 입실일보다 빠르거나 같으면 0박 0원', () => {
 test('날짜가 비어 있으면 0박 0원', () => {
   assert.equal(countNights('', ''), 0);
   assert.equal(calcAmount({ checkIn: '', checkOut: '', people: 2, holiday: false }), 0);
+});
+
+test('존재하지 않는 날짜(2026-02-30)는 무효 처리되어 0박 0원', () => {
+  assert.equal(countNights('2026-02-30', '2026-03-05'), 0);
+  assert.equal(
+    calcAmount({ checkIn: '2026-02-30', checkOut: '2026-03-05', people: 2, holiday: false }),
+    0
+  );
+});
+
+test('범위를 벗어난 월(2026-13-45)은 무효 처리되어 0박 0원', () => {
+  assert.equal(countNights('2026-13-45', '2026-07-29'), 0);
+  assert.equal(
+    calcAmount({ checkIn: '2026-13-45', checkOut: '2026-07-29', people: 2, holiday: false }),
+    0
+  );
 });

@@ -12,7 +12,11 @@ function parseDate(s) {
   if (!s) return null;
   const [y, m, d] = s.split('-').map(Number);
   if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d);
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const date = new Date(y, m - 1, d);
+  // 존재하지 않는 날짜(예: 2026-02-30)는 다음 달로 넘어가므로, 되돌려 확인해 걸러낸다.
+  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+  return date;
 }
 
 export function countNights(checkIn, checkOut) {
