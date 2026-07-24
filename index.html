@@ -26,6 +26,13 @@
   }
   .summary { margin: 0; font-size: 13px; color: #555; }
   .warning { margin: 0; font-size: 13px; color: #c0392b; font-weight: bold; }
+  .actions { display: grid; grid-auto-flow: column; gap: 8px; margin-bottom: 12px; }
+  button {
+    font: inherit; font-size: 15px; padding: 12px; border-radius: 6px;
+    border: 1px solid #c4c7cc; background: #fff; cursor: pointer;
+  }
+  button.primary { background: #2f6fed; border-color: #2f6fed; color: #fff; font-weight: bold; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -54,6 +61,11 @@
     <p id="summary" class="summary"></p>
     <p id="warning" class="warning" hidden></p>
   </form>
+  <div class="actions">
+    <button type="button" id="share" class="primary">이미지 만들어 보내기</button>
+    <button type="button" id="download">이미지 저장</button>
+  </div>
+  <p id="status" class="summary"></p>
   <canvas id="canvas" width="707" height="1000"></canvas>
 </main>
 
@@ -173,7 +185,77 @@ function render() {
   }
 
   drawForm(formatValues(v, nights));
+  syncButtons();
 }
+
+const REQUIRED = {
+  name: '성명',
+  unit: '동·호수',
+  phone: '연락처',
+  checkIn: '입실일',
+  checkOut: '퇴실일',
+};
+
+function missingFields(v) {
+  return Object.entries(REQUIRED).filter(([k]) => !v[k]).map(([, label]) => label);
+}
+
+function toJpegFile() {
+  const v = readValues();
+  const stamp = (v.applyDate || '').replace(/-/g, '') || 'form';
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return reject(new Error('이미지 생성에 실패했습니다.'));
+        resolve(new File([blob], `게스트하우스신청서_${stamp}.jpg`, { type: 'image/jpeg' }));
+      },
+      'image/jpeg',
+      0.92
+    );
+  });
+}
+
+function setStatus(msg) { $('status').textContent = msg; }
+
+// 필수값이 비면 버튼을 잠근다. render 끝에서 호출한다.
+function syncButtons() {
+  const missing = missingFields(readValues());
+  const blocked = missing.length > 0;
+  $('share').disabled = blocked;
+  $('download').disabled = blocked;
+  setStatus(blocked ? `입력이 필요합니다: ${missing.join(', ')}` : '');
+}
+
+$('share').addEventListener('click', async () => {
+  try {
+    const file = await toJpegFile();
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: '게스트하우스 신청서' });
+      setStatus('');
+      return;
+    }
+    setStatus('이 브라우저는 공유를 지원하지 않습니다. "이미지 저장"을 눌러 주세요.');
+  } catch (err) {
+    // 사용자가 공유 시트를 닫은 경우는 오류가 아니다.
+    if (err.name === 'AbortError') return;
+    setStatus(`이미지를 만들지 못했습니다: ${err.message}`);
+  }
+});
+
+$('download').addEventListener('click', async () => {
+  try {
+    const file = await toJpegFile();
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus('저장했습니다.');
+  } catch (err) {
+    setStatus(`이미지를 만들지 못했습니다: ${err.message}`);
+  }
+});
 
 $('form').addEventListener('input', render);
 
