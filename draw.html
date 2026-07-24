@@ -265,6 +265,46 @@
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
+  // 문지르기(빙빙) 감지: 최근 궤적이 좁은 영역 안에서 방향을 여러 번 되꺾으면
+  // 지우개 제스처로 본다. (애플 노트 scribble-to-erase 방식)
+  var SCRUB_WINDOW_MS = 600;   // 최근 이 시간의 궤적만 검사
+  var SCRUB_MAX_SPAN = 48;     // 이 크기(px) 안에 갇혀 있을 때만 문지르기로 인정
+  var SCRUB_MIN_FLIPS = 4;     // 방향 되꺾임이 이 횟수 이상이면 지우기
+  var SCRUB_ERASE_R = 26;      // 문질러 지우는 붓 지름(px)
+
+  function detectScrub(trail) {
+    if (trail.length < 6) return false;
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    var flips = 0, prevdx = 0, prevdy = 0, haveprev = false;
+    for (var i = 0; i < trail.length; i++) {
+      var p = trail[i];
+      if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+      if (i > 0) {
+        var dx = p.x - trail[i - 1].x, dy = p.y - trail[i - 1].y;
+        if (dx * dx + dy * dy >= 4) { // 손떨림(2px 미만) 무시
+          if (haveprev && (dx * prevdx + dy * prevdy) < 0) flips++; // 90도 넘게 꺾임
+          prevdx = dx; prevdy = dy; haveprev = true;
+        }
+      }
+    }
+    if ((maxX - minX) > SCRUB_MAX_SPAN || (maxY - minY) > SCRUB_MAX_SPAN) return false;
+    return flips >= SCRUB_MIN_FLIPS;
+  }
+
+  function eraseSegment(b, from, to, width) {
+    b.ctx.save();
+    b.ctx.globalCompositeOperation = 'destination-out';
+    b.ctx.lineCap = 'round';
+    b.ctx.lineJoin = 'round';
+    b.ctx.lineWidth = width || SCRUB_ERASE_R;
+    b.ctx.beginPath();
+    b.ctx.moveTo(from.x, from.y);
+    b.ctx.lineTo(to.x, to.y);
+    b.ctx.stroke();
+    b.ctx.restore();
+  }
+
   function attachEvents(b) {
     var canvas = b.canvas;
 
@@ -279,6 +319,8 @@
       b.drawing = true;
       b.lastPoint = getPoint(canvas, e);
       b.midPoint = null;
+      b.trail = [{ x: b.lastPoint.x, y: b.lastPoint.y, t: e.timeStamp }];
+      b.scrubbing = false;
       canvas.setPointerCapture(e.pointerId);
       markPreviewDirty();
     });
@@ -288,17 +330,34 @@
       e.preventDefault();
       var points = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
       if (!points.length) points = [e];
-      b.ctx.globalCompositeOperation = eraser ? 'destination-out' : 'source-over';
       b.ctx.strokeStyle = color;
-      b.ctx.lineWidth = eraser ? thickness * 5 : thickness;
       points.forEach(function (ev) {
         var pt = getPoint(canvas, ev);
-        var mid = { x: (b.lastPoint.x + pt.x) / 2, y: (b.lastPoint.y + pt.y) / 2 };
-        b.ctx.beginPath();
-        b.ctx.moveTo(b.midPoint ? b.midPoint.x : b.lastPoint.x, b.midPoint ? b.midPoint.y : b.lastPoint.y);
-        b.ctx.quadraticCurveTo(b.lastPoint.x, b.lastPoint.y, mid.x, mid.y);
-        b.ctx.stroke();
-        b.midPoint = mid;
+
+        // 궤적 기록(최근 SCRUB_WINDOW_MS만 유지) 후 문지르기 여부 판정
+        b.trail.push({ x: pt.x, y: pt.y, t: ev.timeStamp });
+        var cutoff = ev.timeStamp - SCRUB_WINDOW_MS;
+        while (b.trail.length > 2 && b.trail[0].t < cutoff) b.trail.shift();
+        if (!b.scrubbing && !eraser && detectScrub(b.trail)) {
+          b.scrubbing = true;
+          // 문지른 궤적 위에 이미 그려진 잉크(방금 그은 낙서 포함)를 지운다.
+          for (var i = 1; i < b.trail.length; i++) eraseSegment(b, b.trail[i - 1], b.trail[i]);
+        }
+
+        if (eraser) {
+          eraseSegment(b, b.lastPoint, pt, thickness * 5);
+        } else if (b.scrubbing) {
+          eraseSegment(b, b.lastPoint, pt);
+        } else {
+          b.ctx.globalCompositeOperation = 'source-over';
+          b.ctx.lineWidth = thickness;
+          var mid = { x: (b.lastPoint.x + pt.x) / 2, y: (b.lastPoint.y + pt.y) / 2 };
+          b.ctx.beginPath();
+          b.ctx.moveTo(b.midPoint ? b.midPoint.x : b.lastPoint.x, b.midPoint ? b.midPoint.y : b.lastPoint.y);
+          b.ctx.quadraticCurveTo(b.lastPoint.x, b.lastPoint.y, mid.x, mid.y);
+          b.ctx.stroke();
+          b.midPoint = mid;
+        }
         b.lastPoint = pt;
       });
       markPreviewDirty();
