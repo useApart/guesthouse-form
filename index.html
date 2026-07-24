@@ -224,7 +224,8 @@ function render() {
 
   $('summary').textContent = nights
     ? `${nights}박 ${v.people}명 · ${amountEdited ? '직접 입력' : '자동 계산'} ${v.amount.toLocaleString('ko-KR')}원`
-    : '입실일과 퇴실일을 선택하세요.';
+    // 날짜가 둘 다 채워졌는데 0박이면 역전 상태다. 그 안내는 #status가 맡으므로 여기선 비운다.
+    : (v.checkIn && v.checkOut ? '' : '입실일과 퇴실일을 선택하세요.');
 
   const warn = $('warning');
   // 퇴실일<=입실일 상태의 안내는 #status(syncButtons)에서만 표시한다 — 여기서 같은 문장을 또 띄우지 않는다.
