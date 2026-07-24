@@ -67,9 +67,10 @@
     <p id="summary" class="summary"></p>
     <p id="warning" class="warning" hidden></p>
   </form>
+  <canvas id="canvas" width="707" height="1000"></canvas>
   <div class="actions">
-    <button type="button" id="share" class="primary">이미지 만들어 보내기</button>
-    <button type="button" id="download">이미지 저장</button>
+    <button type="button" id="share" class="primary" disabled>이미지 만들어 보내기</button>
+    <button type="button" id="download" disabled>이미지 저장</button>
   </div>
   <p id="status" class="summary"></p>
   <section class="bank">
@@ -82,7 +83,6 @@
       <button type="button" id="copyAmount">금액 복사</button>
     </div>
   </section>
-  <canvas id="canvas" width="707" height="1000"></canvas>
 </main>
 
 <script type="module">
@@ -103,15 +103,31 @@ const POS = {
   people:    { x: 560, y: 370, maxWidth: 145 },
 };
 
+// 'loading' | 'ready' | 'error'. 이미지가 준비되지 않은 동안은 버튼을 잠그고 캔버스에 아무것도 그리지 않는다.
+let imageState = 'loading';
+
 const formImage = new Image();
 const imageReady = new Promise((resolve, reject) => {
-  formImage.onload = resolve;
-  formImage.onerror = () => reject(new Error('서식 이미지를 불러오지 못했습니다.'));
+  formImage.onload = () => { imageState = 'ready'; resolve(); };
+  formImage.onerror = () => {
+    imageState = 'error';
+    reject(new Error('서식 이미지를 불러오지 못했습니다.'));
+  };
 });
 formImage.src = 'form.jpg';
 
 function drawForm(text) {
-  ctx.drawImage(formImage, 0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // 준비 전/실패 시에는 그리지 않고 멈춘다. 이 상태에서 내보내기가 아예 불가능하도록
+  // 만드는 것은 syncButtons()의 버튼 잠금이며, 여기서는 오래된 내용만 지운다.
+  if (imageState !== 'ready') return;
+  try {
+    ctx.drawImage(formImage, 0, 0, canvas.width, canvas.height);
+  } catch {
+    // drawImage가 InvalidStateError를 던지는 경우(이미지가 깨진 상태). render()가 여기서 멈추지 않도록 흡수한다.
+    imageState = 'error';
+    return;
+  }
   ctx.fillStyle = '#000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -169,17 +185,24 @@ function formatValues(v, nights) {
 
 // 사용자가 금액을 직접 고쳤는지 추적한다. 고쳤다면 자동 계산으로 덮어쓰지 않는다.
 let amountEdited = false;
+// 사용자가 금액 칸에 포커스를 두고 있는 동안은 절대 값을 다시 쓰지 않는다(캐럿 점프·자리수 밀림 방지).
+let amountFocused = false;
 $('amount').addEventListener('input', () => {
   // 숫자를 모두 지워 빈 값으로 돌아가면 자동 계산 모드로 복귀한다.
+  // render()는 여기서 부르지 않는다 — #form의 버블링 input 리스너가 한 번만 호출한다.
   amountEdited = /[0-9]/.test($('amount').value);
-  render();
+});
+$('amount').addEventListener('focus', () => { amountFocused = true; });
+$('amount').addEventListener('blur', () => {
+  amountFocused = false;
+  render(); // 자리를 떠났고 필드를 비웠다면 즉시 자동 계산으로 복귀시킨다.
 });
 
 function render() {
   const v = readValues();
   const nights = countNights(v.checkIn, v.checkOut);
 
-  if (!amountEdited) {
+  if (!amountEdited && !amountFocused) {
     const auto = calcAmount(v);
     $('amount').value = auto ? auto.toLocaleString('ko-KR') : '';
     v.amount = auto;
@@ -234,18 +257,23 @@ function toJpegFile() {
 
 function setStatus(msg) { $('status').textContent = msg; }
 
-// 필수값이 비거나 숙박일수가 0이면 버튼을 잠근다. render 끝에서 호출한다.
+// 필수값이 비거나 숙박일수가 0이거나 서식 이미지가 준비되지 않았으면 버튼을 잠근다.
+// render()의 마지막 줄뿐 아니라 이미지 로딩 완료/실패 시에도 별도로 호출된다.
 function syncButtons() {
   const v = readValues();
   const missing = missingFields(v);
   const invalidStay = v.checkIn && v.checkOut && countNights(v.checkIn, v.checkOut) === 0;
-  const blocked = missing.length > 0 || invalidStay;
+  const blocked = imageState !== 'ready' || missing.length > 0 || invalidStay;
   $('share').disabled = blocked;
   $('download').disabled = blocked;
-  if (missing.length > 0) {
+  if (imageState === 'error') {
+    setStatus('서식 이미지를 불러오지 못했습니다. 새로고침해 주세요.');
+  } else if (missing.length > 0) {
     setStatus(`입력이 필요합니다: ${missing.join(', ')}`);
   } else if (invalidStay) {
     setStatus('퇴실일은 입실일보다 뒤여야 합니다.');
+  } else if (imageState === 'loading') {
+    setStatus('서식 이미지를 불러오는 중입니다...');
   } else {
     setStatus('');
   }
@@ -263,7 +291,9 @@ $('share').addEventListener('click', async () => {
   } catch (err) {
     // 사용자가 공유 시트를 닫은 경우는 오류가 아니다.
     if (err.name === 'AbortError') { setStatus(''); return; }
-    setStatus(`이미지를 만들지 못했습니다: ${err.message}`);
+    // iOS 사파리 등에서 사용자 제스처 타이밍 문제로 공유가 실패하는 사례가 흔하다.
+    // 영어 브라우저 오류 대신 대안 행동을 안내한다.
+    setStatus('공유하지 못했습니다. "이미지 저장"을 눌러 저장한 뒤 문자메시지에 직접 첨부해 주세요.');
   }
 });
 
@@ -283,6 +313,8 @@ $('download').addEventListener('click', async () => {
 });
 
 $('form').addEventListener('input', render);
+// select/checkbox의 input 이벤트가 일부 구형 WebKit/WebView에서 누락되는 경우를 대비한 보강.
+$('form').addEventListener('change', render);
 
 // 신청일 기본값은 오늘.
 $('applyDate').value = new Date().toLocaleDateString('sv-SE'); // sv-SE는 YYYY-MM-DD 형식
@@ -356,8 +388,10 @@ for (const id of SAVED_FIELDS) {
 
 restoreSaved();
 
-await imageReady;
-render();
+// 최상위 await를 쓰지 않는다 — Safari 15+/Chrome 89+ 미만에서는 모듈 전체가 파싱 실패해
+// 아무 리스너도 붙지 않는 채로 죽어버린다. .then/.catch만으로 같은 순서를 보장한다.
+render(); // 이미지가 아직 로딩 중이어도 요약/경고 텍스트와 버튼 잠금 상태를 즉시 반영한다.
+imageReady.then(render).catch(() => { syncButtons(); });
 </script>
 </body>
 </html>
