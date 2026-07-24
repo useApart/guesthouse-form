@@ -64,7 +64,8 @@
   .account .num { font-size: 15px; font-weight: 700; }
   .account .name { font-size: 13px; color: #7A8177; margin-top: 2px; }
   .copy-btn { height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid #D8D6CD; background: #fff; color: #3C443B; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
-  .clear-link { align-self: center; margin-top: 4px; background: none; border: none; color: #9A9F92; font-size: 13px; cursor: pointer; text-decoration: underline; font-family: inherit; }
+  .clear-link { background: none; border: none; color: #9A9F92; font-size: 13px; cursor: pointer; text-decoration: underline; font-family: inherit; padding: 4px 2px; }
+  .top-actions { display: flex; justify-content: flex-end; margin: -12px 0 14px; }
   .toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: 90vw; text-align: center; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
@@ -80,6 +81,10 @@
       <a href="draw.html" style="text-decoration:none; flex:1;">
         <button class="tab" type="button" style="width:100%;">손으로 직접 쓰기</button>
       </a>
+    </div>
+
+    <div class="top-actions">
+      <button type="button" class="clear-link" id="clearSaved">저장정보 초기화</button>
     </div>
 
     <div class="card">
@@ -169,8 +174,6 @@
         </div>
         <button type="button" class="copy-btn" id="copyAccount">계좌번호 복사</button>
       </div>
-
-      <button type="button" class="clear-link" id="clearSaved">저장값 지우기 (성명·동호수·연락처)</button>
     </div>
   </div>
 </div>
