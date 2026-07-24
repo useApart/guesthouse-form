@@ -43,6 +43,9 @@
     justify-self: start; background: none; border: none; padding: 4px 0;
     font-size: 12px; color: #888; text-decoration: underline; cursor: pointer;
   }
+  .clear-btn {
+    width: 100%; min-height: 44px; color: #a03d3d; border-color: #d9b3b3; background: #fff;
+  }
 </style>
 </head>
 <body>
@@ -69,6 +72,7 @@
       <input type="text" id="amount" inputmode="numeric" placeholder="자동 계산">
     </label>
     <button type="button" id="resetAmount" class="link-btn" hidden>자동 계산으로 되돌리기</button>
+    <label>은행입금일 <input type="date" id="deposit"></label>
     <p id="summary" class="summary"></p>
     <p id="warning" class="warning" hidden></p>
   </form>
@@ -85,9 +89,8 @@
     </div>
     <div class="actions">
       <button type="button" id="copyAccount">계좌번호 복사</button>
-      <button type="button" id="copyAmount">금액 복사</button>
     </div>
-    <button type="button" id="clearSaved" class="link-btn">저장값 지우기 (성명·동호수·연락처)</button>
+    <button type="button" id="clearSaved" class="clear-btn">저장값 지우기 (성명·동호수·연락처)</button>
   </section>
 </main>
 
@@ -107,6 +110,7 @@ const POS = {
   nights:    { x: 560, y: 337, maxWidth: 145 },
   amount:    { x: 301, y: 370, maxWidth: 136 },
   people:    { x: 560, y: 370, maxWidth: 145 },
+  deposit:   { x: 301, y: 471, maxWidth: 136 },
 };
 
 // 'loading' | 'ready' | 'error'. 이미지가 준비되지 않은 동안은 버튼을 잠그고 캔버스에 아무것도 그리지 않는다.
@@ -167,14 +171,26 @@ function readValues() {
     holiday: $('holiday').checked,
     amount: Number($('amount').value.replace(/[^0-9]/g, '')),
     amountEntered: /[0-9]/.test($('amount').value),
+    deposit: $('deposit').value,
   };
 }
 
-// 'YYYY-MM-DD' -> 'M/D'. 사용기간 칸이 좁아 연도는 넣지 않는다.
-function shortDate(s) {
+// 입실일·퇴실일로 사용기간 문자열을 만든다. 칸이 136px로 좁아 'YYYY-MM-DD ~ YYYY-MM-DD'를
+// 그대로 넣으면 폰트가 심하게 줄어든다. 그래서 연도는 앞에 한 번만 쓰고 월·일의 앞자리 0은
+// 뗀다. 연도가 바뀌는 경우(예: 12월→1월)에만 뒤쪽 날짜에도 연도를 붙인다.
+function shortDate(checkIn, checkOut) {
+  if (!checkIn || !checkOut) return '';
+  const [y1, m1, d1] = checkIn.split('-').map(Number);
+  const [y2, m2, d2] = checkOut.split('-').map(Number);
+  const end = y1 === y2 ? `${m2}.${d2}` : `${y2}.${m2}.${d2}`;
+  return `${y1}.${m1}.${d1} ~ ${end}`;
+}
+
+// 'YYYY-MM-DD' -> 'YYYY.M.D'. 은행입금일 칸(136px)도 사용기간과 같은 이유로 앞자리 0을 뗀다.
+function compactDate(s) {
   if (!s) return '';
-  const [, m, d] = s.split('-');
-  return `${Number(m)}/${Number(d)}`;
+  const [y, m, d] = s.split('-').map(Number);
+  return `${y}.${m}.${d}`;
 }
 
 function formatValues(v, nights) {
@@ -183,10 +199,11 @@ function formatValues(v, nights) {
     name: v.name,
     unit: v.unit,
     phone: v.phone,
-    period: v.checkIn && v.checkOut ? `${shortDate(v.checkIn)} ~ ${shortDate(v.checkOut)}` : '',
+    period: v.checkIn && v.checkOut ? shortDate(v.checkIn, v.checkOut) : '',
     nights: nights ? `${nights}박` : '',
     amount: v.amountEntered ? `${v.amount.toLocaleString('ko-KR')}원` : '',
     people: v.people ? `${v.people}명` : '',
+    deposit: v.deposit ? compactDate(v.deposit) : '',
   };
 }
 
@@ -370,11 +387,6 @@ async function copyText(text, button) {
 }
 
 $('copyAccount').addEventListener('click', (e) => copyText(ACCOUNT_NUMBER, e.currentTarget));
-$('copyAmount').addEventListener('click', (e) => {
-  const amount = readValues().amount;
-  if (!amount) { setStatus('금액이 아직 계산되지 않았습니다.'); return; }
-  copyText(String(amount), e.currentTarget); // 콤마·단위 없는 숫자만
-});
 
 const STORE_KEY = 'guesthouse-form';
 const SAVED_FIELDS = ['name', 'unit', 'phone']; // 매번 같은 값만 저장한다. 날짜·인원·금액은 제외.
