@@ -162,7 +162,7 @@
 <div class="preview-overlay" id="previewOverlay" hidden>
   <div class="preview-overlay-backdrop" id="previewBackdrop"></div>
   <div class="preview-overlay-content">
-    <canvas id="largeCanvas" width="707" height="1000"></canvas>
+    <canvas id="largeCanvas" width="1414" height="2000"></canvas>
     <button type="button" class="preview-close-btn" id="previewCloseBtn">닫기</button>
   </div>
 </div>
@@ -390,14 +390,20 @@
 
   // 항상 존재하는 하나의 합성 캔버스. 미리보기와 내보내기가 동일한 결과를
   // 보도록 이 캔버스만을 통해 렌더링한다.
+  // 최종 이미지를 서식 좌표(707x1000)의 SS배 해상도로 렌더한다.
+  // 손글씨 잉크가 저해상도로 굳어 계단처럼 깨지는 것을 줄이기 위한 슈퍼샘플링.
+  var SS = 2;
   var compositeCanvas = document.createElement('canvas');
-  compositeCanvas.width = 707;
-  compositeCanvas.height = 1000;
+  compositeCanvas.width = 707 * SS;
+  compositeCanvas.height = 1000 * SS;
   var compositeCtx = compositeCanvas.getContext('2d');
 
   function renderComposite() {
     if (imageState !== 'ready') return;
+    // 707x1000 좌표계로 그리되 SS배로 확대 출력한다(CELLS 좌표 그대로 사용).
+    compositeCtx.setTransform(SS, 0, 0, SS, 0, 0);
     compositeCtx.clearRect(0, 0, 707, 1000);
+    compositeCtx.imageSmoothingQuality = 'high';
     compositeCtx.drawImage(formImage, 0, 0, 707, 1000);
     boards.forEach(function (b) {
       var key = b.canvas.id.replace(/^c-/, '');
@@ -425,7 +431,7 @@
       previewDirty = false;
       renderComposite();
       miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
-      miniCtx.drawImage(compositeCanvas, 0, 0, 707, 1000, 0, 0, miniCanvas.width, miniCanvas.height);
+      miniCtx.drawImage(compositeCanvas, 0, 0, compositeCanvas.width, compositeCanvas.height, 0, 0, miniCanvas.width, miniCanvas.height);
     }
     requestAnimationFrame(previewLoop);
   }
