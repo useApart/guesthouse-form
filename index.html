@@ -87,11 +87,11 @@
         <div class="row2">
           <div class="field">
             <label for="applyDate">신청일</label>
-            <input type="date" id="applyDate">
+            <input type="text" id="applyDate" inputmode="numeric" placeholder="2026-07-25" maxlength="10" class="date-in">
           </div>
           <div class="field">
             <label for="deposit">은행입금일</label>
-            <input type="date" id="deposit">
+            <input type="text" id="deposit" inputmode="numeric" placeholder="2026-07-25" maxlength="10" class="date-in">
           </div>
         </div>
 
@@ -114,11 +114,11 @@
         <div class="row2">
           <div class="field">
             <label for="checkIn">입실일</label>
-            <input type="date" id="checkIn">
+            <input type="text" id="checkIn" inputmode="numeric" placeholder="2026-07-25" maxlength="10" class="date-in">
           </div>
           <div class="field">
             <label for="checkOut">퇴실일</label>
-            <input type="date" id="checkOut">
+            <input type="text" id="checkOut" inputmode="numeric" placeholder="2026-07-25" maxlength="10" class="date-in">
           </div>
         </div>
 
@@ -277,7 +277,7 @@ function compactDate(s) {
 
 function formatValues(v, nights) {
   return {
-    applyDate: v.applyDate ? v.applyDate.replace(/-/g, '. ') : '',
+    applyDate: v.applyDate ? compactDate(v.applyDate) : '',
     name: v.name,
     unit: v.unit,
     phone: v.phone,
@@ -479,6 +479,21 @@ $('phone').addEventListener('input', (e) => {
   const formatted = formatPhone(e.target.value);
   if (formatted !== e.target.value) e.target.value = formatted;
 });
+
+// 날짜는 년-월-일 순서를 기기 설정과 무관하게 고정하기 위해 직접 입력으로 받는다.
+// 숫자만 남겨 YYYY-MM-DD 형태로 하이픈을 자동으로 끼운다.
+function formatDateInput(value) {
+  const d = value.replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 4) return d;
+  if (d.length <= 6) return `${d.slice(0, 4)}-${d.slice(4)}`;
+  return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}`;
+}
+for (const id of ['applyDate', 'deposit', 'checkIn', 'checkOut']) {
+  $(id).addEventListener('input', (e) => {
+    const f = formatDateInput(e.target.value);
+    if (f !== e.target.value) e.target.value = f;
+  });
+}
 
 const ACCOUNT_NUMBER = '85690100129046'; // 하이픈 없는 값. 금융앱이 하이픈을 거부하는 경우가 있다.
 
