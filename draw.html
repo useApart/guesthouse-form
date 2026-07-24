@@ -279,6 +279,14 @@
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
     canvas.addEventListener('pointerleave', end);
+
+    // iOS Safari 롱프레스 선택/콜아웃 팝업 차단: 콜아웃은 touch 제스처 레벨이라
+    // pointer 이벤트 preventDefault로는 안 막힌다. touch 이벤트에서 직접 막는다.
+    var block = function (e) { e.preventDefault(); };
+    canvas.addEventListener('touchstart', block, { passive: false });
+    canvas.addEventListener('touchmove', block, { passive: false });
+    canvas.addEventListener('touchend', block, { passive: false });
+    canvas.addEventListener('contextmenu', block);
   }
 
   $('swatches').addEventListener('click', function (e) {
