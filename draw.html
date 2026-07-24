@@ -35,6 +35,13 @@
   .field-box.wide .canvas-wrap canvas { height: 76px; }
   .field-box.period .canvas-wrap canvas { height: 110px; }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  /* 폰: 2칸 나란히를 세로 스택으로 펴서 전체폭 확보 + 필기 칸 높이 확대 */
+  @media (max-width: 520px) {
+    .row2 { grid-template-columns: 1fr; }
+    .field-box.small .canvas-wrap canvas { height: 96px; }
+    .field-box.wide .canvas-wrap canvas { height: 112px; }
+    .field-box.period .canvas-wrap canvas { height: 150px; }
+  }
   .btn-row { display: flex; gap: 10px; margin-top: 6px; }
   .btn { flex: 1; height: 52px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; border: none; }
   .btn-primary { background: #1F6D57; color: #fff; }
