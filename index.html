@@ -1,101 +1,180 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>게스트하우스 신청서</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
 <style>
   * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 16px;
-    font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
-    background: #f4f5f7; color: #222;
+  body { margin: 0; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; background: #F5F4F0; color: #1E251E; }
+  .wrap { min-height: 100vh; display: flex; justify-content: center; padding: 32px 16px 64px; }
+  .inner { width: 100%; max-width: 560px; }
+  .eyebrow { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: .02em; color: #7A8177; margin-bottom: 6px; }
+  h1 { text-align: center; margin: 0 0 24px; font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
+  .tabs { display: flex; background: #EAE8E1; border-radius: 14px; padding: 4px; margin-bottom: 20px; gap: 4px; }
+  .tab { flex: 1; height: 44px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; background: transparent; color: #7A8177; }
+  .tab.active { background: #fff; color: #1F6D57; box-shadow: 0 1px 2px rgba(30,37,30,.08); }
+  .card { background: #fff; border-radius: 20px; border: 1px solid #E8E6DE; box-shadow: 0 1px 3px rgba(30,37,30,.04); padding: 28px 24px; display: flex; flex-direction: column; gap: 18px; }
+  form { display: flex; flex-direction: column; gap: 18px; }
+  label { font-size: 14px; font-weight: 600; color: #3C443B; display: block; margin-bottom: 6px; }
+  .field { display: flex; flex-direction: column; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  input[type="text"], input[type="tel"], input[type="date"] {
+    height: 50px; width: 100%; border-radius: 12px; border: 1px solid #DDDBD2; padding: 0 14px;
+    font-size: 15px; font-family: inherit; color: #1E251E; background: #fff;
   }
-  main { max-width: 480px; margin: 0 auto; }
-  h1 { font-size: 20px; margin: 0 0 8px; }
-  .back-link { display: inline-block; margin-bottom: 16px; font-size: 13px; color: #2f6fed; text-decoration: none; }
-  .back-link:hover { text-decoration: underline; }
-  canvas {
-    width: 100%; height: auto; display: block;
-    border: 1px solid #ccc; background: #fff;
-  }
-  form { display: grid; gap: 10px; margin-bottom: 16px; }
-  label { display: grid; gap: 4px; font-size: 13px; color: #555; }
-  label.check { grid-auto-flow: column; justify-content: start; align-items: center; gap: 6px; }
-  input, select {
-    font: inherit; font-size: 16px; /* 16px 미만이면 iOS가 focus 시 확대한다 */
-    padding: 9px 10px; border: 1px solid #c4c7cc; border-radius: 6px; background: #fff;
-  }
-  .summary { margin: 0; font-size: 13px; color: #555; }
-  .warning { margin: 0; font-size: 13px; color: #c0392b; font-weight: bold; }
-  .actions { display: grid; grid-auto-flow: column; gap: 8px; margin-bottom: 12px; }
-  button {
-    font: inherit; font-size: 15px; padding: 12px; border-radius: 6px;
-    border: 1px solid #c4c7cc; background: #fff; cursor: pointer;
-  }
-  button.primary { background: #2f6fed; border-color: #2f6fed; color: #fff; font-weight: bold; }
-  button:disabled { opacity: 0.45; cursor: not-allowed; }
-  .bank {
-    display: grid; gap: 8px; margin-bottom: 16px; padding: 12px;
-    background: #fff; border: 1px solid #d8dade; border-radius: 6px;
-  }
-  .bank strong { display: block; font-size: 15px; }
-  .bank span { font-size: 12px; color: #666; }
+  input[type="date"] { background: #FBFAF7; }
+  .amount-wrap { position: relative; }
+  .amount-wrap span { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; color: #7A8177; }
+  .amount-wrap input { padding-right: 40px; }
   .link-btn {
-    justify-self: start; background: none; border: none; padding: 4px 0;
-    font-size: 12px; color: #888; text-decoration: underline; cursor: pointer;
+    align-self: flex-start; background: none; border: none; padding: 4px 0; margin-top: -8px;
+    font-size: 12px; color: #7A8177; text-decoration: underline; cursor: pointer; font-family: inherit;
   }
-  .clear-btn {
-    width: 100%; min-height: 44px; color: #a03d3d; border-color: #d9b3b3; background: #fff;
+  .guest-row { display: flex; gap: 8px; }
+  .guest-btn { flex: 1; height: 46px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; border: 1px solid #DDDBD2; background: #fff; color: #3C443B; }
+  .guest-btn.active { border: 1.5px solid #1F6D57; background: #EAF3EF; color: #1F6D57; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 12px; background: #F5F4F0; border: 1px solid #E8E6DE; cursor: pointer; }
+  .toggle-row.on { background: #EAF3EF; border-color: #1F6D57; }
+  .toggle-title { font-size: 15px; font-weight: 600; margin-bottom: 0; }
+  .toggle-sub { font-size: 13px; color: #7A8177; margin-top: 2px; }
+  .switch { width: 44px; height: 26px; border-radius: 13px; background: #D8D6CD; position: relative; flex-shrink: 0; transition: background .15s; }
+  .switch.on { background: #1F6D57; }
+  .switch .thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; position: absolute; top: 3px; left: 3px; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch.on .thumb { left: 21px; }
+  .summary { margin: 0; font-size: 13px; color: #7A8177; }
+  .warning { margin: 0; font-size: 13px; color: #C0392B; font-weight: 700; }
+  #canvas {
+    width: 100%; height: auto; display: block; border: 1px solid #E8E6DE; border-radius: 16px;
+    background: #fff;
   }
+  .btn-row { display: flex; gap: 10px; margin-top: 4px; }
+  .btn { flex: 1; height: 52px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; border: none; }
+  .btn-primary { background: #1F6D57; color: #fff; }
+  .btn-primary:hover { background: #195C49; }
+  .btn-secondary { background: #fff; color: #3C443B; border: 1px solid #D8D6CD; }
+  .btn-secondary:hover { background: #F5F4F0; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-secondary:disabled:hover { background: #fff; }
+  .btn-primary:disabled:hover { background: #1F6D57; }
+  .status-msg { margin: -8px 0 0; font-size: 13px; color: #7A8177; min-height: 1.2em; }
+  .account { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-radius: 12px; background: #F5F4F0; margin-top: 6px; }
+  .account .num { font-size: 15px; font-weight: 700; }
+  .account .name { font-size: 13px; color: #7A8177; margin-top: 2px; }
+  .copy-btn { height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid #D8D6CD; background: #fff; color: #3C443B; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .clear-link { align-self: center; margin-top: 4px; background: none; border: none; color: #9A9F92; font-size: 13px; cursor: pointer; text-decoration: underline; font-family: inherit; }
+  .toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: 90vw; text-align: center; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
-<main>
-  <h1>게스트하우스 신청서</h1>
-  <a class="back-link" href="draw.html">손으로 직접 쓰기 →</a>
-  <form id="form" autocomplete="on">
-    <label>신청일 <input type="date" id="applyDate"></label>
-    <label>성명 <input type="text" id="name" placeholder="홍길동" maxlength="20"></label>
-    <label>동·호수 <input type="text" id="unit" placeholder="101동 1001호" maxlength="20"></label>
-    <label>연락처 <input type="tel" id="phone" placeholder="010-1234-5678" maxlength="20"></label>
-    <label>입실일 <input type="date" id="checkIn"></label>
-    <label>퇴실일 <input type="date" id="checkOut"></label>
-    <label>사용인원
-      <select id="people">
-        <option value="2">2명</option>
-        <option value="3">3명</option>
-        <option value="4">4명</option>
-      </select>
-    </label>
-    <label class="check">
-      <input type="checkbox" id="holiday"> 공휴일 요금 적용 (전 기간 40,000원)
-    </label>
-    <label>사용금액
-      <input type="text" id="amount" inputmode="numeric" placeholder="자동 계산">
-    </label>
-    <button type="button" id="resetAmount" class="link-btn" hidden>자동 계산으로 되돌리기</button>
-    <label>은행입금일 <input type="date" id="deposit"></label>
-    <p id="summary" class="summary"></p>
-    <p id="warning" class="warning" hidden></p>
-  </form>
-  <canvas id="canvas" width="707" height="1000"></canvas>
-  <div class="actions">
-    <button type="button" id="share" class="primary" disabled>이미지 만들어 보내기</button>
-    <button type="button" id="download" disabled>이미지 저장</button>
+<div class="wrap">
+  <div class="inner">
+    <div class="eyebrow">원흥LH13단지주거복지지원센터</div>
+    <h1>게스트하우스 신청서</h1>
+
+    <div class="tabs">
+      <button class="tab active" type="button">타이핑으로 작성</button>
+      <a href="draw.html" style="text-decoration:none; flex:1;">
+        <button class="tab" type="button" style="width:100%;">손으로 직접 쓰기</button>
+      </a>
+    </div>
+
+    <div class="card">
+      <form id="form" autocomplete="on">
+        <div class="row2">
+          <div class="field">
+            <label for="applyDate">신청일</label>
+            <input type="date" id="applyDate">
+          </div>
+          <div class="field">
+            <label for="deposit">은행입금일</label>
+            <input type="date" id="deposit">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="name">성명</label>
+          <input type="text" id="name" placeholder="홍길동" maxlength="20">
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label for="unit">동·호수</label>
+            <input type="text" id="unit" placeholder="101동 1001호" maxlength="20">
+          </div>
+          <div class="field">
+            <label for="phone">연락처</label>
+            <input type="tel" id="phone" placeholder="010-1234-5678" maxlength="20">
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label for="checkIn">입실일</label>
+            <input type="date" id="checkIn">
+          </div>
+          <div class="field">
+            <label for="checkOut">퇴실일</label>
+            <input type="date" id="checkOut">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>사용인원</label>
+          <div class="guest-row" id="guestRow">
+            <button type="button" class="guest-btn active" data-n="2">2명</button>
+            <button type="button" class="guest-btn" data-n="3">3명</button>
+            <button type="button" class="guest-btn" data-n="4">4명</button>
+          </div>
+          <input type="hidden" id="people" value="2">
+        </div>
+
+        <label class="toggle-row" id="holidayRow" for="holiday">
+          <input type="checkbox" id="holiday" class="visually-hidden">
+          <div>
+            <div class="toggle-title">공휴일 요금 적용</div>
+            <div class="toggle-sub">전 기간 40,000원</div>
+          </div>
+          <div class="switch" id="holidaySwitch"><div class="thumb"></div></div>
+        </label>
+
+        <div class="field">
+          <label for="amount">사용금액</label>
+          <div class="amount-wrap">
+            <input type="text" id="amount" inputmode="numeric" placeholder="자동 계산">
+            <span>원</span>
+          </div>
+        </div>
+        <button type="button" id="resetAmount" class="link-btn" hidden>자동 계산으로 되돌리기</button>
+
+        <p id="summary" class="summary"></p>
+        <p id="warning" class="warning" hidden></p>
+      </form>
+
+      <canvas id="canvas" width="707" height="1000"></canvas>
+
+      <div class="btn-row">
+        <button type="button" id="share" class="btn btn-primary" disabled>이미지 만들어 보내기</button>
+        <button type="button" id="download" class="btn btn-secondary" disabled>이미지 저장</button>
+      </div>
+      <p id="status" class="status-msg"></p>
+
+      <div class="account">
+        <div>
+          <div class="num">국민 856901-00-129046</div>
+          <div class="name">원흥LH13단지주거복지지원센터</div>
+        </div>
+        <button type="button" class="copy-btn" id="copyAccount">계좌번호 복사</button>
+      </div>
+
+      <button type="button" class="clear-link" id="clearSaved">저장값 지우기 (성명·동호수·연락처)</button>
+    </div>
   </div>
-  <p id="status" class="summary"></p>
-  <section class="bank">
-    <div>
-      <strong>국민 856901-00-129046</strong>
-      <span>원흥LH13단지주거복지지원센터</span>
-    </div>
-    <div class="actions">
-      <button type="button" id="copyAccount">계좌번호 복사</button>
-    </div>
-    <button type="button" id="clearSaved" class="clear-btn">저장값 지우기 (성명·동호수·연락처)</button>
-  </section>
-</main>
+</div>
+<div class="toast" id="toast"></div>
 
 <script type="module">
 import { countNights, calcAmount } from './calc.js';
@@ -230,6 +309,23 @@ $('resetAmount').addEventListener('click', () => {
   render();
 });
 
+// 사용인원: 시각은 버튼 3개, 실제 값은 숨김 입력(#people)에 저장한다. readValues()는
+// 기존과 동일하게 #people.value만 읽으므로 아래 나머지 로직은 그대로 둔다.
+$('guestRow').addEventListener('click', (e) => {
+  const btn = e.target.closest('.guest-btn');
+  if (!btn) return;
+  $('people').value = btn.dataset.n;
+  document.querySelectorAll('.guest-btn').forEach((b) => b.classList.toggle('active', b === btn));
+  render();
+});
+
+// 공휴일: 실제 상태는 체크박스(#holiday)가 그대로 들고 있다. 여기서는 스위치 시각만 맞춘다.
+$('holiday').addEventListener('change', () => {
+  const on = $('holiday').checked;
+  $('holidayRow').classList.toggle('on', on);
+  $('holidaySwitch').classList.toggle('on', on);
+});
+
 function render() {
   const v = readValues();
   const nights = countNights(v.checkIn, v.checkOut);
@@ -291,7 +387,19 @@ function toJpegFile() {
   });
 }
 
+// #status는 "계속 화면에 남아 있어야 하는" 검증/게이팅 안내 전용이다(입력 누락, 날짜 역전,
+// 서식 이미지 로딩/실패, 5박 이상 경고 등). syncButtons()에서만 값을 채운다.
 function setStatus(msg) { $('status').textContent = msg; }
+
+// 저장했습니다/복사됨/공유 관련 안내처럼 순간적으로 보여주면 되는 메시지는 토스트로 띄운다.
+let toastTimer;
+function showToast(msg) {
+  const toast = $('toast');
+  clearTimeout(toastTimer);
+  toast.textContent = msg;
+  toast.classList.add('show');
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
 
 // 필수값이 비거나 숙박일수가 0이거나 서식 이미지가 준비되지 않았으면 버튼을 잠근다.
 // render()의 마지막 줄뿐 아니라 이미지 로딩 완료/실패 시에도 별도로 호출된다.
@@ -320,16 +428,15 @@ $('share').addEventListener('click', async () => {
     const file = await toJpegFile();
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({ files: [file], title: '게스트하우스 신청서' });
-      setStatus('');
       return;
     }
-    setStatus('이 브라우저는 공유를 지원하지 않습니다. "이미지 저장"을 눌러 주세요.');
+    showToast('이 브라우저는 공유를 지원하지 않습니다. "이미지 저장"을 눌러 주세요.');
   } catch (err) {
     // 사용자가 공유 시트를 닫은 경우는 오류가 아니다.
-    if (err.name === 'AbortError') { setStatus(''); return; }
+    if (err.name === 'AbortError') { return; }
     // iOS 사파리 등에서 사용자 제스처 타이밍 문제로 공유가 실패하는 사례가 흔하다.
     // 영어 브라우저 오류 대신 대안 행동을 안내한다.
-    setStatus('공유하지 못했습니다. "이미지 저장"을 눌러 저장한 뒤 문자메시지에 직접 첨부해 주세요.');
+    showToast('공유하지 못했습니다. "이미지 저장"을 눌러 저장한 뒤 문자메시지에 직접 첨부해 주세요.');
   }
 });
 
@@ -344,9 +451,9 @@ $('download').addEventListener('click', async () => {
     // 클릭 직후 바로 해제하면 일부 브라우저(특히 데스크톱 사파리)는 비동기로 다운로드를
     // 시작하다가 이미 해제된 URL을 만나 실패한다. 클릭 처리가 끝난 뒤에 해제한다.
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setStatus('저장했습니다.');
+    showToast('저장했습니다.');
   } catch (err) {
-    setStatus(`이미지를 만들지 못했습니다: ${err.message}`);
+    showToast(`이미지를 만들지 못했습니다: ${err.message}`);
   }
 });
 
@@ -399,6 +506,7 @@ async function copyText(text, button) {
       if (!ok) throw new Error('execCommand 복사 실패');
     }
     button.textContent = '복사됨';
+    showToast('계좌번호가 복사되었습니다.');
   } catch {
     button.textContent = '복사 실패';
   }
@@ -443,7 +551,7 @@ $('clearSaved').addEventListener('click', () => {
   }
   for (const id of SAVED_FIELDS) $(id).value = '';
   render();
-  setStatus('저장된 값을 지웠습니다.');
+  showToast('저장된 값을 지웠습니다.');
 });
 
 restoreSaved();
