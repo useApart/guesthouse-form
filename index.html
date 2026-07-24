@@ -58,7 +58,7 @@
 </main>
 
 <script type="module">
-import { countNights, calcAmount, RATE } from './calc.js';
+import { countNights, calcAmount } from './calc.js';
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -141,7 +141,11 @@ function formatValues(v, nights) {
 
 // 사용자가 금액을 직접 고쳤는지 추적한다. 고쳤다면 자동 계산으로 덮어쓰지 않는다.
 let amountEdited = false;
-$('amount').addEventListener('input', () => { amountEdited = true; render(); });
+$('amount').addEventListener('input', () => {
+  // 숫자를 모두 지워 빈 값으로 돌아가면 자동 계산 모드로 복귀한다.
+  amountEdited = /[0-9]/.test($('amount').value);
+  render();
+});
 
 function render() {
   const v = readValues();
@@ -154,7 +158,7 @@ function render() {
   }
 
   $('summary').textContent = nights
-    ? `${nights}박 ${v.people}명 · 자동 계산 ${calcAmount(v).toLocaleString('ko-KR')}원`
+    ? `${nights}박 ${v.people}명 · ${amountEdited ? '직접 입력' : '자동 계산'} ${v.amount.toLocaleString('ko-KR')}원`
     : '입실일과 퇴실일을 선택하세요.';
 
   const warn = $('warning');
