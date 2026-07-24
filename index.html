@@ -25,6 +25,32 @@
     font-size: 15px; font-family: inherit; color: #1E251E; background: #fff;
   }
   input[type="date"] { background: #FBFAF7; }
+  input.date-in[readonly] { cursor: pointer; background: #FBFAF7; }
+
+  .cal-pop {
+    position: fixed; z-index: 1000; width: 296px; max-width: calc(100vw - 16px);
+    background: #fff; border: 1px solid #E8E6DE; border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(30,37,30,.18); padding: 12px; display: none;
+  }
+  .cal-pop.show { display: block; }
+  .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .cal-nav { width: 38px; height: 38px; border: none; background: #F5F4F0; border-radius: 10px; font-size: 18px; font-weight: 700; color: #3C443B; cursor: pointer; font-family: inherit; }
+  .cal-nav:hover { background: #EAE8E1; }
+  .cal-label { font-size: 15px; font-weight: 700; }
+  .cal-week { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 12px; color: #7A8177; margin-bottom: 4px; }
+  .cal-week span:first-child { color: #C0392B; }
+  .cal-week span:last-child { color: #2E5AA8; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-blank { height: 38px; }
+  .cal-day { height: 38px; border: none; background: none; border-radius: 10px; font-size: 14px; font-family: inherit; color: #1E251E; cursor: pointer; }
+  .cal-day:hover { background: #F5F4F0; }
+  .cal-day.cal-sun { color: #C0392B; }
+  .cal-day.cal-sat { color: #2E5AA8; }
+  .cal-day.cal-today { font-weight: 700; box-shadow: inset 0 0 0 1.5px #1F6D57; }
+  .cal-day.cal-selected { background: #1F6D57; color: #fff; }
+  .cal-foot { display: flex; gap: 8px; margin-top: 8px; }
+  .cal-action { flex: 1; height: 38px; border-radius: 10px; border: 1px solid #DDDBD2; background: #fff; font-size: 13px; font-weight: 600; color: #3C443B; cursor: pointer; font-family: inherit; }
+  .cal-action:hover { background: #F5F4F0; }
   .amount-wrap { position: relative; }
   .amount-wrap span { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; color: #7A8177; }
   .amount-wrap input { padding-right: 40px; }
@@ -60,10 +86,11 @@
   .btn-secondary:disabled:hover { background: #fff; }
   .btn-primary:disabled:hover { background: #1F6D57; }
   .status-msg { margin: -8px 0 0; font-size: 13px; color: #7A8177; min-height: 1.2em; }
-  .account { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-radius: 12px; background: #F5F4F0; margin-top: 6px; }
-  .account .num { font-size: 15px; font-weight: 700; }
+  .account { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 12px; padding: 16px; border-radius: 12px; background: #F5F4F0; margin-top: 6px; }
+  .account .acc-info { min-width: 0; flex: 1 1 200px; }
+  .account .num { font-size: 15px; font-weight: 700; word-break: break-word; }
   .account .name { font-size: 13px; color: #7A8177; margin-top: 2px; }
-  .copy-btn { height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid #D8D6CD; background: #fff; color: #3C443B; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .copy-btn { flex-shrink: 0; height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid #D8D6CD; background: #fff; color: #3C443B; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
   .clear-link { background: none; border: none; color: #9A9F92; font-size: 13px; cursor: pointer; text-decoration: underline; font-family: inherit; padding: 4px 2px; }
   .top-actions { display: flex; justify-content: flex-end; margin: -12px 0 14px; }
   .toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: 90vw; text-align: center; }
@@ -92,11 +119,11 @@
         <div class="row2">
           <div class="field">
             <label for="applyDate">신청일</label>
-            <input type="text" id="applyDate" inputmode="numeric" placeholder="2026-07-25" maxlength="10" class="date-in">
+            <input type="text" id="applyDate" readonly placeholder="날짜 선택" class="date-in">
           </div>
           <div class="field">
             <label for="deposit">은행입금일</label>
-            <input type="text" id="deposit" inputmode="numeric" placeholder="2026-07-25" maxlength="10" class="date-in">
+            <input type="text" id="deposit" readonly placeholder="날짜 선택" class="date-in">
           </div>
         </div>
 
@@ -119,11 +146,11 @@
         <div class="row2">
           <div class="field">
             <label for="checkIn">입실일</label>
-            <input type="text" id="checkIn" inputmode="numeric" placeholder="2026-07-25" maxlength="10" class="date-in">
+            <input type="text" id="checkIn" readonly placeholder="날짜 선택" class="date-in">
           </div>
           <div class="field">
             <label for="checkOut">퇴실일</label>
-            <input type="text" id="checkOut" inputmode="numeric" placeholder="2026-07-25" maxlength="10" class="date-in">
+            <input type="text" id="checkOut" readonly placeholder="날짜 선택" class="date-in">
           </div>
         </div>
 
@@ -168,7 +195,7 @@
       <p id="status" class="status-msg"></p>
 
       <div class="account">
-        <div>
+        <div class="acc-info">
           <div class="num">국민 856901-00-129046</div>
           <div class="name">원흥LH13단지주거복지지원센터</div>
         </div>
@@ -483,19 +510,168 @@ $('phone').addEventListener('input', (e) => {
   if (formatted !== e.target.value) e.target.value = formatted;
 });
 
-// 날짜는 년-월-일 순서를 기기 설정과 무관하게 고정하기 위해 직접 입력으로 받는다.
-// 숫자만 남겨 YYYY-MM-DD 형태로 하이픈을 자동으로 끼운다.
-function formatDateInput(value) {
-  const d = value.replace(/\D/g, '').slice(0, 8);
-  if (d.length <= 4) return d;
-  if (d.length <= 6) return `${d.slice(0, 4)}-${d.slice(4)}`;
-  return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}`;
+// 날짜는 년-월-일 순서를 기기 설정과 무관하게 고정하기 위해 직접 입력 대신 커스텀 달력
+// 팝오버로 받는다. 네 칸(applyDate/deposit/checkIn/checkOut)이 팝오버 하나를 공유한다.
+// applyDate는 필수값이라 지우기 버튼을 숨긴다.
+const CLEARABLE = new Set(['deposit', 'checkIn', 'checkOut']);
+
+const calPop = document.createElement('div');
+calPop.className = 'cal-pop';
+calPop.innerHTML = `
+  <div class="cal-head">
+    <button type="button" class="cal-nav" id="calPrev" aria-label="이전 달">‹</button>
+    <div class="cal-label" id="calLabel"></div>
+    <button type="button" class="cal-nav" id="calNext" aria-label="다음 달">›</button>
+  </div>
+  <div class="cal-week">
+    <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+  </div>
+  <div class="cal-grid" id="calGrid"></div>
+  <div class="cal-foot">
+    <button type="button" class="cal-action" id="calToday">오늘</button>
+    <button type="button" class="cal-action" id="calClear">지우기</button>
+  </div>
+`;
+document.body.appendChild(calPop);
+
+const calLabel = calPop.querySelector('#calLabel');
+const calGrid = calPop.querySelector('#calGrid');
+const calClearBtn = calPop.querySelector('#calClear');
+
+let calTarget = null; // 현재 팝오버가 붙어 있는 input 엘리먼트
+let calYear = 0;
+let calMonth = 0; // 0-11
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+// toISOString()은 로컬 타임존에 따라 날짜가 하루 밀릴 수 있어 쓰지 않는다.
+// year/month/day를 그대로 문자열로 조립한다.
+function toDateStr(y, m, d) { return `${y}-${pad2(m + 1)}-${pad2(d)}`; }
+
+function parseDateStr(s) {
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return { y, m: m - 1, d };
 }
+
+function renderCalendarGrid() {
+  calLabel.textContent = `${calYear}년 ${calMonth + 1}월`;
+  const selected = parseDateStr(calTarget ? calTarget.value : '');
+  const firstWeekday = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date();
+
+  calGrid.innerHTML = '';
+  for (let i = 0; i < firstWeekday; i++) {
+    const blank = document.createElement('span');
+    blank.className = 'cal-blank';
+    calGrid.appendChild(blank);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cal-day';
+    btn.textContent = String(d);
+    const dow = new Date(calYear, calMonth, d).getDay();
+    if (dow === 0) btn.classList.add('cal-sun');
+    if (dow === 6) btn.classList.add('cal-sat');
+    if (selected && selected.y === calYear && selected.m === calMonth && selected.d === d) {
+      btn.classList.add('cal-selected');
+    }
+    if (today.getFullYear() === calYear && today.getMonth() === calMonth && today.getDate() === d) {
+      btn.classList.add('cal-today');
+    }
+    btn.addEventListener('click', () => selectDate(d));
+    calGrid.appendChild(btn);
+  }
+}
+
+function selectDate(d) {
+  if (!calTarget) return;
+  calTarget.value = toDateStr(calYear, calMonth, d);
+  closeCalendar();
+  render();
+}
+
+// 카드 밖으로 잘리지 않도록 body에 붙여 놓은 팝오버를 탭한 칸의 위치에 맞춰 옮긴다.
+// 화면 아래로 넘치면 칸 위쪽에, 오른쪽으로 넘치면 왼쪽으로 당겨 360px 폭 화면에서도 맞춘다.
+function positionCalendar() {
+  if (!calTarget) return;
+  const rect = calTarget.getBoundingClientRect();
+  const popW = calPop.offsetWidth || 296;
+  const popH = calPop.offsetHeight || 340;
+  const margin = 8;
+  let left = Math.min(rect.left, window.innerWidth - popW - margin);
+  left = Math.max(left, margin);
+  let top = rect.bottom + 6;
+  if (top + popH > window.innerHeight - margin) {
+    top = rect.top - popH - 6;
+  }
+  top = Math.max(top, margin);
+  calPop.style.left = `${left}px`;
+  calPop.style.top = `${top}px`;
+}
+
+function openCalendar(input) {
+  calTarget = input;
+  const parsed = parseDateStr(input.value) || (() => {
+    const t = new Date();
+    return { y: t.getFullYear(), m: t.getMonth(), d: t.getDate() };
+  })();
+  calYear = parsed.y;
+  calMonth = parsed.m;
+  calClearBtn.hidden = !CLEARABLE.has(input.id);
+  renderCalendarGrid();
+  calPop.classList.add('show');
+  positionCalendar();
+}
+
+function closeCalendar() {
+  calPop.classList.remove('show');
+  calTarget = null;
+}
+
+calPop.querySelector('#calPrev').addEventListener('click', () => {
+  calMonth -= 1;
+  if (calMonth < 0) { calMonth = 11; calYear -= 1; }
+  renderCalendarGrid();
+  positionCalendar();
+});
+calPop.querySelector('#calNext').addEventListener('click', () => {
+  calMonth += 1;
+  if (calMonth > 11) { calMonth = 0; calYear += 1; }
+  renderCalendarGrid();
+  positionCalendar();
+});
+calPop.querySelector('#calToday').addEventListener('click', () => {
+  const t = new Date();
+  calYear = t.getFullYear();
+  calMonth = t.getMonth();
+  selectDate(t.getDate());
+});
+calClearBtn.addEventListener('click', () => {
+  if (!calTarget) return;
+  calTarget.value = '';
+  closeCalendar();
+  render();
+});
+
+document.addEventListener('mousedown', (e) => {
+  if (!calPop.classList.contains('show')) return;
+  if (calPop.contains(e.target) || e.target === calTarget) return;
+  closeCalendar();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && calPop.classList.contains('show')) closeCalendar();
+});
+window.addEventListener('resize', () => {
+  if (calPop.classList.contains('show')) positionCalendar();
+});
+
 for (const id of ['applyDate', 'deposit', 'checkIn', 'checkOut']) {
-  $(id).addEventListener('input', (e) => {
-    const f = formatDateInput(e.target.value);
-    if (f !== e.target.value) e.target.value = f;
-  });
+  const el = $(id);
+  el.addEventListener('click', () => openCalendar(el));
+  el.addEventListener('focus', () => openCalendar(el));
 }
 
 const ACCOUNT_NUMBER = '85690100129046'; // 하이픈 없는 값. 금융앱이 하이픈을 거부하는 경우가 있다.
