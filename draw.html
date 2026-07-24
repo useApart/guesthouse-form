@@ -32,6 +32,8 @@
   .canvas-wrap { position: relative; border-radius: 12px; border: 1px solid #E8E6DE; background: #FBFAF7; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .canvas-wrap canvas { width: 100%; display: block; cursor: crosshair; position: relative; z-index: 1; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .guideline { position: absolute; left: 12px; right: 12px; bottom: 14px; height: 1px; background: #DCD9CE; z-index: 0; }
+  /* 홀드로 지우기 모드가 켜진 칸 표시 */
+  .canvas-wrap.erasing { background: #FCEEEC; box-shadow: inset 0 0 0 2px #E7A79E; }
   .field-box.small .canvas-wrap canvas { height: 64px; }
   .field-box.tall .canvas-wrap canvas { height: 100px; }
   .field-box.wide .canvas-wrap canvas { height: 76px; }
@@ -96,7 +98,7 @@
         <button type="button" class="tool-btn" id="eraserBtn">지우개</button>
         <button type="button" class="tool-btn danger" id="clearAllBtn">전체 지우기</button>
       </div>
-      <p class="hint">✎ 지우고 싶은 곳을 한자리에서 빙글빙글 문지르면 그 부분만 지워집니다.</p>
+      <p class="hint">✎ 지우고 싶은 곳을 잠시(약 1.5초) 꾹 누르고 있으면 지우기 모드로 바뀌고, 그대로 문지르면 지워집니다.</p>
 
       <div class="row2">
         <div class="field-box small">
@@ -267,38 +269,12 @@
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
-  // 문지르기(빙빙) 감지: 최근 궤적이 좁은 영역 안에서 방향을 여러 번 되꺾으면
-  // 지우개 제스처로 본다. (애플 노트 scribble-to-erase 방식)
-  var SCRUB_WINDOW_MS = 700;   // 최근 이 시간의 궤적만 검사
-  var SCRUB_MAX_SPAN = 44;     // 이 크기(px) 안에 갇혀 있을 때만 문지르기로 인정
-  var SCRUB_MIN_FLIPS = 8;     // 방향 되꺾임이 이 횟수 이상이어야 지우기
-  var SCRUB_MIN_MS = 400;      // 좁은 영역에 이 시간 이상 머물러야 문지르기로 인정
-  var SCRUB_MIN_PTS = 10;      // 최소 궤적 점 수
-  var SCRUB_ERASE_R = 26;      // 문질러 지우는 붓 지름(px)
-
-  // 한글 필기는 좁은 영역에 방향 반전이 많아 문지르기와 헷갈리기 쉽다.
-  // 그래서 (1) 좁은 영역 + (2) 방향 반전 다수 + (3) 최소 지속시간을
-  // 모두 만족할 때만 지우기로 본다. 글자는 대개 0.4초 안에 다음으로 넘어간다.
-  function detectScrub(trail) {
-    if (trail.length < SCRUB_MIN_PTS) return false;
-    if ((trail[trail.length - 1].t - trail[0].t) < SCRUB_MIN_MS) return false;
-    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    var flips = 0, prevdx = 0, prevdy = 0, haveprev = false;
-    for (var i = 0; i < trail.length; i++) {
-      var p = trail[i];
-      if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-      if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
-      if (i > 0) {
-        var dx = p.x - trail[i - 1].x, dy = p.y - trail[i - 1].y;
-        if (dx * dx + dy * dy >= 4) { // 손떨림(2px 미만) 무시
-          if (haveprev && (dx * prevdx + dy * prevdy) < 0) flips++; // 90도 넘게 꺾임
-          prevdx = dx; prevdy = dy; haveprev = true;
-        }
-      }
-    }
-    if ((maxX - minX) > SCRUB_MAX_SPAN || (maxY - minY) > SCRUB_MAX_SPAN) return false;
-    return flips >= SCRUB_MIN_FLIPS;
-  }
+  // 길게 누르기(홀드) → 지우기 모드. 제자리에서 HOLD_MS 이상 꾹 누르고 있으면
+  // 그 획이 지우기 상태로 바뀌고, 이후 움직이면 지나간 자리를 지운다.
+  // 누른 채 바로 움직이면(=필기) 홀드가 취소돼 정상적으로 글씨가 써진다.
+  var HOLD_MS = 1500;       // 이 시간 이상 제자리 홀드하면 지우기 모드
+  var HOLD_MOVE_TOL = 12;   // 홀드 중 이 거리(px) 넘게 움직이면 필기로 보고 취소
+  var SCRUB_ERASE_R = 26;   // 지우는 붓 지름(px)
 
   function eraseSegment(b, from, to, width) {
     b.ctx.save();
@@ -325,11 +301,25 @@
       e.preventDefault();
       b.activePointerId = e.pointerId;
       b.drawing = true;
-      b.lastPoint = getPoint(canvas, e);
+      b.downPoint = getPoint(canvas, e);
+      b.lastPoint = b.downPoint;
       b.midPoint = null;
-      b.trail = [{ x: b.lastPoint.x, y: b.lastPoint.y, t: e.timeStamp }];
-      b.scrubbing = false;
       canvas.setPointerCapture(e.pointerId);
+      if (eraser) {
+        // 지우개 버튼이 켜져 있으면 바로 지우기 모드.
+        b.mode = 'erasing';
+      } else {
+        // 그 외에는 '홀드 대기' 상태. 제자리에서 HOLD_MS 이상 꾹 누르면
+        // 지우기 모드로 바뀌고, 그 전에 움직이면 필기로 확정된다.
+        b.mode = 'pending';
+        b.holdTimer = setTimeout(function () {
+          if (b.mode === 'pending') {
+            b.mode = 'erasing';
+            canvas.parentNode.classList.add('erasing');
+            markPreviewDirty();
+          }
+        }, HOLD_MS);
+      }
       markPreviewDirty();
     });
 
@@ -342,20 +332,20 @@
       points.forEach(function (ev) {
         var pt = getPoint(canvas, ev);
 
-        // 궤적 기록(최근 SCRUB_WINDOW_MS만 유지) 후 문지르기 여부 판정
-        b.trail.push({ x: pt.x, y: pt.y, t: ev.timeStamp });
-        var cutoff = ev.timeStamp - SCRUB_WINDOW_MS;
-        while (b.trail.length > 2 && b.trail[0].t < cutoff) b.trail.shift();
-        if (!b.scrubbing && !eraser && detectScrub(b.trail)) {
-          b.scrubbing = true;
-          // 문지른 궤적 위에 이미 그려진 잉크(방금 그은 낙서 포함)를 지운다.
-          for (var i = 1; i < b.trail.length; i++) eraseSegment(b, b.trail[i - 1], b.trail[i]);
+        if (b.mode === 'pending') {
+          // 홀드 대기 중: 허용 오차를 넘게 움직이면 필기로 확정(홀드 취소).
+          var ddx = pt.x - b.downPoint.x, ddy = pt.y - b.downPoint.y;
+          if (ddx * ddx + ddy * ddy > HOLD_MOVE_TOL * HOLD_MOVE_TOL) {
+            clearTimeout(b.holdTimer);
+            b.mode = 'writing';
+            // 아래에서 downPoint부터 이어 그린다.
+          } else {
+            return; // 아직 제자리 홀드 중 — 그리지도 지우지도 않는다.
+          }
         }
 
-        if (eraser) {
-          eraseSegment(b, b.lastPoint, pt, thickness * 5);
-        } else if (b.scrubbing) {
-          eraseSegment(b, b.lastPoint, pt);
+        if (b.mode === 'erasing') {
+          eraseSegment(b, b.lastPoint, pt, eraser ? thickness * 5 : SCRUB_ERASE_R);
         } else {
           b.ctx.globalCompositeOperation = 'source-over';
           b.ctx.lineWidth = thickness;
@@ -373,10 +363,13 @@
 
     function end(e) {
       if (e && e.pointerId !== b.activePointerId) return;
+      clearTimeout(b.holdTimer);
+      canvas.parentNode.classList.remove('erasing');
       b.drawing = false;
       b.lastPoint = null;
       b.midPoint = null;
       b.activePointerId = null;
+      b.mode = null;
       markPreviewDirty();
     }
     canvas.addEventListener('pointerup', end);
