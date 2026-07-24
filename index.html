@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>게스트하우스 신청서</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    background: #f4f5f7; color: #222;
+  }
+  main { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 16px; }
+  canvas {
+    width: 100%; height: auto; display: block;
+    border: 1px solid #ccc; background: #fff;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>게스트하우스 신청서</h1>
+  <canvas id="canvas" width="707" height="1000"></canvas>
+</main>
+
+<script type="module">
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// 707x1000 좌표계. 표 격자선을 픽셀 스캔으로 실측한 각 칸의 중심.
+const POS = {
+  applyDate: { x: 432, y: 211, maxWidth: 400 },
+  name:      { x: 432, y: 241, maxWidth: 400 },
+  unit:      { x: 432, y: 270, maxWidth: 400 },
+  phone:     { x: 432, y: 300, maxWidth: 400 },
+  period:    { x: 301, y: 337, maxWidth: 136 },
+  nights:    { x: 560, y: 337, maxWidth: 145 },
+  amount:    { x: 301, y: 370, maxWidth: 136 },
+  people:    { x: 560, y: 370, maxWidth: 145 },
+};
+
+const formImage = new Image();
+const imageReady = new Promise((resolve, reject) => {
+  formImage.onload = resolve;
+  formImage.onerror = () => reject(new Error('서식 이미지를 불러오지 못했습니다.'));
+});
+formImage.src = 'form.jpg';
+
+function drawForm(values) {
+  ctx.drawImage(formImage, 0, 0, canvas.width, canvas.height);
+  // 텍스트 렌더링은 Task 3에서 추가한다.
+}
+
+await imageReady;
+drawForm({});
+</script>
+</body>
+</html>
