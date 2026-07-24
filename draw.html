@@ -32,6 +32,7 @@
   .canvas-wrap canvas { width: 100%; display: block; cursor: crosshair; position: relative; z-index: 1; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .guideline { position: absolute; left: 12px; right: 12px; bottom: 14px; height: 1px; background: #DCD9CE; z-index: 0; }
   .field-box.small .canvas-wrap canvas { height: 64px; }
+  .field-box.tall .canvas-wrap canvas { height: 100px; }
   .field-box.wide .canvas-wrap canvas { height: 76px; }
   .field-box.period .canvas-wrap canvas { height: 110px; }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -39,6 +40,7 @@
   @media (max-width: 520px) {
     .row2 { grid-template-columns: 1fr; }
     .field-box.small .canvas-wrap canvas { height: 96px; }
+    .field-box.tall .canvas-wrap canvas { height: 130px; }
     .field-box.wide .canvas-wrap canvas { height: 112px; }
     .field-box.period .canvas-wrap canvas { height: 150px; }
   }
@@ -111,11 +113,11 @@
       </div>
 
       <div class="row2">
-        <div class="field-box small">
+        <div class="field-box small tall">
           <div class="field-head"><span class="field-label">동·호수</span><button type="button" class="field-clear" data-target="c-unit">지우기</button></div>
           <div class="canvas-wrap"><canvas class="board" id="c-unit"></canvas><div class="guideline"></div></div>
         </div>
-        <div class="field-box small">
+        <div class="field-box small tall">
           <div class="field-head"><span class="field-label">연락처</span><button type="button" class="field-clear" data-target="c-phone">지우기</button></div>
           <div class="canvas-wrap"><canvas class="board" id="c-phone"></canvas><div class="guideline"></div></div>
         </div>
