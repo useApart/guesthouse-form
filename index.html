@@ -189,6 +189,7 @@ function render() {
 }
 
 const REQUIRED = {
+  applyDate: '신청일',
   name: '성명',
   unit: '동·호수',
   phone: '연락처',
@@ -217,13 +218,21 @@ function toJpegFile() {
 
 function setStatus(msg) { $('status').textContent = msg; }
 
-// 필수값이 비면 버튼을 잠근다. render 끝에서 호출한다.
+// 필수값이 비거나 숙박일수가 0이면 버튼을 잠근다. render 끝에서 호출한다.
 function syncButtons() {
-  const missing = missingFields(readValues());
-  const blocked = missing.length > 0;
+  const v = readValues();
+  const missing = missingFields(v);
+  const invalidStay = v.checkIn && v.checkOut && countNights(v.checkIn, v.checkOut) === 0;
+  const blocked = missing.length > 0 || invalidStay;
   $('share').disabled = blocked;
   $('download').disabled = blocked;
-  setStatus(blocked ? `입력이 필요합니다: ${missing.join(', ')}` : '');
+  if (missing.length > 0) {
+    setStatus(`입력이 필요합니다: ${missing.join(', ')}`);
+  } else if (invalidStay) {
+    setStatus('퇴실일은 입실일보다 뒤여야 합니다.');
+  } else {
+    setStatus('');
+  }
 }
 
 $('share').addEventListener('click', async () => {
@@ -237,7 +246,7 @@ $('share').addEventListener('click', async () => {
     setStatus('이 브라우저는 공유를 지원하지 않습니다. "이미지 저장"을 눌러 주세요.');
   } catch (err) {
     // 사용자가 공유 시트를 닫은 경우는 오류가 아니다.
-    if (err.name === 'AbortError') return;
+    if (err.name === 'AbortError') { setStatus(''); return; }
     setStatus(`이미지를 만들지 못했습니다: ${err.message}`);
   }
 });
