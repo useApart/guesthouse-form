@@ -302,9 +302,15 @@ async function copyText(text, button) {
       ta.style.position = 'fixed';
       ta.style.opacity = '0';
       document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
+      let ok = false;
+      try {
+        ta.select();
+        ok = document.execCommand('copy');
+      } finally {
+        ta.remove();
+        button.focus();
+      }
+      if (!ok) throw new Error('execCommand 복사 실패');
     }
     button.textContent = '복사됨';
   } catch {
@@ -345,7 +351,7 @@ function saveFields() {
 }
 
 for (const id of SAVED_FIELDS) {
-  $(id).addEventListener('change', saveFields);
+  $(id).addEventListener('input', saveFields);
 }
 
 restoreSaved();
