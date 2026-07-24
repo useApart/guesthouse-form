@@ -28,8 +28,8 @@
   .field-head { display: flex; align-items: center; justify-content: space-between; }
   .field-label { font-size: 13px; font-weight: 600; color: #3C443B; }
   .field-clear { border: none; background: none; color: #9A9F92; font-size: 12px; cursor: pointer; text-decoration: underline; font-family: inherit; }
-  .canvas-wrap { position: relative; border-radius: 12px; border: 1px solid #E8E6DE; background: #FBFAF7; overflow: hidden; touch-action: none; }
-  .canvas-wrap canvas { width: 100%; display: block; cursor: crosshair; position: relative; z-index: 1; }
+  .canvas-wrap { position: relative; border-radius: 12px; border: 1px solid #E8E6DE; background: #FBFAF7; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .canvas-wrap canvas { width: 100%; display: block; cursor: crosshair; position: relative; z-index: 1; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .guideline { position: absolute; left: 12px; right: 12px; bottom: 14px; height: 1px; background: #DCD9CE; z-index: 0; }
   .field-box.small .canvas-wrap canvas { height: 64px; }
   .field-box.wide .canvas-wrap canvas { height: 76px; }
