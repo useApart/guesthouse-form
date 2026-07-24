@@ -17,15 +17,49 @@
     width: 100%; height: auto; display: block;
     border: 1px solid #ccc; background: #fff;
   }
+  form { display: grid; gap: 10px; margin-bottom: 16px; }
+  label { display: grid; gap: 4px; font-size: 13px; color: #555; }
+  label.check { grid-auto-flow: column; justify-content: start; align-items: center; gap: 6px; }
+  input, select {
+    font: inherit; font-size: 16px; /* 16px 미만이면 iOS가 focus 시 확대한다 */
+    padding: 9px 10px; border: 1px solid #c4c7cc; border-radius: 6px; background: #fff;
+  }
+  .summary { margin: 0; font-size: 13px; color: #555; }
+  .warning { margin: 0; font-size: 13px; color: #c0392b; font-weight: bold; }
 </style>
 </head>
 <body>
 <main>
   <h1>게스트하우스 신청서</h1>
+  <form id="form" autocomplete="on">
+    <label>신청일 <input type="date" id="applyDate"></label>
+    <label>성명 <input type="text" id="name" placeholder="홍길동"></label>
+    <label>동·호수 <input type="text" id="unit" placeholder="101동 1001호"></label>
+    <label>연락처 <input type="tel" id="phone" placeholder="010-1234-5678"></label>
+    <label>입실일 <input type="date" id="checkIn"></label>
+    <label>퇴실일 <input type="date" id="checkOut"></label>
+    <label>사용인원
+      <select id="people">
+        <option value="2">2명</option>
+        <option value="3">3명</option>
+        <option value="4">4명</option>
+      </select>
+    </label>
+    <label class="check">
+      <input type="checkbox" id="holiday"> 공휴일 요금 적용 (전 기간 40,000원)
+    </label>
+    <label>사용금액
+      <input type="text" id="amount" inputmode="numeric" placeholder="자동 계산">
+    </label>
+    <p id="summary" class="summary"></p>
+    <p id="warning" class="warning" hidden></p>
+  </form>
   <canvas id="canvas" width="707" height="1000"></canvas>
 </main>
 
 <script type="module">
+import { countNights, calcAmount, RATE } from './calc.js';
+
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
@@ -48,13 +82,102 @@ const imageReady = new Promise((resolve, reject) => {
 });
 formImage.src = 'form.jpg';
 
-function drawForm(values) {
+function drawForm(text) {
   ctx.drawImage(formImage, 0, 0, canvas.width, canvas.height);
-  // 텍스트 렌더링은 Task 3에서 추가한다.
+  ctx.fillStyle = '#000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (const [key, pos] of Object.entries(POS)) {
+    const value = text[key];
+    if (!value) continue;
+
+    // 칸을 넘치면 들어갈 때까지 폰트를 줄인다.
+    let size = 14;
+    ctx.font = `${size}px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`;
+    while (ctx.measureText(value).width > pos.maxWidth && size > 8) {
+      size -= 1;
+      ctx.font = `${size}px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`;
+    }
+    ctx.fillText(value, pos.x, pos.y);
+  }
 }
 
+const $ = (id) => document.getElementById(id);
+
+function readValues() {
+  return {
+    applyDate: $('applyDate').value,
+    name: $('name').value.trim(),
+    unit: $('unit').value.trim(),
+    phone: $('phone').value.trim(),
+    checkIn: $('checkIn').value,
+    checkOut: $('checkOut').value,
+    people: Number($('people').value),
+    holiday: $('holiday').checked,
+    amount: Number($('amount').value.replace(/[^0-9]/g, '')),
+  };
+}
+
+// 'YYYY-MM-DD' -> 'M/D'. 사용기간 칸이 좁아 연도는 넣지 않는다.
+function shortDate(s) {
+  if (!s) return '';
+  const [, m, d] = s.split('-');
+  return `${Number(m)}/${Number(d)}`;
+}
+
+function formatValues(v, nights) {
+  return {
+    applyDate: v.applyDate ? v.applyDate.replace(/-/g, '. ') : '',
+    name: v.name,
+    unit: v.unit,
+    phone: v.phone,
+    period: v.checkIn && v.checkOut ? `${shortDate(v.checkIn)} ~ ${shortDate(v.checkOut)}` : '',
+    nights: nights ? `${nights}박` : '',
+    amount: v.amount ? `${v.amount.toLocaleString('ko-KR')}원` : '',
+    people: v.people ? `${v.people}명` : '',
+  };
+}
+
+// 사용자가 금액을 직접 고쳤는지 추적한다. 고쳤다면 자동 계산으로 덮어쓰지 않는다.
+let amountEdited = false;
+$('amount').addEventListener('input', () => { amountEdited = true; render(); });
+
+function render() {
+  const v = readValues();
+  const nights = countNights(v.checkIn, v.checkOut);
+
+  if (!amountEdited) {
+    const auto = calcAmount(v);
+    $('amount').value = auto ? auto.toLocaleString('ko-KR') : '';
+    v.amount = auto;
+  }
+
+  $('summary').textContent = nights
+    ? `${nights}박 ${v.people}명 · 자동 계산 ${calcAmount(v).toLocaleString('ko-KR')}원`
+    : '입실일과 퇴실일을 선택하세요.';
+
+  const warn = $('warning');
+  if (v.checkIn && v.checkOut && nights === 0) {
+    warn.textContent = '퇴실일은 입실일보다 뒤여야 합니다.';
+    warn.hidden = false;
+  } else if (nights >= 5) {
+    warn.textContent = '운영규정상 1세대가 한 달 기준 5박 이상 사용할 수 없습니다.';
+    warn.hidden = false;
+  } else {
+    warn.hidden = true;
+  }
+
+  drawForm(formatValues(v, nights));
+}
+
+$('form').addEventListener('input', render);
+
+// 신청일 기본값은 오늘.
+$('applyDate').value = new Date().toLocaleDateString('sv-SE'); // sv-SE는 YYYY-MM-DD 형식
+
 await imageReady;
-drawForm({});
+render();
 </script>
 </body>
 </html>
