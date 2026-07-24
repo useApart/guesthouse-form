@@ -15,9 +15,15 @@
   h1 { font-size: 20px; margin: 0 0 8px; }
   .back-link { display: inline-block; margin-bottom: 16px; font-size: 13px; color: #2f6fed; text-decoration: none; }
   .back-link:hover { text-decoration: underline; }
+  .stage {
+    position: relative; overflow: hidden;
+  }
   canvas {
     width: 100%; height: auto; display: block;
     border: 1px solid #ccc; background: #fff; touch-action: none;
+  }
+  .zoom-row button {
+    min-height: 36px; padding: 6px 10px; font-size: 14px;
   }
   .summary { margin: 0; font-size: 13px; color: #555; }
   .toolbar {
@@ -46,9 +52,17 @@
   <h1>게스트하우스 신청서 (직접 쓰기)</h1>
   <a class="back-link" href="index.html">← 타이핑으로 작성</a>
 
-  <canvas id="canvas" width="707" height="1000"></canvas>
+  <div class="stage" id="stage">
+    <canvas id="canvas" width="707" height="1000"></canvas>
+  </div>
 
   <div class="toolbar">
+    <div class="tool-row zoom-row">
+      <span class="label">화면</span>
+      <button type="button" id="zoomIn">확대(＋)</button>
+      <button type="button" id="zoomOut">축소(−)</button>
+      <button type="button" id="zoomReset">원래대로</button>
+    </div>
     <div class="tool-row">
       <span class="label">색</span>
       <button type="button" class="swatch active" id="colorBlack" style="background:#000000" aria-label="검정"></button>
@@ -76,6 +90,7 @@
 
 <script type="module">
 const canvas = document.getElementById('canvas');
+const stage = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
 const W = canvas.width, H = canvas.height;
 
@@ -213,35 +228,176 @@ function strokeSegment(x0, y0, x1, y1) {
   inkCtx.stroke();
 }
 
-canvas.addEventListener('pointerdown', (e) => {
-  if (imageState !== 'ready') return;
-  e.preventDefault();
-  canvas.setPointerCapture(e.pointerId);
-  pushUndoSnapshot();
-  drawing = true;
-  const { x, y } = toCanvasCoords(e);
-  lastX = x; lastY = y;
-  // 점만 찍어도 자국이 남도록 같은 점에 짧은 선을 그린다.
-  strokeSegment(x, y, x, y);
+// ---- 확대/축소 (핀치줌 + 버튼) ----
+// 캔버스는 CSS transform으로만 확대/이동한다. 픽셀 데이터(707x1000)는
+// 그대로이므로 toCanvasCoords()의 getBoundingClientRect() 기반 계산과
+// 내보내기(toBlob)는 줌과 무관하게 항상 정확하다.
+let scale = 1, tx = 0, ty = 0;
+const MIN_SCALE = 1, MAX_SCALE = 5;
+
+function applyTransform() {
+  canvas.style.transformOrigin = '0 0';
+  canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+}
+
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+// scale/tx/ty를 정리한다: 1에 가까우면 딱 맞춤 상태로 스냅하고,
+// 그 외에는 캔버스가 스테이지 밖으로 완전히 벗어나지 않도록 clamp한다.
+function normalizeTransform() {
+  scale = clamp(scale, MIN_SCALE, MAX_SCALE);
+  if (scale <= MIN_SCALE + 0.02) {
+    scale = 1; tx = 0; ty = 0;
+    return;
+  }
+  const baseW = stage.clientWidth;
+  const baseH = stage.clientHeight;
+  const scaledW = baseW * scale;
+  const scaledH = baseH * scale;
+  tx = clamp(tx, baseW - scaledW, 0);
+  ty = clamp(ty, baseH - scaledH, 0);
+}
+
+// 스테이지 중심을 고정한 채 배율만 factor만큼 바꾼다 (버튼용).
+function zoomByFactor(factor) {
+  const baseW = stage.clientWidth;
+  const baseH = stage.clientHeight;
+  const cx = baseW / 2, cy = baseH / 2;
+  const oldScale = scale;
+  const newScale = clamp(oldScale * factor, MIN_SCALE, MAX_SCALE);
+  const contentX = (cx - tx) / oldScale;
+  const contentY = (cy - ty) / oldScale;
+  scale = newScale;
+  tx = cx - contentX * newScale;
+  ty = cy - contentY * newScale;
+  normalizeTransform();
+  applyTransform();
+}
+
+$('zoomIn').addEventListener('click', () => zoomByFactor(1.3));
+$('zoomOut').addEventListener('click', () => zoomByFactor(1 / 1.3));
+$('zoomReset').addEventListener('click', () => {
+  scale = 1; tx = 0; ty = 0;
+  applyTransform();
+});
+
+// ---- 포인터(손가락) 추적: 1개=그리기, 2개=핀치줌/이동 ----
+const pointers = new Map(); // pointerId -> {x, y} (clientX/clientY)
+let capturedPointerId = null;
+let gesture = null; // {dist, midX, midY, scale, tx, ty} (스테이지 기준 좌표)
+
+function stagePoint(clientX, clientY) {
+  const r = stage.getBoundingClientRect();
+  return { x: clientX - r.left, y: clientY - r.top };
+}
+
+function firstTwoPointers() {
+  const vals = [...pointers.values()];
+  return [vals[0], vals[1]];
+}
+
+function startGesture() {
+  const [p0, p1] = firstTwoPointers();
+  const a = stagePoint(p0.x, p0.y);
+  const b = stagePoint(p1.x, p1.y);
+  gesture = {
+    dist: Math.hypot(b.x - a.x, b.y - a.y) || 1,
+    midX: (a.x + b.x) / 2,
+    midY: (a.y + b.y) / 2,
+    scale, tx, ty,
+  };
+}
+
+// 진행 중이던 한 손가락 획을 취소하고, 되돌리기 스택에 남긴 스냅샷도 되돌린다.
+function cancelInProgressStroke() {
+  if (!drawing) return;
+  const snapshot = undoStack.pop();
+  if (snapshot) inkCtx.putImageData(snapshot, 0, 0);
   redraw();
+  $('undo').disabled = undoStack.length === 0;
+  drawing = false;
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  e.preventDefault();
+
+  if (pointers.size === 1) {
+    if (imageState !== 'ready') return;
+    canvas.setPointerCapture(e.pointerId);
+    capturedPointerId = e.pointerId;
+    pushUndoSnapshot();
+    drawing = true;
+    const { x, y } = toCanvasCoords(e);
+    lastX = x; lastY = y;
+    // 점만 찍어도 자국이 남도록 같은 점에 짧은 선을 그린다.
+    strokeSegment(x, y, x, y);
+    redraw();
+  } else if (pointers.size === 2) {
+    if (capturedPointerId !== null) {
+      try { canvas.releasePointerCapture(capturedPointerId); } catch { /* noop */ }
+      capturedPointerId = null;
+    }
+    cancelInProgressStroke();
+    startGesture();
+  } else if (pointers.size > 2 && gesture) {
+    // 세 번째 이상 손가락은 무시하되, 기존 두 손가락 기준으로 계속 진행한다.
+  }
 });
 
 canvas.addEventListener('pointermove', (e) => {
-  if (!drawing) return;
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   e.preventDefault();
+
+  if (pointers.size >= 2 && gesture) {
+    const [p0, p1] = firstTwoPointers();
+    const a = stagePoint(p0.x, p0.y);
+    const b = stagePoint(p1.x, p1.y);
+    const dist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const midX = (a.x + b.x) / 2;
+    const midY = (a.y + b.y) / 2;
+    const newScale = clamp(gesture.scale * (dist / gesture.dist), MIN_SCALE, MAX_SCALE);
+    // 시작 중점 아래에 있던 컨텐츠 지점이 현재 중점 아래에 계속 오도록 tx/ty를 갱신한다.
+    tx = midX - (gesture.midX - gesture.tx) * (newScale / gesture.scale);
+    ty = midY - (gesture.midY - gesture.ty) * (newScale / gesture.scale);
+    scale = newScale;
+    normalizeTransform();
+    applyTransform();
+    return;
+  }
+
+  if (!drawing) return;
   const { x, y } = toCanvasCoords(e);
   strokeSegment(lastX, lastY, x, y);
   lastX = x; lastY = y;
   redraw();
 });
 
-function endStroke(e) {
-  if (!drawing) return;
-  drawing = false;
+function endPointer(e) {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.delete(e.pointerId);
   e.preventDefault();
+
+  if (capturedPointerId === e.pointerId) {
+    try { canvas.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+    capturedPointerId = null;
+  }
+
+  if (pointers.size === 2) {
+    // 세 손가락 중 하나를 뗀 경우: 남은 두 손가락으로 제스처 기준을 다시 잡는다.
+    startGesture();
+  } else if (pointers.size === 1) {
+    // 두 손가락 -> 한 손가락: 제스처를 끝내고, 남은 손가락으로는 그리지 않는다.
+    gesture = null;
+    drawing = false;
+  } else if (pointers.size === 0) {
+    gesture = null;
+    drawing = false;
+  }
 }
-canvas.addEventListener('pointerup', endStroke);
-canvas.addEventListener('pointercancel', endStroke);
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
 
 // ---- 내보내기 (신청일 필드가 없으므로 오늘 날짜로 파일명 생성) ----
 function toJpegFile() {
@@ -289,6 +445,7 @@ $('download').addEventListener('click', async () => {
 });
 
 // 최상위 await를 쓰지 않는다 — 구형 브라우저에서 모듈 파싱이 실패하는 것을 피한다.
+applyTransform();
 redraw();
 syncButtons();
 imageReady.then(() => { redraw(); syncButtons(); }).catch(() => { syncButtons(); });
