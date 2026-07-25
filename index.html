@@ -626,8 +626,8 @@ function addDaysFrom(dateStr, n) {
   if (!p) return null;
   return new Date(p.y, p.m, p.d + n);
 }
-// 공휴일 테스트 동안 임시로 날짜 범위 제한을 끈다. 테스트 끝나면 true로 되돌린다.
-const DATE_LIMIT_ENABLED = false;
+// 날짜 선택을 오늘~한 달 이내로 제한한다. (테스트 시에만 임시로 false)
+const DATE_LIMIT_ENABLED = true;
 
 function computeBounds(input) {
   calMin = null; calMax = null;
