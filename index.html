@@ -367,11 +367,64 @@ $('guestRow').addEventListener('click', (e) => {
   render();
 });
 
+// ---- 공휴일 정보 (한국천문연구원 특일정보 API, data.go.kr) ----
+// 아래에 발급받은 '디코딩(Decoding)' 서비스키를 넣으면 공휴일이 40,000원으로 계산된다.
+// 키가 없으면 공휴일 판정만 꺼지고(주말 요금 규칙은 그대로) 나머지는 정상 동작한다.
+const HOLIDAY_SERVICE_KEY = 'PUT_YOUR_DATA_GO_KR_DECODING_KEY_HERE';
+const holidaySet = new Set();      // 'YYYY-MM-DD' 공휴일 모음
+const holidayYearsTried = new Set();
+
+function isHoliday(dateObj) {
+  return holidaySet.has(toDateStr(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()));
+}
+
+async function loadHolidays(year) {
+  if (!year || holidayYearsTried.has(year)) return;
+  if (!HOLIDAY_SERVICE_KEY || HOLIDAY_SERVICE_KEY.startsWith('PUT_YOUR')) return;
+  holidayYearsTried.add(year);
+
+  // 캐시가 있으면 그대로 사용한다.
+  try {
+    const cached = JSON.parse(localStorage.getItem(`holidays-${year}`) || 'null');
+    if (cached) { cached.forEach((d) => holidaySet.add(d)); render(); return; }
+  } catch { /* 캐시 손상 무시 */ }
+
+  try {
+    const found = [];
+    for (let mo = 1; mo <= 12; mo++) {
+      const url = 'https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo'
+        + `?serviceKey=${encodeURIComponent(HOLIDAY_SERVICE_KEY)}`
+        + `&solYear=${year}&solMonth=${pad2(mo)}&numOfRows=50&_type=json`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      let items = json?.response?.body?.items?.item;
+      if (!items) continue;
+      if (!Array.isArray(items)) items = [items];
+      for (const it of items) {
+        if (String(it.isHoliday).trim() === 'Y') {
+          const ymd = String(it.locdate); // 예: 20260101
+          found.push(`${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`);
+        }
+      }
+    }
+    found.forEach((d) => holidaySet.add(d));
+    try { localStorage.setItem(`holidays-${year}`, JSON.stringify(found)); } catch { /* 저장 실패 무시 */ }
+    render();
+  } catch {
+    // 네트워크/키 오류: 매 입력마다 재요청하지 않도록 표시는 유지한다(새로고침 시 재시도).
+  }
+}
+
 function render() {
   const v = readValues();
   const nights = countNights(v.checkIn, v.checkOut);
 
-  const auto = calcAmount(v);
+  // 사용기간에 걸친 연도의 공휴일을 확보한다(공휴일 전날 규칙 때문에 다음해도 함께).
+  if (v.checkIn) loadHolidays(Number(v.checkIn.slice(0, 4)));
+  if (v.checkOut) { const yr = Number(v.checkOut.slice(0, 4)); loadHolidays(yr); loadHolidays(yr + 1); }
+
+  const auto = calcAmount(v, isHoliday);
   $('amount').value = auto ? auto.toLocaleString('ko-KR') : '';
   v.amount = auto;
   v.amountEntered = auto > 0;
