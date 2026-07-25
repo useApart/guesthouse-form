@@ -627,12 +627,16 @@ function addDaysFrom(dateStr, n) {
   return new Date(p.y, p.m, p.d + n);
 }
 function computeBounds(input) {
-  calMin = null; calMax = null;
-  // 퇴실일은 입실일 다음날부터 최대 2박(입실일+2)까지만 고를 수 있다.
+  // 공통: 오늘부터 한 달 뒤(같은 날) 까지만 선택 가능. 과거·한 달 초과는 막는다.
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  calMin = t;
+  calMax = new Date(t.getFullYear(), t.getMonth() + 1, t.getDate());
+  // 퇴실일은 추가로 입실일 다음날부터 최대 2박(입실일+2)까지만 고를 수 있다(공통 범위와 교집합).
   if (input.id === 'checkOut') {
     const lo = addDaysFrom($('checkIn').value, 1);
     const hi = addDaysFrom($('checkIn').value, 2);
-    if (lo && hi) { calMin = lo; calMax = hi; }
+    if (lo && lo > calMin) calMin = lo;
+    if (hi && hi < calMax) calMax = hi;
   }
 }
 function outOfBounds(y, m, d) {
