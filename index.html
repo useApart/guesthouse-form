@@ -697,9 +697,10 @@ function renderCalendarGrid() {
 function selectDate(d) {
   if (!calTarget) return;
   if (outOfBounds(calYear, calMonth, d)) return;
+  const wasCheckIn = calTarget.id === 'checkIn';
   calTarget.value = toDateStr(calYear, calMonth, d);
   // 입실일을 바꾸면 기존 퇴실일이 범위(1~2박)를 벗어날 수 있으니 정리한다.
-  if (calTarget.id === 'checkIn') {
+  if (wasCheckIn) {
     const co = $('checkOut').value;
     if (co) {
       const n = countNights($('checkIn').value, co);
@@ -708,6 +709,12 @@ function selectDate(d) {
   }
   closeCalendar();
   render();
+  // 입실일을 고르면 퇴실일이 비어 있을 때 곧바로 퇴실일 달력을 열어 준다.
+  if (wasCheckIn && !$('checkOut').value) {
+    const co = $('checkOut');
+    co.focus({ preventScroll: true });
+    openCalendar(co);
+  }
 }
 
 // 카드 밖으로 잘리지 않도록 body에 붙여 놓은 팝오버를 탭한 칸의 위치에 맞춰 옮긴다.
@@ -793,8 +800,13 @@ window.addEventListener('scroll', () => {
 
 for (const id of ['applyDate', 'deposit', 'checkIn', 'checkOut']) {
   const el = $(id);
-  el.addEventListener('click', () => openCalendar(el));
-  el.addEventListener('focus', () => openCalendar(el));
+  // pointerdown에서 네이티브 포커스를 막아(=포커스 시 페이지가 칸으로 스크롤되는 것 방지)
+  // 직접 preventScroll로 포커스만 준다. 포커스 링은 그대로 유지된다.
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    el.focus({ preventScroll: true });
+    openCalendar(el);
+  });
 }
 
 // 토스·카카오페이 등의 '붙여넣기'가 은행과 계좌번호를 함께 인식하도록 은행명을 붙여 복사한다.
