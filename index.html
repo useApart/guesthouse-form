@@ -41,12 +41,17 @@
   .dh-dash { color: #9A9F92; font-weight: 600; }
   .frow-body input:focus ~ label,
   .frow-body input:not(:placeholder-shown) ~ label { top: 0; transform: none; font-size: 12px; }
-  /* 활성(포커스) 행 강조: 캡쳐처럼 둥근 테두리로 떠 보이게 */
-  .frow:focus-within { background: #FAFAF8; border-radius: 14px; }
+  /* 활성(포커스) 행 강조: 리스트 컨테이너의 실제 모서리에 맞춰 테두리를 진하게.
+     첫 행(신청일)은 상단만, 마지막 행(은행입금일)은 하단만 둥글게, 중간은 각지게. */
+  .frow:focus-within { background: #FAFAF8; }
   .frow:focus-within::after {
-    content: ''; position: absolute; inset: -1px; border: 2px solid #B7B5AC;
-    border-radius: 14px; pointer-events: none;
+    content: ''; position: absolute; inset: -1px; border: 2px solid #6B7280;
+    border-radius: 0; pointer-events: none;
   }
+  .field-list .frow:first-child:focus-within { border-radius: 16px 16px 0 0; }
+  .field-list .frow:first-child:focus-within::after { border-radius: 16px 16px 0 0; }
+  .field-list .frow:last-child:focus-within { border-radius: 0 0 16px 16px; }
+  .field-list .frow:last-child:focus-within::after { border-radius: 0 0 16px 16px; }
   .frow-body .won { position: absolute; right: 0; bottom: 4px; font-size: 14px; color: #9A9F92; }
   .frow-body input#amount { padding-right: 22px; }
   /* 사용인원: 플로팅 없이 상단 라벨 + 버튼 */
