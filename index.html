@@ -17,15 +17,37 @@
   .tab.active { background: #fff; color: #1F6D57; box-shadow: 0 1px 2px rgba(30,37,30,.08); }
   .card { background: #fff; border-radius: 20px; border: 1px solid #E8E6DE; box-shadow: 0 1px 3px rgba(30,37,30,.04); padding: 28px 24px; display: flex; flex-direction: column; gap: 18px; }
   form { display: flex; flex-direction: column; gap: 18px; }
-  label { font-size: 14px; font-weight: 600; color: #3C443B; display: block; margin-bottom: 6px; }
-  .field { display: flex; flex-direction: column; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  input[type="text"], input[type="tel"], input[type="date"] {
-    height: 50px; width: 100%; border-radius: 12px; border: 1px solid #DDDBD2; padding: 0 14px;
-    font-size: 16px; font-family: inherit; color: #1E251E; background: #fff;
+  /* 아이콘 + 플로팅 라벨 리스트 (한 컨테이너에 세로로 쌓기) */
+  .field-list { border: 1px solid #E2E0D8; border-radius: 16px; background: #fff; }
+  .frow { position: relative; display: flex; align-items: center; gap: 14px; padding: 10px 18px; min-height: 66px; }
+  .frow + .frow { border-top: 1px solid #ECEAE3; }
+  .frow-ic { flex-shrink: 0; width: 24px; color: #9A9F92; display: flex; align-items: center; justify-content: center; }
+  .frow-ic svg { width: 22px; height: 22px; display: block; }
+  .frow-body { position: relative; flex: 1; min-width: 0; padding-top: 14px; }
+  .frow-body > label {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%); margin: 0;
+    font-size: 16px; font-weight: 400; color: #9A9F92; pointer-events: none;
+    transition: top .15s, font-size .15s, transform .15s; white-space: nowrap;
   }
-  input[type="date"] { background: #FBFAF7; }
-  input.date-in[readonly] { cursor: pointer; background: #FBFAF7; }
+  .frow-body input {
+    width: 100%; border: none; background: transparent; padding: 0;
+    font-size: 16px; font-weight: 500; color: #1E251E; height: 28px; line-height: 28px; font-family: inherit;
+  }
+  .frow-body input:focus { outline: none; }
+  .frow-body input[readonly] { cursor: pointer; }
+  .frow-body input:focus ~ label,
+  .frow-body input:not(:placeholder-shown) ~ label { top: 0; transform: none; font-size: 12px; }
+  /* 활성(포커스) 행 강조: 캡쳐처럼 둥근 테두리로 떠 보이게 */
+  .frow:focus-within { background: #FAFAF8; border-radius: 14px; }
+  .frow:focus-within::after {
+    content: ''; position: absolute; inset: -1px; border: 2px solid #B7B5AC;
+    border-radius: 14px; pointer-events: none;
+  }
+  .frow-body .won { position: absolute; right: 0; bottom: 4px; font-size: 14px; color: #9A9F92; }
+  .frow-body input#amount { padding-right: 22px; }
+  /* 사용인원: 플로팅 없이 상단 라벨 + 버튼 */
+  .frow-static { padding-top: 0; }
+  .frow-slabel { font-size: 12px; color: #9A9F92; margin-bottom: 8px; }
 
   .cal-pop {
     position: fixed; z-index: 1000; width: 296px; max-width: calc(100vw - 16px);
@@ -51,25 +73,13 @@
   .cal-foot { display: flex; gap: 8px; margin-top: 8px; }
   .cal-action { flex: 1; height: 38px; border-radius: 10px; border: 1px solid #DDDBD2; background: #fff; font-size: 13px; font-weight: 600; color: #3C443B; cursor: pointer; font-family: inherit; }
   .cal-action:hover { background: #F5F4F0; }
-  .amount-wrap { position: relative; }
-  .amount-wrap span { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; color: #7A8177; }
-  .amount-wrap input { padding-right: 40px; }
   .link-btn {
     align-self: flex-start; background: none; border: none; padding: 4px 0; margin-top: -8px;
     font-size: 12px; color: #7A8177; text-decoration: underline; cursor: pointer; font-family: inherit;
   }
   .guest-row { display: flex; gap: 8px; }
-  .guest-btn { flex: 1; height: 46px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; border: 1px solid #DDDBD2; background: #fff; color: #3C443B; }
+  .guest-btn { flex: 1; height: 42px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; border: 1px solid #DDDBD2; background: #fff; color: #3C443B; }
   .guest-btn.active { border: 1.5px solid #1F6D57; background: #EAF3EF; color: #1F6D57; }
-  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 12px; background: #F5F4F0; border: 1px solid #E8E6DE; cursor: pointer; }
-  .toggle-row.on { background: #EAF3EF; border-color: #1F6D57; }
-  .toggle-title { font-size: 15px; font-weight: 600; margin-bottom: 0; }
-  .toggle-sub { font-size: 13px; color: #7A8177; margin-top: 2px; }
-  .switch { width: 44px; height: 26px; border-radius: 13px; background: #D8D6CD; position: relative; flex-shrink: 0; transition: background .15s; }
-  .switch.on { background: #1F6D57; }
-  .switch .thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; position: absolute; top: 3px; left: 3px; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
-  .switch.on .thumb { left: 21px; }
   .summary { margin: 0; font-size: 13px; color: #7A8177; }
   .warning { margin: 0; font-size: 13px; color: #C0392B; font-weight: 700; }
   #canvas {
@@ -116,68 +126,75 @@
 
     <div class="card">
       <form id="form" autocomplete="on">
-        <div class="row2">
-          <div class="field">
-            <label for="applyDate">신청일</label>
-            <input type="text" id="applyDate" readonly placeholder="날짜 선택" class="date-in">
+        <div class="field-list">
+          <div class="frow">
+            <span class="frow-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg></span>
+            <div class="frow-body">
+              <input type="text" id="applyDate" readonly placeholder=" " class="date-in">
+              <label for="applyDate">신청일</label>
+            </div>
           </div>
-          <div class="field">
-            <label for="deposit">은행입금일</label>
-            <input type="text" id="deposit" readonly placeholder="날짜 선택" class="date-in">
+          <div class="frow">
+            <span class="frow-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg></span>
+            <div class="frow-body">
+              <input type="text" id="deposit" readonly placeholder=" " class="date-in">
+              <label for="deposit">은행입금일</label>
+            </div>
           </div>
-        </div>
-
-        <div class="field">
-          <label for="name">성명</label>
-          <input type="text" id="name" placeholder="이름을 입력하세요" maxlength="20">
-        </div>
-
-        <div class="row2">
-          <div class="field">
-            <label for="unit">동·호수</label>
-            <input type="text" id="unit" placeholder="예: 101동 1201호" maxlength="20">
+          <div class="frow">
+            <span class="frow-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg></span>
+            <div class="frow-body">
+              <input type="text" id="name" placeholder=" " maxlength="20">
+              <label for="name">성명</label>
+            </div>
           </div>
-          <div class="field">
-            <label for="phone">연락처</label>
-            <input type="tel" id="phone" placeholder="010-0000-0000" maxlength="20">
+          <div class="frow">
+            <span class="frow-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5"/><path d="M6 9.5V20h12V9.5"/></svg></span>
+            <div class="frow-body">
+              <input type="text" id="unit" placeholder=" " maxlength="20">
+              <label for="unit">동·호수</label>
+            </div>
           </div>
-        </div>
-
-        <div class="row2">
-          <div class="field">
-            <label for="checkIn">입실일</label>
-            <input type="text" id="checkIn" readonly placeholder="날짜 선택" class="date-in">
+          <div class="frow">
+            <span class="frow-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h3l1.5 4-2 1.5a12 12 0 0 0 5.5 5.5l1.5-2 4 1.5v3c0 1-.9 1.8-1.9 1.7C11.8 22.7 4.3 15.2 3.8 6.4 3.7 5.4 4.5 3.5 6.5 3.5z"/></svg></span>
+            <div class="frow-body">
+              <input type="tel" id="phone" placeholder=" " maxlength="20">
+              <label for="phone">연락처</label>
+            </div>
           </div>
-          <div class="field">
-            <label for="checkOut">퇴실일</label>
-            <input type="text" id="checkOut" readonly placeholder="날짜 선택" class="date-in">
+          <div class="frow">
+            <span class="frow-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M3 12h11M10 8l4 4-4 4"/></svg></span>
+            <div class="frow-body">
+              <input type="text" id="checkIn" readonly placeholder=" " class="date-in">
+              <label for="checkIn">입실일</label>
+            </div>
           </div>
-        </div>
-
-        <div class="field">
-          <label>사용인원</label>
-          <div class="guest-row" id="guestRow">
-            <button type="button" class="guest-btn active" data-n="2">2명</button>
-            <button type="button" class="guest-btn" data-n="3">3명</button>
-            <button type="button" class="guest-btn" data-n="4">4명</button>
+          <div class="frow">
+            <span class="frow-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4"/><path d="M21 12H9M15 8l-4 4 4 4" transform="translate(24) scale(-1 1)"/></svg></span>
+            <div class="frow-body">
+              <input type="text" id="checkOut" readonly placeholder=" " class="date-in">
+              <label for="checkOut">퇴실일</label>
+            </div>
           </div>
-          <input type="hidden" id="people" value="2">
-        </div>
-
-        <label class="toggle-row" id="holidayRow" for="holiday">
-          <input type="checkbox" id="holiday" class="visually-hidden">
-          <div>
-            <div class="toggle-title">공휴일 요금 적용</div>
-            <div class="toggle-sub">전 기간 40,000원</div>
+          <div class="frow">
+            <span class="frow-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M2.5 19c0-3 2.9-5 6.5-5s6.5 2 6.5 5"/><path d="M16 5.6a3 3 0 0 1 0 5.8M21.5 19c0-2.4-1.7-4.2-4.2-4.8"/></svg></span>
+            <div class="frow-body frow-static">
+              <div class="frow-slabel">사용인원</div>
+              <div class="guest-row" id="guestRow">
+                <button type="button" class="guest-btn active" data-n="2">2명</button>
+                <button type="button" class="guest-btn" data-n="3">3명</button>
+                <button type="button" class="guest-btn" data-n="4">4명</button>
+              </div>
+              <input type="hidden" id="people" value="2">
+            </div>
           </div>
-          <div class="switch" id="holidaySwitch"><div class="thumb"></div></div>
-        </label>
-
-        <div class="field">
-          <label for="amount">사용금액</label>
-          <div class="amount-wrap">
-            <input type="text" id="amount" inputmode="numeric" placeholder="자동 계산">
-            <span>원</span>
+          <div class="frow">
+            <span class="frow-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/><path d="M15.5 12h2.5"/><path d="M3 9V6.5a1.5 1.5 0 0 1 1.5-1.5H16"/></svg></span>
+            <div class="frow-body">
+              <input type="text" id="amount" inputmode="numeric" placeholder=" ">
+              <label for="amount">사용금액</label>
+              <span class="won">원</span>
+            </div>
           </div>
         </div>
         <button type="button" id="resetAmount" class="link-btn" hidden>자동 계산으로 되돌리기</button>
@@ -280,7 +297,7 @@ function readValues() {
     checkIn: $('checkIn').value,
     checkOut: $('checkOut').value,
     people: Number($('people').value),
-    holiday: $('holiday').checked,
+    holiday: false,
     amount: Number($('amount').value.replace(/[^0-9]/g, '')),
     amountEntered: /[0-9]/.test($('amount').value),
     deposit: $('deposit').value,
@@ -347,13 +364,6 @@ $('guestRow').addEventListener('click', (e) => {
   $('people').value = btn.dataset.n;
   document.querySelectorAll('.guest-btn').forEach((b) => b.classList.toggle('active', b === btn));
   render();
-});
-
-// 공휴일: 실제 상태는 체크박스(#holiday)가 그대로 들고 있다. 여기서는 스위치 시각만 맞춘다.
-$('holiday').addEventListener('change', () => {
-  const on = $('holiday').checked;
-  $('holidayRow').classList.toggle('on', on);
-  $('holidaySwitch').classList.toggle('on', on);
 });
 
 function render() {
