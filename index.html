@@ -33,7 +33,12 @@
   }
   .frow-body input:focus { outline: none; }
   .frow-body input[readonly] { cursor: pointer; }
-  .frow-body input#nightsOut { cursor: default; color: #7A8177; }
+  .frow-body input#nightsOut, .frow-body input#amount { cursor: default; }
+  .frow-body input#nightsOut { color: #7A8177; }
+  .dong-ho { display: flex; align-items: center; gap: 8px; }
+  .dong-ho input { flex: 1; min-width: 0; height: 42px; border: 1px solid #DDDBD2; border-radius: 9px; padding: 0 12px; font-size: 16px; font-family: inherit; color: #1E251E; background: #fff; }
+  .dong-ho input:focus { outline: none; border-color: #B7B5AC; }
+  .dh-dash { color: #9A9F92; font-weight: 600; }
   .frow-body input:focus ~ label,
   .frow-body input:not(:placeholder-shown) ~ label { top: 0; transform: none; font-size: 12px; }
   /* 활성(포커스) 행 강조: 캡쳐처럼 둥근 테두리로 떠 보이게 */
@@ -69,6 +74,8 @@
   .cal-day.cal-sat { color: #2E5AA8; }
   .cal-day.cal-today { font-weight: 700; box-shadow: inset 0 0 0 1.5px #1F6D57; }
   .cal-day.cal-selected { background: #1F6D57; color: #fff; }
+  .cal-day.cal-disabled { color: #CFCDC4; cursor: default; }
+  .cal-day.cal-disabled:hover { background: none; }
   .cal-foot { display: flex; gap: 8px; margin-top: 8px; }
   .cal-action { flex: 1; height: 38px; border-radius: 10px; border: 1px solid #DDDBD2; background: #fff; font-size: 13px; font-weight: 600; color: #3C443B; cursor: pointer; font-family: inherit; }
   .cal-action:hover { background: #F5F4F0; }
@@ -139,9 +146,13 @@
             </div>
           </div>
           <div class="frow">
-            <div class="frow-body">
-              <input type="text" id="unit" placeholder=" " maxlength="20">
-              <label for="unit">동·호수</label>
+            <div class="frow-body frow-static">
+              <div class="frow-slabel">동·호수</div>
+              <div class="dong-ho">
+                <input type="text" id="unitDong" inputmode="numeric" placeholder="동" maxlength="5">
+                <span class="dh-dash">-</span>
+                <input type="text" id="unitHo" inputmode="numeric" placeholder="호" maxlength="5">
+              </div>
             </div>
           </div>
           <div class="frow">
@@ -170,8 +181,8 @@
           </div>
           <div class="frow">
             <div class="frow-body">
-              <input type="text" id="amount" inputmode="numeric" placeholder=" ">
-              <label for="amount">사용금액</label>
+              <input type="text" id="amount" readonly placeholder=" ">
+              <label for="amount">사용금액 (자동 계산)</label>
               <span class="won">원</span>
             </div>
           </div>
@@ -193,9 +204,7 @@
             </div>
           </div>
         </div>
-        <button type="button" id="resetAmount" class="link-btn" hidden>자동 계산으로 되돌리기</button>
 
-        <p id="summary" class="summary"></p>
         <p id="warning" class="warning" hidden></p>
       </form>
 
@@ -285,10 +294,12 @@ function drawForm(text) {
 const $ = (id) => document.getElementById(id);
 
 function readValues() {
+  const dong = $('unitDong').value.trim();
+  const ho = $('unitHo').value.trim();
   return {
     applyDate: $('applyDate').value,
     name: $('name').value.trim(),
-    unit: $('unit').value.trim(),
+    unit: (dong && ho) ? `${dong}동 ${ho}호` : '',
     phone: $('phone').value.trim(),
     checkIn: $('checkIn').value,
     checkOut: $('checkOut').value,
@@ -332,25 +343,19 @@ function formatValues(v, nights) {
   };
 }
 
-// 사용자가 금액을 직접 고쳤는지 추적한다. 고쳤다면 자동 계산으로 덮어쓰지 않는다.
-let amountEdited = false;
-// 사용자가 금액 칸에 포커스를 두고 있는 동안은 절대 값을 다시 쓰지 않는다(캐럿 점프·자리수 밀림 방지).
-let amountFocused = false;
-$('amount').addEventListener('input', () => {
-  // 숫자를 모두 지워 빈 값으로 돌아가면 자동 계산 모드로 복귀한다.
-  // render()는 여기서 부르지 않는다 — #form의 버블링 input 리스너가 한 번만 호출한다.
-  amountEdited = /[0-9]/.test($('amount').value);
-});
-$('amount').addEventListener('focus', () => { amountFocused = true; });
-$('amount').addEventListener('blur', () => {
-  amountFocused = false;
-  render(); // 자리를 떠났고 필드를 비웠다면 즉시 자동 계산으로 복귀시킨다.
-});
+// 금액은 항상 자동 계산이며 사용자가 직접 고칠 수 없다(#amount는 readonly).
 
-$('resetAmount').addEventListener('click', () => {
-  amountEdited = false;
-  render();
-});
+// 성명은 한글(자모/완성형)과 공백만, 연락처는 숫자와 하이픈만, 동·호수는 숫자만 받는다.
+function filterInput(el, re) {
+  el.addEventListener('input', () => {
+    const cleaned = el.value.replace(re, '');
+    if (cleaned !== el.value) el.value = cleaned;
+  });
+}
+filterInput($('name'), /[^가-힣ㄱ-ㅎㅏ-ㅣ\s]/g);
+filterInput($('unitDong'), /[^0-9]/g);
+filterInput($('unitHo'), /[^0-9]/g);
+// 연락처(#phone)는 아래 formatPhone 리스너가 숫자만 남기고 하이픈을 자동으로 넣는다.
 
 // 사용인원: 시각은 버튼 3개, 실제 값은 숨김 입력(#people)에 저장한다. readValues()는
 // 기존과 동일하게 #people.value만 읽으므로 아래 나머지 로직은 그대로 둔다.
@@ -366,27 +371,19 @@ function render() {
   const v = readValues();
   const nights = countNights(v.checkIn, v.checkOut);
 
-  if (!amountEdited && !amountFocused) {
-    const auto = calcAmount(v);
-    $('amount').value = auto ? auto.toLocaleString('ko-KR') : '';
-    v.amount = auto;
-    v.amountEntered = auto > 0;
-  }
-  $('resetAmount').hidden = !amountEdited;
+  const auto = calcAmount(v);
+  $('amount').value = auto ? auto.toLocaleString('ko-KR') : '';
+  v.amount = auto;
+  v.amountEntered = auto > 0;
   $('nightsOut').value = nights ? `${nights}일` : '';
-
-  $('summary').textContent = nights
-    ? `${nights}일 ${v.people}명 · ${amountEdited ? '직접 입력' : '자동 계산'} ${v.amount.toLocaleString('ko-KR')}원`
-    // 날짜가 둘 다 채워졌는데 0박이면 역전 상태다. 그 안내는 #status가 맡으므로 여기선 비운다.
-    : (v.checkIn && v.checkOut ? '' : '입실일과 퇴실일을 선택하세요.');
 
   const warn = $('warning');
   // 퇴실일<=입실일 상태의 안내는 #status(syncButtons)에서만 표시한다 — 여기서 같은 문장을 또 띄우지 않는다.
   // 버튼은 그와 무관하게 syncButtons()가 계속 잠근다.
   if (v.checkIn && v.checkOut && nights === 0) {
     warn.hidden = true;
-  } else if (nights >= 5) {
-    warn.textContent = '운영규정상 1세대가 한 달 기준 5박 이상 사용할 수 없습니다.';
+  } else if (nights > 2) {
+    warn.textContent = '운영규정상 1세대는 2박까지만 사용할 수 있습니다.';
     warn.hidden = false;
   } else {
     warn.hidden = true;
@@ -569,6 +566,29 @@ function parseDateStr(s) {
   return { y, m: m - 1, d };
 }
 
+// 선택 가능 범위(입실일 기준 최대 2박). null이면 제한 없음.
+let calMin = null, calMax = null;
+function addDaysFrom(dateStr, n) {
+  const p = parseDateStr(dateStr);
+  if (!p) return null;
+  return new Date(p.y, p.m, p.d + n);
+}
+function computeBounds(input) {
+  calMin = null; calMax = null;
+  // 퇴실일은 입실일 다음날부터 최대 2박(입실일+2)까지만 고를 수 있다.
+  if (input.id === 'checkOut') {
+    const lo = addDaysFrom($('checkIn').value, 1);
+    const hi = addDaysFrom($('checkIn').value, 2);
+    if (lo && hi) { calMin = lo; calMax = hi; }
+  }
+}
+function outOfBounds(y, m, d) {
+  const dt = new Date(y, m, d);
+  if (calMin && dt < calMin) return true;
+  if (calMax && dt > calMax) return true;
+  return false;
+}
+
 function renderCalendarGrid() {
   calLabel.textContent = `${calYear}년 ${calMonth + 1}월`;
   const selected = parseDateStr(calTarget ? calTarget.value : '');
@@ -596,14 +616,28 @@ function renderCalendarGrid() {
     if (today.getFullYear() === calYear && today.getMonth() === calMonth && today.getDate() === d) {
       btn.classList.add('cal-today');
     }
-    btn.addEventListener('click', () => selectDate(d));
+    if (outOfBounds(calYear, calMonth, d)) {
+      btn.classList.add('cal-disabled');
+      btn.disabled = true;
+    } else {
+      btn.addEventListener('click', () => selectDate(d));
+    }
     calGrid.appendChild(btn);
   }
 }
 
 function selectDate(d) {
   if (!calTarget) return;
+  if (outOfBounds(calYear, calMonth, d)) return;
   calTarget.value = toDateStr(calYear, calMonth, d);
+  // 입실일을 바꾸면 기존 퇴실일이 범위(1~2박)를 벗어날 수 있으니 정리한다.
+  if (calTarget.id === 'checkIn') {
+    const co = $('checkOut').value;
+    if (co) {
+      const n = countNights($('checkIn').value, co);
+      if (n < 1 || n > 2) $('checkOut').value = '';
+    }
+  }
   closeCalendar();
   render();
 }
@@ -636,6 +670,7 @@ function openCalendar(input) {
   calYear = parsed.y;
   calMonth = parsed.m;
   calClearBtn.hidden = !CLEARABLE.has(input.id);
+  computeBounds(input);
   renderCalendarGrid();
   calPop.classList.add('show');
   positionCalendar();
@@ -682,6 +717,11 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('resize', () => {
   if (calPop.classList.contains('show')) positionCalendar();
 });
+// 스크롤 시 팝오버가 칸에서 떨어져 보이던 문제: 스크롤에 맞춰 다시 위치를 잡는다.
+// capture=true로 내부 스크롤 컨테이너의 스크롤도 잡는다.
+window.addEventListener('scroll', () => {
+  if (calPop.classList.contains('show')) positionCalendar();
+}, true);
 
 for (const id of ['applyDate', 'deposit', 'checkIn', 'checkOut']) {
   const el = $(id);
@@ -726,7 +766,7 @@ async function copyText(text, button) {
 $('copyAccount').addEventListener('click', (e) => copyText(ACCOUNT_NUMBER, e.currentTarget));
 
 const STORE_KEY = 'guesthouse-form';
-const SAVED_FIELDS = ['name', 'unit', 'phone']; // 매번 같은 값만 저장한다. 날짜·인원·금액은 제외.
+const SAVED_FIELDS = ['name', 'unitDong', 'unitHo', 'phone']; // 매번 같은 값만 저장한다. 날짜·인원·금액은 제외.
 
 function restoreSaved() {
   try {
@@ -740,8 +780,7 @@ function restoreSaved() {
 }
 
 function saveFields() {
-  const v = readValues();
-  const data = Object.fromEntries(SAVED_FIELDS.map((id) => [id, v[id]]));
+  const data = Object.fromEntries(SAVED_FIELDS.map((id) => [id, $(id).value]));
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
   } catch {
