@@ -364,6 +364,14 @@
     function end(e) {
       if (e && e.pointerId !== b.activePointerId) return;
       clearTimeout(b.holdTimer);
+      // 움직임 없이 톡 찍기: 아직 'pending'(필기 대기)인 채로 뗐으면 그 자리에 점을 찍는다.
+      if (b.mode === 'pending' && b.downPoint) {
+        b.ctx.globalCompositeOperation = 'source-over';
+        b.ctx.fillStyle = color;
+        b.ctx.beginPath();
+        b.ctx.arc(b.downPoint.x, b.downPoint.y, Math.max(1.1, thickness * 0.6), 0, Math.PI * 2);
+        b.ctx.fill();
+      }
       canvas.parentNode.classList.remove('erasing');
       b.drawing = false;
       b.lastPoint = null;
