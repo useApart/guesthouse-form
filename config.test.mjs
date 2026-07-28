@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_CONFIG, rectToPoint, clone, normalizeConfig, parseConfig } from './config.js';
+import {
+  DEFAULT_CONFIG, rectToPoint, clone, normalizeConfig, parseConfig,
+  formFields, printedCells, packRows,
+} from './config.js';
 
 // 리팩터 전 index.html이 하드코딩하고 있던 값. 설정 기반으로 바꾼 뒤에도
 // 같은 자리에 찍혀야 한다. 이 테스트가 리팩터 전체의 안전망이다.
@@ -168,4 +171,69 @@ test('정규화 결과는 원본 기본값을 오염시키지 않는다', () => 
   result.fields[0].label = '바뀐 라벨';
   assert.equal(DEFAULT_CONFIG.pricing.weekday, 35000);
   assert.equal(DEFAULT_CONFIG.fields[0].label, '신청일');
+});
+
+// ---- 배치 규칙과 대상 필터 ----
+
+const ids = (rows) => rows.map((row) => row.map((f) => f.id));
+
+// 설정의 fields 일부만 바꿔 정규화된 설정을 만든다.
+function withFields(patch) {
+  const fields = clone(DEFAULT_CONFIG.fields).map((f) => (patch[f.id] ? { ...f, ...patch[f.id] } : f));
+  return normalizeConfig({ ...clone(DEFAULT_CONFIG), fields });
+}
+
+test('index.html 배치가 현재와 같다', () => {
+  const rows = ids(packRows(formFields(DEFAULT_CONFIG)));
+  assert.deepEqual(rows, [
+    ['applyDate', 'deposit'],
+    ['name'],
+    ['unit', 'phone'],
+    ['checkIn', 'checkOut'],
+    ['people'],   // half지만 다음이 full(holiday)이라 한 줄 전체로 늘어난다
+    ['holiday'],
+    ['amount'],
+  ]);
+});
+
+test('draw.html 배치가 현재와 같다', () => {
+  const rows = ids(packRows(printedCells(DEFAULT_CONFIG)));
+  assert.deepEqual(rows, [
+    ['applyDate', 'deposit'],
+    ['name'],
+    ['unit', 'phone'],
+    ['period'],
+    ['nights', 'people'],
+    ['amount'],
+  ]);
+});
+
+test('formFields는 계산 전용 항목을 뺀다', () => {
+  const list = formFields(DEFAULT_CONFIG).map((f) => f.id);
+  assert.ok(!list.includes('period'));
+  assert.ok(!list.includes('nights'));
+  assert.ok(list.includes('checkIn'));
+});
+
+test('printedCells는 rect 없는 항목과 printed:false를 뺀다', () => {
+  const list = printedCells(DEFAULT_CONFIG).map((f) => f.id);
+  assert.ok(!list.includes('checkIn'));
+  assert.ok(!list.includes('holiday'));
+  assert.equal(list.length, 9);
+
+  const hidden = withFields({ deposit: { printed: false } });
+  assert.ok(!printedCells(hidden).map((f) => f.id).includes('deposit'));
+});
+
+test('숨긴 항목은 화면에서 빠지고 배치가 다시 계산된다', () => {
+  const config = withFields({ deposit: { visible: false } });
+  const rows = ids(packRows(formFields(config)));
+  // 신청일이 홀로 남으면 한 줄 전체를 쓰고, 그 다음부터 짝이 다시 맞는다.
+  assert.deepEqual(rows[0], ['applyDate']);
+  assert.deepEqual(rows[1], ['name']);
+  assert.deepEqual(rows[2], ['unit', 'phone']);
+});
+
+test('packRows는 빈 배열에 빈 배열을 돌려준다', () => {
+  assert.deepEqual(packRows([]), []);
 });

@@ -266,6 +266,37 @@ export function normalizeConfig(raw) {
   };
 }
 
+// ---- 배치 규칙과 대상 필터 ----
+// 두 페이지가 서로 다른 부분집합을 같은 규칙으로 배치한다.
+
+// index.html이 그리는 대상: 사람이 값을 입력하는 항목.
+export function formFields(config) {
+  return config.fields.filter((f) => f.visible !== false && f.input !== null);
+}
+
+// draw.html이 그리는 대상: 서식 이미지에 찍히는 칸. 손글씨 페이지는 입실일·퇴실일
+// 대신 사용기간을 직접 쓰므로 "입력 항목"이 아니라 "출력 칸" 기준이다.
+export function printedCells(config) {
+  return config.fields.filter((f) => f.rect && f.printed !== false);
+}
+
+// 연속한 half 둘은 한 줄에 나란히, 홀로 남은 half는 한 줄 전체로 늘린다.
+// 줄 배열의 길이가 1이면 전체 폭, 2면 2열이라는 뜻이다.
+export function packRows(fields) {
+  const rows = [];
+  for (let i = 0; i < fields.length; i++) {
+    const current = fields[i];
+    const next = fields[i + 1];
+    if (current.width === 'half' && next && next.width === 'half') {
+      rows.push([current, next]);
+      i++;
+    } else {
+      rows.push([current]);
+    }
+  }
+  return rows;
+}
+
 export function parseConfig(text) {
   try {
     return normalizeConfig(JSON.parse(text));
