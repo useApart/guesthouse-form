@@ -114,7 +114,7 @@ test('삭제된 system 항목은 되살린다', () => {
   const result = normalizeConfig({
     fields: [{ id: 'name', label: '성명', input: 'text', rect: null }],
   });
-  for (const id of ['checkIn', 'checkOut', 'period', 'nights', 'people', 'holiday', 'amount']) {
+  for (const id of ['checkIn', 'checkOut', 'period', 'nights', 'amount', 'people']) {
     assert.ok(result.fields.some((f) => f.id === id), `${id}가 복구되지 않았다`);
   }
 });
@@ -184,36 +184,59 @@ function withFields(patch) {
   return normalizeConfig({ ...clone(DEFAULT_CONFIG), fields });
 }
 
-test('index.html 배치가 현재와 같다', () => {
-  const rows = ids(packRows(formFields(DEFAULT_CONFIG)));
-  assert.deepEqual(rows, [
-    ['applyDate', 'deposit'],
-    ['name'],
-    ['unit', 'phone'],
-    ['checkIn', 'checkOut'],
-    ['people'],   // half지만 다음이 full(holiday)이라 한 줄 전체로 늘어난다
-    ['holiday'],
-    ['amount'],
+test('index.html 폼 항목 순서가 서식 순서와 같다', () => {
+  // index.html은 2열 배치를 쓰지 않고 한 줄씩 쌓으므로 packRows를 거치지 않는다.
+  assert.deepEqual(formFields(DEFAULT_CONFIG).map((f) => f.id), [
+    'applyDate', 'name', 'unit', 'phone',
+    'checkIn', 'checkOut', 'nights', 'amount', 'people', 'deposit',
   ]);
 });
 
-test('draw.html 배치가 현재와 같다', () => {
+test('draw.html 배치', () => {
   const rows = ids(packRows(printedCells(DEFAULT_CONFIG)));
   assert.deepEqual(rows, [
-    ['applyDate', 'deposit'],
+    ['applyDate'],
     ['name'],
     ['unit', 'phone'],
     ['period'],
-    ['nights', 'people'],
-    ['amount'],
+    ['nights', 'amount'],
+    ['people', 'deposit'],
   ]);
 });
 
-test('formFields는 계산 전용 항목을 뺀다', () => {
+test('formFields는 화면에 칸이 없는 항목을 뺀다', () => {
   const list = formFields(DEFAULT_CONFIG).map((f) => f.id);
-  assert.ok(!list.includes('period'));
-  assert.ok(!list.includes('nights'));
+  assert.ok(!list.includes('period'), '사용기간은 서식에만 찍힌다');
+  assert.ok(list.includes('nights'), '사용일수는 자동 계산 표시칸으로 화면에 있다');
   assert.ok(list.includes('checkIn'));
+});
+
+test('공휴일은 폼 항목이 아니라 설정이다', () => {
+  // 수동 토글을 없애고 특일정보 API 자동 판정으로 바꿨다.
+  assert.ok(!DEFAULT_CONFIG.fields.some((f) => f.id === 'holiday'));
+  assert.equal(DEFAULT_CONFIG.holiday.enabled, true);
+  assert.equal(DEFAULT_CONFIG.holiday.eveOfHoliday, true);
+});
+
+test('예약 가능 기간이 최대 2박으로 제한된다', () => {
+  assert.equal(DEFAULT_CONFIG.stay.minNights, 1);
+  assert.equal(DEFAULT_CONFIG.stay.maxNights, 2);
+  assert.equal(DEFAULT_CONFIG.stay.limitDates, true);
+});
+
+test('최소 숙박일수가 최대보다 크면 최대를 끌어올린다', () => {
+  // 그대로 두면 달력에서 고를 수 있는 날이 하나도 없어진다.
+  const result = normalizeConfig({ stay: { minNights: 3, maxNights: 1 } });
+  assert.equal(result.stay.minNights, 3);
+  assert.equal(result.stay.maxNights, 3);
+});
+
+test('동·호수는 화면에서 두 칸, 서식에서는 한 칸이다', () => {
+  const unit = DEFAULT_CONFIG.fields.find((f) => f.id === 'unit');
+  assert.equal(unit.input, 'unit');
+  assert.equal(unit.dongLength, 4);
+  assert.equal(unit.hoLength, 3);
+  assert.ok(unit.rect, '서식에는 한 칸으로 찍힌다');
 });
 
 test('printedCells는 rect 없는 항목과 printed:false를 뺀다', () => {
@@ -246,7 +269,8 @@ test('저장소의 config.json이 정규화를 통과한다', () => {
   const parsed = parseConfig(text);
   // 관리자가 저장한 뒤에는 기본값과 달라지는 것이 정상이므로 구조만 확인한다.
   assert.equal(parsed.version, 1);
-  assert.ok(parsed.fields.length >= 12, '항목이 12개 미만이다');
+  // system 항목은 정규화가 되살리므로 그 개수만큼은 반드시 있다.
+  assert.ok(parsed.fields.length >= 6, `항목이 ${parsed.fields.length}개뿐이다`);
   assert.ok(printedCells(parsed).length >= 1, '서식에 찍히는 칸이 하나도 없다');
   assert.ok(parsed.account.number, '계좌번호가 비어 있다');
   assert.ok(parsed.form.image, '서식 이미지 경로가 비어 있다');

@@ -7,59 +7,59 @@ export const DEFAULT_CONFIG = {
 
   form: { image: 'form.jpg', width: 707, height: 1000 },
 
-  // 순서가 곧 화면 배치 순서다. packRows()가 이 순서대로 줄을 묶는다.
+  // 순서가 곧 화면 순서다. index.html은 이 순서대로 한 줄씩 쌓고,
+  // draw.html은 packRows()로 묶어 손글씨 칸을 만든다.
   fields: [
-    { id: 'applyDate', label: '신청일', input: 'date', width: 'half',
+    { id: 'applyDate', label: '신청일', input: 'date', width: 'full',
       rect: { x: 231, y: 198, w: 403, h: 26 },
       printed: true, visible: true, required: true, clearable: false, defaultToday: true },
-
-    { id: 'deposit', label: '은행입금일', input: 'date', width: 'half',
-      rect: { x: 232, y: 454, w: 138, h: 34 },
-      printed: true, visible: true, required: false, clearable: true, defaultToday: true },
 
     { id: 'name', label: '성명', input: 'text', width: 'full',
       rect: { x: 231, y: 228, w: 403, h: 25 },
       printed: true, visible: true, required: true,
-      placeholder: '이름을 입력하세요', maxlength: 20, remember: true },
+      placeholder: '', maxlength: 20, remember: true },
 
-    { id: 'unit', label: '동·호수', input: 'text', width: 'half',
+    // 화면에서는 동·호를 따로 받고, 서식에는 'N동 M호' 한 줄로 찍는다.
+    { id: 'unit', label: '동·호수', input: 'unit', width: 'half',
       rect: { x: 231, y: 257, w: 403, h: 26 },
       printed: true, visible: true, required: true,
-      placeholder: '예: 101동 1201호', maxlength: 20, remember: true },
+      dongLength: 4, hoLength: 3, remember: true },
 
     { id: 'phone', label: '연락처', input: 'phone', width: 'half',
       rect: { x: 231, y: 287, w: 403, h: 25 },
       printed: true, visible: true, required: true,
-      placeholder: '010-0000-0000', maxlength: 20, remember: true },
+      placeholder: '', maxlength: 20, remember: true },
 
     // 입실일·퇴실일은 서식에 직접 찍히지 않는다. 둘을 합쳐 period로 출력된다.
-    { id: 'checkIn', label: '입실일', input: 'date', width: 'half',
+    { id: 'checkIn', label: '입실일 (사용기간 시작)', input: 'date', width: 'half',
       rect: null, printed: true, visible: true, required: true,
       system: true, clearable: true, defaultToday: false },
 
-    { id: 'checkOut', label: '퇴실일', input: 'date', width: 'half',
+    { id: 'checkOut', label: '퇴실일 (사용기간 종료)', input: 'date', width: 'half',
       rect: null, printed: true, visible: true, required: true,
       system: true, clearable: true, defaultToday: false },
 
-    // input: null = 입력칸 없이 계산 결과로만 출력되는 항목.
+    // input: null = 화면에 칸이 없고 서식에만 찍히는 항목.
     { id: 'period', label: '사용기간', input: null, width: 'full',
       rect: { x: 232, y: 323, w: 138, h: 28 },
       printed: true, visible: true, required: false, system: true },
 
-    { id: 'nights', label: '숙박일수', input: null, width: 'half',
+    // readout = 사람이 못 고치는 자동 계산 표시칸.
+    { id: 'nights', label: '사용일수 (자동 계산)', input: 'readout', width: 'half',
       rect: { x: 487, y: 323, w: 147, h: 28 },
-      printed: true, visible: true, required: false, system: true },
+      printed: true, visible: true, required: false, system: true, suffix: '' },
+
+    { id: 'amount', label: '사용금액 (자동 계산)', input: 'readout', width: 'half',
+      rect: { x: 232, y: 355, w: 138, h: 29 },
+      printed: true, visible: true, required: false, system: true, suffix: '원' },
 
     { id: 'people', label: '사용인원', input: 'choice', width: 'half',
       rect: { x: 487, y: 355, w: 147, h: 29 },
       printed: true, visible: true, required: false, system: true },
 
-    { id: 'holiday', label: '공휴일 요금 적용', input: 'toggle', width: 'full',
-      rect: null, printed: true, visible: true, required: false, system: true },
-
-    { id: 'amount', label: '사용금액', input: 'money', width: 'full',
-      rect: { x: 232, y: 355, w: 138, h: 29 },
-      printed: true, visible: true, required: false, system: true },
+    { id: 'deposit', label: '은행입금일', input: 'date', width: 'half',
+      rect: { x: 232, y: 454, w: 138, h: 34 },
+      printed: true, visible: true, required: false, clearable: true, defaultToday: true },
   ],
 
   pricing: {
@@ -69,8 +69,21 @@ export const DEFAULT_CONFIG = {
     extraPerPersonNight: 5000,
     basePeople: 2,
     peopleOptions: [2, 3, 4],
-    maxNights: 5,
-    maxNightsText: '운영규정상 1세대가 한 달 기준 5박 이상 사용할 수 없습니다.',
+  },
+
+  // 예약할 수 있는 기간. 달력에서 아예 못 고르게 막는 값이라 경고가 아니라 제한이다.
+  stay: {
+    limitDates: true,
+    maxAheadMonths: 1, // 오늘부터 한 달 뒤까지만
+    minNights: 1,
+    maxNights: 2,      // 퇴실일은 입실일 +1 ~ +2일
+  },
+
+  // 공휴일 요금은 특일정보 API로 자동 판정한다(index.html의 loadHolidays 참조).
+  // 서비스키는 index.html에 그대로 둔다 — 설정으로 옮기면 노출 지점이 늘어난다.
+  holiday: {
+    enabled: true,
+    eveOfHoliday: true, // 공휴일 '전날 밤'도 주말 요금으로 볼지
   },
 
   account: {
@@ -100,10 +113,14 @@ export function rectToPoint(rect) {
 // config.json은 관리자가 브라우저에서 쓰는 파일이라 신뢰할 수 없는 입력이다.
 // 여기가 깨진 값이 화면에 닿기 전에 막는 유일한 방어선이다.
 
-const INPUT_TYPES = new Set(['text', 'date', 'phone', 'choice', 'toggle', 'money']);
+const INPUT_TYPES = new Set(['text', 'date', 'phone', 'unit', 'choice', 'readout']);
+
+// 관리자가 새로 만들 수 있는 입력 유형. 나머지는 계산 로직에 묶여 있어
+// 자유롭게 생성해도 의미가 없다.
+export const CREATABLE_INPUTS = ['text', 'date', 'phone'];
 
 // 요금 계산에 물려 있어 삭제할 수 없는 항목.
-const SYSTEM_IDS = ['checkIn', 'checkOut', 'period', 'nights', 'people', 'holiday', 'amount'];
+const SYSTEM_IDS = ['checkIn', 'checkOut', 'period', 'nights', 'amount', 'people'];
 
 // 숨기면 숙박일수·금액 계산이 불가능해지는 항목. 유일한 예외다.
 const ALWAYS_VISIBLE_IDS = ['checkIn', 'checkOut'];
@@ -171,6 +188,14 @@ function normalizeField(raw, form, fallback) {
       ? raw.defaultToday === true
       : base.defaultToday === true;
   }
+  if (field.input === 'unit') {
+    field.dongLength = Math.round(positiveNumber(raw.dongLength, base.dongLength || 4));
+    field.hoLength = Math.round(positiveNumber(raw.hoLength, base.hoLength || 3));
+  }
+  if (field.input === 'readout') {
+    // 값 뒤에 붙는 단위. 빈 문자열이 유효한 값이라 nonEmptyString을 쓰지 않는다.
+    field.suffix = typeof raw.suffix === 'string' ? raw.suffix : (base.suffix || '');
+  }
   if (raw.remember !== undefined ? raw.remember === true : base.remember === true) {
     field.remember = true;
   }
@@ -228,8 +253,30 @@ function normalizePricing(raw) {
       : base.extraPerPersonNight,
     basePeople: Math.round(positiveNumber(raw.basePeople, base.basePeople)),
     peopleOptions: people.length ? [...new Set(people)].sort((a, b) => a - b) : clone(base.peopleOptions),
-    maxNights: Math.round(positiveNumber(raw.maxNights, base.maxNights)),
-    maxNightsText: nonEmptyString(raw.maxNightsText, base.maxNightsText),
+  };
+}
+
+function normalizeStay(raw) {
+  const base = DEFAULT_CONFIG.stay;
+  if (!raw || typeof raw !== 'object') return clone(base);
+
+  const minNights = Math.round(positiveNumber(raw.minNights, base.minNights));
+  const maxNights = Math.round(positiveNumber(raw.maxNights, base.maxNights));
+  return {
+    limitDates: raw.limitDates !== false,
+    maxAheadMonths: Math.round(positiveNumber(raw.maxAheadMonths, base.maxAheadMonths)),
+    minNights,
+    // 최소가 최대보다 크면 달력에서 고를 수 있는 날이 하나도 없어진다.
+    maxNights: Math.max(minNights, maxNights),
+  };
+}
+
+function normalizeHoliday(raw) {
+  const base = DEFAULT_CONFIG.holiday;
+  if (!raw || typeof raw !== 'object') return clone(base);
+  return {
+    enabled: raw.enabled !== false,
+    eveOfHoliday: raw.eveOfHoliday !== false,
   };
 }
 
@@ -262,6 +309,8 @@ export function normalizeConfig(raw) {
     form,
     fields: normalizeFields(raw.fields, form),
     pricing: normalizePricing(raw.pricing),
+    stay: normalizeStay(raw.stay),
+    holiday: normalizeHoliday(raw.holiday),
     account: normalizeAccount(raw.account),
   };
 }

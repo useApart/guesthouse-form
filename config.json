@@ -14,7 +14,7 @@
       "id": "applyDate",
       "label": "신청일",
       "input": "date",
-      "width": "half",
+      "width": "full",
       "rect": {
         "x": 231,
         "y": 198,
@@ -25,23 +25,6 @@
       "visible": true,
       "required": true,
       "clearable": false,
-      "defaultToday": true
-    },
-    {
-      "id": "deposit",
-      "label": "은행입금일",
-      "input": "date",
-      "width": "half",
-      "rect": {
-        "x": 232,
-        "y": 454,
-        "w": 138,
-        "h": 34
-      },
-      "printed": true,
-      "visible": true,
-      "required": false,
-      "clearable": true,
       "defaultToday": true
     },
     {
@@ -58,14 +41,14 @@
       "printed": true,
       "visible": true,
       "required": true,
-      "placeholder": "이름을 입력하세요",
+      "placeholder": "",
       "maxlength": 20,
       "remember": true
     },
     {
       "id": "unit",
       "label": "동·호수",
-      "input": "text",
+      "input": "unit",
       "width": "half",
       "rect": {
         "x": 231,
@@ -76,8 +59,8 @@
       "printed": true,
       "visible": true,
       "required": true,
-      "placeholder": "예: 101동 1201호",
-      "maxlength": 20,
+      "dongLength": 4,
+      "hoLength": 3,
       "remember": true
     },
     {
@@ -94,13 +77,13 @@
       "printed": true,
       "visible": true,
       "required": true,
-      "placeholder": "010-0000-0000",
+      "placeholder": "",
       "maxlength": 20,
       "remember": true
     },
     {
       "id": "checkIn",
-      "label": "입실일",
+      "label": "입실일 (사용기간 시작)",
       "input": "date",
       "width": "half",
       "rect": null,
@@ -113,7 +96,7 @@
     },
     {
       "id": "checkOut",
-      "label": "퇴실일",
+      "label": "퇴실일 (사용기간 종료)",
       "input": "date",
       "width": "half",
       "rect": null,
@@ -142,8 +125,8 @@
     },
     {
       "id": "nights",
-      "label": "숙박일수",
-      "input": null,
+      "label": "사용일수 (자동 계산)",
+      "input": "readout",
       "width": "half",
       "rect": {
         "x": 487,
@@ -154,7 +137,25 @@
       "printed": true,
       "visible": true,
       "required": false,
-      "system": true
+      "system": true,
+      "suffix": ""
+    },
+    {
+      "id": "amount",
+      "label": "사용금액 (자동 계산)",
+      "input": "readout",
+      "width": "half",
+      "rect": {
+        "x": 232,
+        "y": 355,
+        "w": 138,
+        "h": 29
+      },
+      "printed": true,
+      "visible": true,
+      "required": false,
+      "system": true,
+      "suffix": "원"
     },
     {
       "id": "people",
@@ -173,31 +174,21 @@
       "system": true
     },
     {
-      "id": "holiday",
-      "label": "공휴일 요금 적용",
-      "input": "toggle",
-      "width": "full",
-      "rect": null,
-      "printed": true,
-      "visible": true,
-      "required": false,
-      "system": true
-    },
-    {
-      "id": "amount",
-      "label": "사용금액",
-      "input": "money",
-      "width": "full",
+      "id": "deposit",
+      "label": "은행입금일",
+      "input": "date",
+      "width": "half",
       "rect": {
         "x": 232,
-        "y": 355,
+        "y": 454,
         "w": 138,
-        "h": 29
+        "h": 34
       },
       "printed": true,
       "visible": true,
       "required": false,
-      "system": true
+      "clearable": true,
+      "defaultToday": true
     }
   ],
   "pricing": {
@@ -214,9 +205,17 @@
       2,
       3,
       4
-    ],
-    "maxNights": 5,
-    "maxNightsText": "운영규정상 1세대가 한 달 기준 5박 이상 사용할 수 없습니다."
+    ]
+  },
+  "stay": {
+    "limitDates": true,
+    "maxAheadMonths": 1,
+    "minNights": 1,
+    "maxNights": 2
+  },
+  "holiday": {
+    "enabled": true,
+    "eveOfHoliday": true
   },
   "account": {
     "bank": "국민은행",
