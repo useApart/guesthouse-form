@@ -613,6 +613,12 @@ document.addEventListener('keydown', (e) => {
 
 window.addEventListener('resize', () => { if (!$('panel-layout').hidden) renderOverlay(); });
 
+// 이미지가 로드되기 전에는 clientWidth가 0이라 배율을 계산할 수 없고, 샘플 글자가
+// 최소 크기로 눌린 채 남는다. 로드가 끝나면 박스를 다시 그린다.
+$('formPreview').addEventListener('load', () => {
+  if (!$('panel-layout').hidden) renderOverlay();
+});
+
 // ---- 이미지 교체 ----
 
 $('pickImage').addEventListener('click', () => $('imageInput').click());
