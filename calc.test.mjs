@@ -72,7 +72,7 @@ test('요금표를 바꾸면 결과가 따라 바뀐다', () => {
   const pricing = { ...DEFAULT_CONFIG.pricing, weekday: 50000 };
   // 2026-07-27(월) ~ 2026-07-29(수): 평일 2박
   assert.equal(
-    calcAmount({ checkIn: '2026-07-27', checkOut: '2026-07-29', people: 2, holiday: false }, pricing),
+    calcAmount({ checkIn: '2026-07-27', checkOut: '2026-07-29', people: 2, holiday: false }, { pricing }),
     100000
   );
 });
@@ -82,7 +82,7 @@ test('주말 요일을 바꾸면 주말 판정이 따라 바뀐다', () => {
   const pricing = { ...DEFAULT_CONFIG.pricing, weekendDays: [0, 6] };
   // 금(평일 35000) + 토(주말 40000) = 75000
   assert.equal(
-    calcAmount({ checkIn: '2026-07-24', checkOut: '2026-07-26', people: 2, holiday: false }, pricing),
+    calcAmount({ checkIn: '2026-07-24', checkOut: '2026-07-26', people: 2, holiday: false }, { pricing }),
     75000
   );
 });
@@ -93,12 +93,49 @@ test('기준 인원과 추가 요금을 바꾸면 결과가 따라 바뀐다', (
   const pricing = { ...DEFAULT_CONFIG.pricing, basePeople: 1, extraPerPersonNight: 10000 };
   // 2026-07-27(월)~07-29(수) 평일 2박, 3인 → (35000 + (3-1)x10000) x 2
   assert.equal(
-    calcAmount({ checkIn: '2026-07-27', checkOut: '2026-07-29', people: 3, holiday: false }, pricing),
+    calcAmount({ checkIn: '2026-07-27', checkOut: '2026-07-29', people: 3, holiday: false }, { pricing }),
     110000
   );
 });
 
-test('pricing을 생략하면 기본 요금표를 쓴다', () => {
+test('옵션을 생략하면 기본 요금표를 쓴다', () => {
   const values = { checkIn: '2026-07-27', checkOut: '2026-07-29', people: 2, holiday: false };
-  assert.equal(calcAmount(values), calcAmount(values, DEFAULT_CONFIG.pricing));
+  assert.equal(calcAmount(values), calcAmount(values, { pricing: DEFAULT_CONFIG.pricing }));
+});
+
+// ---- 공휴일 판정 (특일정보 API 연동) ----
+// 규정: 금·토·일 밤에 더해 '공휴일 전날 밤~공휴일'도 주말 요금이다.
+
+// 주어진 'YYYY-MM-DD' 목록을 공휴일로 보는 판정 함수를 만든다.
+function holidaysOn(...dates) {
+  const set = new Set(dates);
+  return (d) => set.has(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+}
+
+test('공휴일 당일 밤은 주말 요금', () => {
+  // 2026-07-28(화)은 평일이지만 공휴일로 지정하면 주말 요금이 된다.
+  const values = { checkIn: '2026-07-28', checkOut: '2026-07-29', people: 2 };
+  assert.equal(calcAmount(values), 35000);
+  assert.equal(calcAmount(values, { isHoliday: holidaysOn('2026-07-28') }), 40000);
+});
+
+test('공휴일 전날 밤도 주말 요금', () => {
+  // 2026-07-28(화)에 묵고 29(수)이 공휴일이면 그 밤은 40,000원이다.
+  const values = { checkIn: '2026-07-28', checkOut: '2026-07-29', people: 2 };
+  assert.equal(calcAmount(values, { isHoliday: holidaysOn('2026-07-29') }), 40000);
+});
+
+test('공휴일과 무관한 평일 밤은 그대로 평일 요금', () => {
+  // 2026-07-27(월)~28(화) 한 밤. 공휴일은 30일이라 이 밤과 다음날 모두 아니다.
+  const values = { checkIn: '2026-07-27', checkOut: '2026-07-28', people: 2 };
+  assert.equal(calcAmount(values, { isHoliday: holidaysOn('2026-07-30') }), 35000);
+});
+
+test('요금표와 공휴일 판정을 함께 넘길 수 있다', () => {
+  const pricing = { ...DEFAULT_CONFIG.pricing, weekend: 50000 };
+  const values = { checkIn: '2026-07-28', checkOut: '2026-07-29', people: 2 };
+  assert.equal(
+    calcAmount(values, { pricing, isHoliday: holidaysOn('2026-07-28') }),
+    50000
+  );
 });

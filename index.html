@@ -17,15 +17,46 @@
   .tab.active { background: #fff; color: #1F6D57; box-shadow: 0 1px 2px rgba(30,37,30,.08); }
   .card { background: #fff; border-radius: 20px; border: 1px solid #E8E6DE; box-shadow: 0 1px 3px rgba(30,37,30,.04); padding: 28px 24px; display: flex; flex-direction: column; gap: 18px; }
   form { display: flex; flex-direction: column; gap: 18px; }
-  label { font-size: 14px; font-weight: 600; color: #3C443B; display: block; margin-bottom: 6px; }
-  .field { display: flex; flex-direction: column; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  input[type="text"], input[type="tel"], input[type="date"] {
-    height: 50px; width: 100%; border-radius: 12px; border: 1px solid #DDDBD2; padding: 0 14px;
-    font-size: 16px; font-family: inherit; color: #1E251E; background: #fff;
+  /* 아이콘 + 플로팅 라벨 리스트 (한 컨테이너에 세로로 쌓기) */
+  .field-list { border: 1px solid #E2E0D8; border-radius: 16px; background: #fff; }
+  .frow { position: relative; display: flex; align-items: center; padding: 10px 18px; min-height: 66px; }
+  .frow + .frow { border-top: 1px solid #ECEAE3; }
+  .frow-body { position: relative; flex: 1; min-width: 0; padding-top: 14px; }
+  .frow-body > label {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%); margin: 0;
+    font-size: 16px; font-weight: 400; color: #9A9F92; pointer-events: none;
+    transition: top .15s, font-size .15s, transform .15s; white-space: nowrap;
   }
-  input[type="date"] { background: #FBFAF7; }
-  input.date-in[readonly] { cursor: pointer; background: #FBFAF7; }
+  .frow-body input {
+    width: 100%; border: none; background: transparent; padding: 0;
+    font-size: 16px; font-weight: 500; color: #1E251E; height: 28px; line-height: 28px; font-family: inherit;
+  }
+  .frow-body input:focus { outline: none; }
+  .frow-body input[readonly] { cursor: pointer; }
+  .frow-body input#nightsOut, .frow-body input#amount { cursor: default; }
+  .frow-body input#nightsOut { color: #7A8177; }
+  .dong-ho { display: flex; align-items: center; gap: 8px; }
+  .dong-ho input { flex: 1; min-width: 0; height: 42px; border: 1px solid #DDDBD2; border-radius: 9px; padding: 0 12px; font-size: 16px; font-family: inherit; color: #1E251E; background: #fff; }
+  .dong-ho input:focus { outline: none; border-color: #B7B5AC; }
+  .dh-dash { color: #9A9F92; font-weight: 600; }
+  .frow-body input:focus ~ label,
+  .frow-body input:not(:placeholder-shown) ~ label { top: 0; transform: none; font-size: 12px; }
+  /* 활성(포커스) 행 강조: 리스트 컨테이너의 실제 모서리에 맞춰 테두리를 진하게.
+     첫 행(신청일)은 상단만, 마지막 행(은행입금일)은 하단만 둥글게, 중간은 각지게. */
+  .frow:focus-within { background: #FAFAF8; }
+  .frow:focus-within::after {
+    content: ''; position: absolute; inset: -1px; border: 2px solid #6B7280;
+    border-radius: 0; pointer-events: none;
+  }
+  .field-list .frow:first-child:focus-within { border-radius: 16px 16px 0 0; }
+  .field-list .frow:first-child:focus-within::after { border-radius: 16px 16px 0 0; }
+  .field-list .frow:last-child:focus-within { border-radius: 0 0 16px 16px; }
+  .field-list .frow:last-child:focus-within::after { border-radius: 0 0 16px 16px; }
+  .frow-body .won { position: absolute; right: 0; bottom: 4px; font-size: 14px; color: #9A9F92; }
+  .frow-body input#amount { padding-right: 22px; }
+  /* 사용인원: 플로팅 없이 상단 라벨 + 버튼 */
+  .frow-static { padding-top: 0; }
+  .frow-slabel { font-size: 12px; color: #9A9F92; margin-bottom: 8px; }
 
   .cal-pop {
     position: fixed; z-index: 1000; width: 296px; max-width: calc(100vw - 16px);
@@ -48,28 +79,18 @@
   .cal-day.cal-sat { color: #2E5AA8; }
   .cal-day.cal-today { font-weight: 700; box-shadow: inset 0 0 0 1.5px #1F6D57; }
   .cal-day.cal-selected { background: #1F6D57; color: #fff; }
+  .cal-day.cal-disabled { color: #CFCDC4; cursor: default; }
+  .cal-day.cal-disabled:hover { background: none; }
   .cal-foot { display: flex; gap: 8px; margin-top: 8px; }
   .cal-action { flex: 1; height: 38px; border-radius: 10px; border: 1px solid #DDDBD2; background: #fff; font-size: 13px; font-weight: 600; color: #3C443B; cursor: pointer; font-family: inherit; }
   .cal-action:hover { background: #F5F4F0; }
-  .amount-wrap { position: relative; }
-  .amount-wrap span { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; color: #7A8177; }
-  .amount-wrap input { padding-right: 40px; }
   .link-btn {
     align-self: flex-start; background: none; border: none; padding: 4px 0; margin-top: -8px;
     font-size: 12px; color: #7A8177; text-decoration: underline; cursor: pointer; font-family: inherit;
   }
   .guest-row { display: flex; gap: 8px; }
-  .guest-btn { flex: 1; height: 46px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; border: 1px solid #DDDBD2; background: #fff; color: #3C443B; }
+  .guest-btn { flex: 1; height: 42px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; border: 1px solid #DDDBD2; background: #fff; color: #3C443B; }
   .guest-btn.active { border: 1.5px solid #1F6D57; background: #EAF3EF; color: #1F6D57; }
-  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 12px; background: #F5F4F0; border: 1px solid #E8E6DE; cursor: pointer; }
-  .toggle-row.on { background: #EAF3EF; border-color: #1F6D57; }
-  .toggle-title { font-size: 15px; font-weight: 600; margin-bottom: 0; }
-  .toggle-sub { font-size: 13px; color: #7A8177; margin-top: 2px; }
-  .switch { width: 44px; height: 26px; border-radius: 13px; background: #D8D6CD; position: relative; flex-shrink: 0; transition: background .15s; }
-  .switch.on { background: #1F6D57; }
-  .switch .thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; position: absolute; top: 3px; left: 3px; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
-  .switch.on .thumb { left: 21px; }
   .summary { margin: 0; font-size: 13px; color: #7A8177; }
   .warning { margin: 0; font-size: 13px; color: #C0392B; font-weight: 700; }
   #canvas {
@@ -100,8 +121,8 @@
 <body>
 <div class="wrap">
   <div class="inner">
-    <div class="eyebrow" id="siteOrg">원흥LH13단지주거복지지원센터</div>
-    <h1 id="siteTitle">게스트하우스 신청서</h1>
+    <div class="eyebrow">원흥LH13단지주거복지지원센터</div>
+    <h1>게스트하우스 신청서</h1>
 
     <div class="tabs">
       <button class="tab active" type="button">타이핑으로 작성</button>
@@ -115,11 +136,82 @@
     </div>
 
     <div class="card">
-      <!-- 입력칸은 config.fields에서 생성된다. buildForm() 참조. -->
-      <form id="form" autocomplete="on"></form>
+      <form id="form" autocomplete="on">
+        <div class="field-list">
+          <div class="frow">
+            <div class="frow-body">
+              <input type="text" id="applyDate" readonly placeholder=" " class="date-in">
+              <label for="applyDate">신청일</label>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-body">
+              <input type="text" id="name" placeholder=" " maxlength="20">
+              <label for="name">성명</label>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-body frow-static">
+              <div class="frow-slabel">동·호수</div>
+              <div class="dong-ho">
+                <input type="text" id="unitDong" inputmode="numeric" placeholder="동 (4자리)" maxlength="4">
+                <span class="dh-dash">-</span>
+                <input type="text" id="unitHo" inputmode="numeric" placeholder="호 (3자리)" maxlength="3">
+              </div>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-body">
+              <input type="tel" id="phone" placeholder=" " maxlength="20">
+              <label for="phone">연락처</label>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-body">
+              <input type="text" id="checkIn" readonly placeholder=" " class="date-in">
+              <label for="checkIn">입실일 (사용기간 시작)</label>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-body">
+              <input type="text" id="checkOut" readonly placeholder=" " class="date-in">
+              <label for="checkOut">퇴실일 (사용기간 종료)</label>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-body">
+              <input type="text" id="nightsOut" readonly placeholder=" ">
+              <label for="nightsOut">사용일수 (자동 계산)</label>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-body">
+              <input type="text" id="amount" readonly placeholder=" ">
+              <label for="amount">사용금액 (자동 계산)</label>
+              <span class="won">원</span>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-body frow-static">
+              <div class="frow-slabel">사용인원</div>
+              <div class="guest-row" id="guestRow">
+                <button type="button" class="guest-btn active" data-n="2">2명</button>
+                <button type="button" class="guest-btn" data-n="3">3명</button>
+                <button type="button" class="guest-btn" data-n="4">4명</button>
+              </div>
+              <input type="hidden" id="people" value="2">
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-body">
+              <input type="text" id="deposit" readonly placeholder=" " class="date-in">
+              <label for="deposit">은행입금일</label>
+            </div>
+          </div>
+        </div>
 
-      <p id="summary" class="summary"></p>
-      <p id="warning" class="warning" hidden></p>
+        <p id="warning" class="warning" hidden></p>
+      </form>
 
       <canvas id="canvas" width="707" height="1000"></canvas>
 
@@ -131,8 +223,8 @@
 
       <div class="account">
         <div class="acc-info">
-          <div class="num" id="accountNumber">국민 856901-00-129046</div>
-          <div class="name" id="accountHolder">원흥LH13단지주거복지지원센터</div>
+          <div class="num">국민 856901-00-129046</div>
+          <div class="name">원흥LH13단지주거복지지원센터</div>
         </div>
         <button type="button" class="copy-btn" id="copyAccount">계좌번호 복사</button>
       </div>
@@ -143,140 +235,22 @@
 
 <script type="module">
 import { countNights, calcAmount } from './calc.js';
-import {
-  DEFAULT_CONFIG, clone, loadConfig, normalizeConfig,
-  formFields, printedCells, packRows, rectToPoint,
-} from './config.js';
 
-const $ = (id) => document.getElementById(id);
-
-const canvas = $('canvas');
+const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
-// 설정을 읽기 전에도 화면이 동작해야 하므로 내장 기본값에서 시작한다.
-let config = clone(DEFAULT_CONFIG);
-
-// 설정에서 유도되는 값들. boot()에서 buildDerived()가 채운다.
-let POS = {};          // 서식에 찍을 칸의 중심 좌표
-let REQUIRED = {};     // id -> 라벨. 비어 있으면 내보내기 버튼을 잠근다
-let SAVED_FIELDS = []; // localStorage에 기억할 항목
-let CLEARABLE = new Set();
-let DATE_FIELDS = [];
-let ACCOUNT_TEXT = '';
-
-function buildDerived() {
-  POS = {};
-  for (const field of printedCells(config)) POS[field.id] = rectToPoint(field.rect);
-
-  REQUIRED = {};
-  for (const field of formFields(config)) if (field.required) REQUIRED[field.id] = field.label;
-
-  SAVED_FIELDS = formFields(config).filter((f) => f.remember).map((f) => f.id);
-  CLEARABLE = new Set(formFields(config).filter((f) => f.clearable).map((f) => f.id));
-  DATE_FIELDS = formFields(config).filter((f) => f.input === 'date').map((f) => f.id);
-
-  // 토스·카카오페이 등의 '붙여넣기'가 은행과 계좌번호를 함께 인식하도록 은행명을 붙인다.
-  ACCOUNT_TEXT = `${config.account.bank} ${config.account.number}`;
-}
-
-// ---- 폼 생성 ----
-// 마크업은 리팩터 전 손으로 쓰던 것과 클래스까지 동일하다. CSS를 건드리지 않기 위함이다.
-
-function el(tag, className, props) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  Object.assign(node, props || {});
-  return node;
-}
-
-function buildInput(field) {
-  const wrap = el('div', 'field');
-  wrap.appendChild(el('label', null, { htmlFor: field.id, textContent: field.label }));
-
-  if (field.input === 'date') {
-    wrap.appendChild(el('input', 'date-in', {
-      type: 'text', id: field.id, readOnly: true, placeholder: '날짜 선택',
-    }));
-  } else if (field.input === 'text' || field.input === 'phone') {
-    wrap.appendChild(el('input', null, {
-      type: field.input === 'phone' ? 'tel' : 'text',
-      id: field.id,
-      placeholder: field.placeholder || '',
-      maxLength: field.maxlength || 20,
-    }));
-  } else if (field.input === 'choice') {
-    const row = el('div', 'guest-row', { id: 'guestRow' });
-    config.pricing.peopleOptions.forEach((n, i) => {
-      const btn = el('button', `guest-btn${i === 0 ? ' active' : ''}`, {
-        type: 'button', textContent: `${n}명`,
-      });
-      btn.dataset.n = String(n);
-      row.appendChild(btn);
-    });
-    wrap.appendChild(row);
-    wrap.appendChild(el('input', null, {
-      type: 'hidden', id: field.id, value: String(config.pricing.peopleOptions[0]),
-    }));
-  } else if (field.input === 'money') {
-    const money = el('div', 'amount-wrap');
-    money.appendChild(el('input', null, {
-      type: 'text', id: field.id, inputMode: 'numeric', placeholder: '자동 계산',
-    }));
-    money.appendChild(el('span', null, { textContent: '원' }));
-    wrap.appendChild(money);
-  }
-  return wrap;
-}
-
-// 공휴일 토글은 label 자체가 행이라 .field로 감싸지 않는다(현재 마크업과 동일).
-function buildToggle(field) {
-  const row = el('label', 'toggle-row', { id: 'holidayRow', htmlFor: field.id });
-  row.appendChild(el('input', 'visually-hidden', { type: 'checkbox', id: field.id }));
-
-  const text = el('div');
-  text.appendChild(el('div', 'toggle-title', { textContent: field.label }));
-  // 문구를 저장하지 않고 요금에서 만든다. 주말 요금을 올리면 설명도 같이 바뀐다.
-  text.appendChild(el('div', 'toggle-sub', {
-    textContent: `전 기간 ${config.pricing.weekend.toLocaleString('ko-KR')}원`,
-  }));
-  row.appendChild(text);
-
-  const sw = el('div', 'switch', { id: 'holidaySwitch' });
-  sw.appendChild(el('div', 'thumb'));
-  row.appendChild(sw);
-  return row;
-}
-
-function buildForm() {
-  const form = $('form');
-  form.textContent = '';
-  for (const row of packRows(formFields(config))) {
-    const nodes = row.map((f) => (f.input === 'toggle' ? buildToggle(f) : buildInput(f)));
-    if (row.length === 2) {
-      const grid = el('div', 'row2');
-      nodes.forEach((n) => grid.appendChild(n));
-      form.appendChild(grid);
-    } else {
-      form.appendChild(nodes[0]);
-    }
-    // 금액 칸 바로 뒤에 "자동 계산으로 되돌리기" 버튼을 둔다.
-    if (row.length === 1 && row[0].input === 'money') {
-      form.appendChild(el('button', 'link-btn', {
-        type: 'button', id: 'resetAmount', hidden: true, textContent: '자동 계산으로 되돌리기',
-      }));
-    }
-  }
-}
-
-function applySiteTexts() {
-  $('siteOrg').textContent = config.site.org;
-  $('siteTitle').textContent = config.site.title;
-  document.title = config.site.title;
-  $('accountNumber').textContent = `${config.account.bank} ${config.account.number}`;
-  $('accountHolder').textContent = config.account.holder;
-}
-
-// ---- 서식 이미지와 캔버스 ----
+// 707x1000 좌표계. 표 격자선을 픽셀 스캔으로 실측한 각 칸의 중심.
+const POS = {
+  applyDate: { x: 432, y: 211, maxWidth: 400 },
+  name:      { x: 432, y: 241, maxWidth: 400 },
+  unit:      { x: 432, y: 270, maxWidth: 400 },
+  phone:     { x: 432, y: 300, maxWidth: 400 },
+  period:    { x: 301, y: 337, maxWidth: 136 },
+  nights:    { x: 560, y: 337, maxWidth: 145 },
+  amount:    { x: 301, y: 370, maxWidth: 136 },
+  people:    { x: 560, y: 370, maxWidth: 145 },
+  deposit:   { x: 301, y: 471, maxWidth: 136 },
+};
 
 // 'loading' | 'ready' | 'error'. 이미지가 준비되지 않은 동안은 버튼을 잠그고 캔버스에 아무것도 그리지 않는다.
 let imageState = 'loading';
@@ -289,6 +263,7 @@ const imageReady = new Promise((resolve, reject) => {
     reject(new Error('서식 이미지를 불러오지 못했습니다.'));
   };
 });
+formImage.src = 'form.jpg';
 
 function drawForm(text) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -321,25 +296,24 @@ function drawForm(text) {
   }
 }
 
-// ---- 값 읽기와 서식용 문자열 만들기 ----
+const $ = (id) => document.getElementById(id);
 
 function readValues() {
-  const values = {};
-  for (const field of formFields(config)) {
-    const node = $(field.id);
-    if (!node) continue;
-    if (field.input === 'toggle') {
-      values[field.id] = node.checked;
-    } else if (field.input === 'choice') {
-      values[field.id] = Number(node.value);
-    } else if (field.input === 'money') {
-      values[field.id] = Number(node.value.replace(/[^0-9]/g, ''));
-      values.amountEntered = /[0-9]/.test(node.value);
-    } else {
-      values[field.id] = node.value.trim();
-    }
-  }
-  return values;
+  const dong = $('unitDong').value.trim();
+  const ho = $('unitHo').value.trim();
+  return {
+    applyDate: $('applyDate').value,
+    name: $('name').value.trim(),
+    unit: (dong && ho) ? `${dong}동 ${ho}호` : '',
+    phone: $('phone').value.trim(),
+    checkIn: $('checkIn').value,
+    checkOut: $('checkOut').value,
+    people: Number($('people').value),
+    holiday: false,
+    amount: Number($('amount').value.replace(/[^0-9]/g, '')),
+    amountEntered: /[0-9]/.test($('amount').value),
+    deposit: $('deposit').value,
+  };
 }
 
 // 입실일·퇴실일로 사용기간 문자열을 만든다. 칸이 136px로 좁아 'YYYY-MM-DD ~ YYYY-MM-DD'를
@@ -361,57 +335,113 @@ function compactDate(s) {
 }
 
 function formatValues(v, nights) {
-  const out = {};
-  for (const field of printedCells(config)) {
-    const id = field.id;
-    if (id === 'period') {
-      out.period = v.checkIn && v.checkOut ? shortDate(v.checkIn, v.checkOut) : '';
-    } else if (id === 'nights') {
-      out.nights = nights ? `${nights}일` : '';
-    } else if (field.input === 'money') {
-      out[id] = v.amountEntered ? `${v[id].toLocaleString('ko-KR')}원` : '';
-    } else if (field.input === 'choice') {
-      out[id] = v[id] ? `${v[id]}명` : '';
-    } else if (field.input === 'date') {
-      out[id] = v[id] ? compactDate(v[id]) : '';
-    } else {
-      out[id] = v[id] || '';
-    }
-  }
-  return out;
+  return {
+    applyDate: v.applyDate ? compactDate(v.applyDate) : '',
+    name: v.name,
+    unit: v.unit,
+    phone: v.phone,
+    period: v.checkIn && v.checkOut ? shortDate(v.checkIn, v.checkOut) : '',
+    nights: nights ? `${nights}일` : '',
+    amount: v.amountEntered ? `${v.amount.toLocaleString('ko-KR')}원` : '',
+    people: v.people ? `${v.people}명` : '',
+    deposit: v.deposit ? compactDate(v.deposit) : '',
+  };
 }
 
-// ---- 렌더링 ----
+// 금액은 항상 자동 계산이며 사용자가 직접 고칠 수 없다(#amount는 readonly).
 
-// 사용자가 금액을 직접 고쳤는지 추적한다. 고쳤다면 자동 계산으로 덮어쓰지 않는다.
-let amountEdited = false;
-// 사용자가 금액 칸에 포커스를 두고 있는 동안은 절대 값을 다시 쓰지 않는다(캐럿 점프·자리수 밀림 방지).
-let amountFocused = false;
+// 성명은 한글(자모/완성형)과 공백만, 연락처는 숫자와 하이픈만, 동·호수는 숫자만 받는다.
+function filterInput(el, re) {
+  el.addEventListener('input', () => {
+    const cleaned = el.value.replace(re, '');
+    if (cleaned !== el.value) el.value = cleaned;
+  });
+}
+filterInput($('name'), /[^가-힣ㄱ-ㅎㅏ-ㅣ\s]/g);
+filterInput($('unitDong'), /[^0-9]/g);
+filterInput($('unitHo'), /[^0-9]/g);
+// 연락처(#phone)는 아래 formatPhone 리스너가 숫자만 남기고 하이픈을 자동으로 넣는다.
+
+// 사용인원: 시각은 버튼 3개, 실제 값은 숨김 입력(#people)에 저장한다. readValues()는
+// 기존과 동일하게 #people.value만 읽으므로 아래 나머지 로직은 그대로 둔다.
+$('guestRow').addEventListener('click', (e) => {
+  const btn = e.target.closest('.guest-btn');
+  if (!btn) return;
+  $('people').value = btn.dataset.n;
+  document.querySelectorAll('.guest-btn').forEach((b) => b.classList.toggle('active', b === btn));
+  render();
+});
+
+// ---- 공휴일 정보 (한국천문연구원 특일정보 API, data.go.kr) ----
+// 아래에 발급받은 '디코딩(Decoding)' 서비스키를 넣으면 공휴일이 40,000원으로 계산된다.
+// 키가 없으면 공휴일 판정만 꺼지고(주말 요금 규칙은 그대로) 나머지는 정상 동작한다.
+const HOLIDAY_SERVICE_KEY = 'E76T369vFiqcgIhUNIY/I4Tn67sd1bRWatkjjBszNj60WTgjDFjTE5XTMVeySm5Z0L2x8YxhW+NqQfquLYvJwg==';
+const holidaySet = new Set();      // 'YYYY-MM-DD' 공휴일 모음
+const holidayYearsTried = new Set();
+
+function isHoliday(dateObj) {
+  return holidaySet.has(toDateStr(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()));
+}
+
+async function loadHolidays(year) {
+  if (!year || holidayYearsTried.has(year)) return;
+  if (!HOLIDAY_SERVICE_KEY || HOLIDAY_SERVICE_KEY.startsWith('PUT_YOUR')) return;
+  holidayYearsTried.add(year);
+
+  // 캐시가 있으면 그대로 사용한다.
+  try {
+    const cached = JSON.parse(localStorage.getItem(`holidays-${year}`) || 'null');
+    if (cached) { cached.forEach((d) => holidaySet.add(d)); render(); return; }
+  } catch { /* 캐시 손상 무시 */ }
+
+  try {
+    const found = [];
+    for (let mo = 1; mo <= 12; mo++) {
+      const url = 'https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo'
+        + `?serviceKey=${encodeURIComponent(HOLIDAY_SERVICE_KEY)}`
+        + `&solYear=${year}&solMonth=${pad2(mo)}&numOfRows=50&_type=json`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      let items = json?.response?.body?.items?.item;
+      if (!items) continue;
+      if (!Array.isArray(items)) items = [items];
+      for (const it of items) {
+        if (String(it.isHoliday).trim() === 'Y') {
+          const ymd = String(it.locdate); // 예: 20260101
+          found.push(`${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`);
+        }
+      }
+    }
+    found.forEach((d) => holidaySet.add(d));
+    try { localStorage.setItem(`holidays-${year}`, JSON.stringify(found)); } catch { /* 저장 실패 무시 */ }
+    render();
+  } catch {
+    // 네트워크/키 오류: 매 입력마다 재요청하지 않도록 표시는 유지한다(새로고침 시 재시도).
+  }
+}
 
 function render() {
   const v = readValues();
   const nights = countNights(v.checkIn, v.checkOut);
 
-  if (!amountEdited && !amountFocused && $('amount')) {
-    const auto = calcAmount(v, config.pricing);
-    $('amount').value = auto ? auto.toLocaleString('ko-KR') : '';
-    v.amount = auto;
-    v.amountEntered = auto > 0;
-  }
-  if ($('resetAmount')) $('resetAmount').hidden = !amountEdited;
+  // 사용기간에 걸친 연도의 공휴일을 확보한다(공휴일 전날 규칙 때문에 다음해도 함께).
+  if (v.checkIn) loadHolidays(Number(v.checkIn.slice(0, 4)));
+  if (v.checkOut) { const yr = Number(v.checkOut.slice(0, 4)); loadHolidays(yr); loadHolidays(yr + 1); }
 
-  $('summary').textContent = nights
-    ? `${nights}일 ${v.people}명 · ${amountEdited ? '직접 입력' : '자동 계산'} ${v.amount.toLocaleString('ko-KR')}원`
-    // 날짜가 둘 다 채워졌는데 0박이면 역전 상태다. 그 안내는 #status가 맡으므로 여기선 비운다.
-    : (v.checkIn && v.checkOut ? '' : '입실일과 퇴실일을 선택하세요.');
+  const auto = calcAmount(v, { isHoliday });
+  $('amount').value = auto ? auto.toLocaleString('ko-KR') : '';
+  v.amount = auto;
+  v.amountEntered = auto > 0;
+  $('nightsOut').value = nights ? `${nights}일` : '';
 
   const warn = $('warning');
   // 퇴실일<=입실일 상태의 안내는 #status(syncButtons)에서만 표시한다 — 여기서 같은 문장을 또 띄우지 않는다.
   // 버튼은 그와 무관하게 syncButtons()가 계속 잠근다.
   if (v.checkIn && v.checkOut && nights === 0) {
     warn.hidden = true;
-  } else if (nights >= config.pricing.maxNights) {
-    warn.textContent = config.pricing.maxNightsText;
+  } else if (nights > 2) {
+    warn.textContent = '운영규정상 1세대는 2박까지만 사용할 수 있습니다.';
     warn.hidden = false;
   } else {
     warn.hidden = true;
@@ -421,13 +451,22 @@ function render() {
   syncButtons();
 }
 
+const REQUIRED = {
+  applyDate: '신청일',
+  name: '성명',
+  unit: '동·호수',
+  phone: '연락처',
+  checkIn: '입실일',
+  checkOut: '퇴실일',
+};
+
 function missingFields(v) {
   return Object.entries(REQUIRED).filter(([k]) => !v[k]).map(([, label]) => label);
 }
 
 function toJpegFile() {
   const v = readValues();
-  const stamp = (v.applyDate || '').replace(/-/g, ''); // 신청일은 필수값이라 버튼이 활성화된 시점엔 항상 있다.
+  const stamp = v.applyDate.replace(/-/g, ''); // 신청일은 필수값이라 버튼이 활성화된 시점엔 항상 있다.
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
@@ -476,13 +515,11 @@ function syncButtons() {
   }
 }
 
-// ---- 내보내기 ----
-
 $('share').addEventListener('click', async () => {
   try {
     const file = await toJpegFile();
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: config.site.title });
+      await navigator.share({ files: [file], title: '게스트하우스 신청서' });
       return;
     }
     showToast('이 브라우저는 공유를 지원하지 않습니다. "이미지 저장"을 눌러 주세요.');
@@ -501,7 +538,7 @@ $('download').addEventListener('click', async () => {
     // 폰(iOS/안드로이드)에서는 <a download>로는 사진함에 저장되지 않는다.
     // 공유 시트를 열면 사용자가 '이미지 저장'을 눌러 사진함에 바로 저장할 수 있다.
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: config.site.title });
+      await navigator.share({ files: [file], title: '게스트하우스 신청서' });
       return;
     }
     // 공유 파일이 지원되지 않는 환경(주로 PC)에서는 파일로 내려받는다.
@@ -520,9 +557,33 @@ $('download').addEventListener('click', async () => {
   }
 });
 
-// ---- 날짜 팝오버 ----
+$('form').addEventListener('input', render);
+// select/checkbox의 input 이벤트가 일부 구형 WebKit/WebView에서 누락되는 경우를 대비한 보강.
+$('form').addEventListener('change', render);
+
+// 신청일·은행입금일 기본값은 오늘. (sv-SE 로케일은 YYYY-MM-DD 형식을 준다)
+const today = new Date().toLocaleDateString('sv-SE');
+$('applyDate').value = today;
+$('deposit').value = today;
+
+// 연락처를 입력하는 대로 하이픈을 자동으로 넣는다. 숫자만 남긴 뒤 지역/앞자리·중간·끝4자리로 끊는다.
+function formatPhone(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length < 4) return digits;
+  const a = digits.startsWith('02') ? 2 : 3; // 서울(02)만 지역번호 2자리, 그 외는 3자리
+  const rest = digits.slice(a);
+  if (rest.length <= 4) return `${digits.slice(0, a)}-${rest}`;
+  return `${digits.slice(0, a)}-${rest.slice(0, -4)}-${rest.slice(-4)}`;
+}
+$('phone').addEventListener('input', (e) => {
+  const formatted = formatPhone(e.target.value);
+  if (formatted !== e.target.value) e.target.value = formatted;
+});
+
 // 날짜는 년-월-일 순서를 기기 설정과 무관하게 고정하기 위해 직접 입력 대신 커스텀 달력
-// 팝오버로 받는다. 모든 날짜 칸이 팝오버 하나를 공유한다.
+// 팝오버로 받는다. 네 칸(applyDate/deposit/checkIn/checkOut)이 팝오버 하나를 공유한다.
+// applyDate는 필수값이라 지우기 버튼을 숨긴다.
+const CLEARABLE = new Set(['deposit', 'checkIn', 'checkOut']);
 
 const calPop = document.createElement('div');
 calPop.className = 'cal-pop';
@@ -563,6 +624,39 @@ function parseDateStr(s) {
   return { y, m: m - 1, d };
 }
 
+// 선택 가능 범위(입실일 기준 최대 2박). null이면 제한 없음.
+let calMin = null, calMax = null;
+function addDaysFrom(dateStr, n) {
+  const p = parseDateStr(dateStr);
+  if (!p) return null;
+  return new Date(p.y, p.m, p.d + n);
+}
+// 날짜 선택을 오늘~한 달 이내로 제한한다. (테스트 시에만 임시로 false)
+const DATE_LIMIT_ENABLED = true;
+
+function computeBounds(input) {
+  calMin = null; calMax = null;
+  // 공통: 오늘부터 한 달 뒤(같은 날) 까지만 선택 가능. 과거·한 달 초과는 막는다.
+  if (DATE_LIMIT_ENABLED) {
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    calMin = t;
+    calMax = new Date(t.getFullYear(), t.getMonth() + 1, t.getDate());
+  }
+  // 퇴실일은 추가로 입실일 다음날부터 최대 2박(입실일+2)까지만 고를 수 있다(공통 범위와 교집합).
+  if (input.id === 'checkOut') {
+    const lo = addDaysFrom($('checkIn').value, 1);
+    const hi = addDaysFrom($('checkIn').value, 2);
+    if (lo && (!calMin || lo > calMin)) calMin = lo;
+    if (hi && (!calMax || hi < calMax)) calMax = hi;
+  }
+}
+function outOfBounds(y, m, d) {
+  const dt = new Date(y, m, d);
+  if (calMin && dt < calMin) return true;
+  if (calMax && dt > calMax) return true;
+  return false;
+}
+
 function renderCalendarGrid() {
   calLabel.textContent = `${calYear}년 ${calMonth + 1}월`;
   const selected = parseDateStr(calTarget ? calTarget.value : '');
@@ -590,16 +684,37 @@ function renderCalendarGrid() {
     if (today.getFullYear() === calYear && today.getMonth() === calMonth && today.getDate() === d) {
       btn.classList.add('cal-today');
     }
-    btn.addEventListener('click', () => selectDate(d));
+    if (outOfBounds(calYear, calMonth, d)) {
+      btn.classList.add('cal-disabled');
+      btn.disabled = true;
+    } else {
+      btn.addEventListener('click', () => selectDate(d));
+    }
     calGrid.appendChild(btn);
   }
 }
 
 function selectDate(d) {
   if (!calTarget) return;
+  if (outOfBounds(calYear, calMonth, d)) return;
+  const wasCheckIn = calTarget.id === 'checkIn';
   calTarget.value = toDateStr(calYear, calMonth, d);
+  // 입실일을 바꾸면 기존 퇴실일이 범위(1~2박)를 벗어날 수 있으니 정리한다.
+  if (wasCheckIn) {
+    const co = $('checkOut').value;
+    if (co) {
+      const n = countNights($('checkIn').value, co);
+      if (n < 1 || n > 2) $('checkOut').value = '';
+    }
+  }
   closeCalendar();
   render();
+  // 입실일을 고르면 퇴실일이 비어 있을 때 곧바로 퇴실일 달력을 열어 준다.
+  if (wasCheckIn && !$('checkOut').value) {
+    const co = $('checkOut');
+    co.focus({ preventScroll: true });
+    openCalendar(co);
+  }
 }
 
 // 카드 밖으로 잘리지 않도록 body에 붙여 놓은 팝오버를 탭한 칸의 위치에 맞춰 옮긴다.
@@ -630,6 +745,7 @@ function openCalendar(input) {
   calYear = parsed.y;
   calMonth = parsed.m;
   calClearBtn.hidden = !CLEARABLE.has(input.id);
+  computeBounds(input);
   renderCalendarGrid();
   calPop.classList.add('show');
   positionCalendar();
@@ -676,90 +792,67 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('resize', () => {
   if (calPop.classList.contains('show')) positionCalendar();
 });
+// 스크롤 시 팝오버가 칸에서 떨어져 보이던 문제: 스크롤에 맞춰 다시 위치를 잡는다.
+// capture=true로 내부 스크롤 컨테이너의 스크롤도 잡는다.
+window.addEventListener('scroll', () => {
+  if (calPop.classList.contains('show')) positionCalendar();
+}, true);
 
-// ---- 입력 보조 ----
-
-// 연락처를 입력하는 대로 하이픈을 자동으로 넣는다. 숫자만 남긴 뒤 지역/앞자리·중간·끝4자리로 끊는다.
-function formatPhone(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  if (digits.length < 4) return digits;
-  const a = digits.startsWith('02') ? 2 : 3; // 서울(02)만 지역번호 2자리, 그 외는 3자리
-  const rest = digits.slice(a);
-  if (rest.length <= 4) return `${digits.slice(0, a)}-${rest}`;
-  return `${digits.slice(0, a)}-${rest.slice(0, -4)}-${rest.slice(-4)}`;
+for (const id of ['applyDate', 'deposit', 'checkIn', 'checkOut']) {
+  const el = $(id);
+  // pointerdown에서 네이티브 포커스를 막아(=포커스 시 페이지가 칸으로 스크롤되는 것 방지)
+  // 직접 preventScroll로 포커스만 준다. 포커스 링은 그대로 유지된다.
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    el.focus({ preventScroll: true });
+    openCalendar(el);
+  });
 }
 
-// 폼이 동적으로 생성되므로 리스너는 반드시 buildForm() 이후에 붙인다.
-function attachFieldListeners() {
-  for (const field of formFields(config)) {
-    const node = $(field.id);
-    if (!node) continue;
+// 토스·카카오페이 등의 '붙여넣기'가 은행과 계좌번호를 함께 인식하도록 은행명을 붙여 복사한다.
+const ACCOUNT_NUMBER = '국민은행 856901-00-129046';
 
-    if (field.input === 'date') {
-      node.addEventListener('click', () => openCalendar(node));
-      node.addEventListener('focus', () => openCalendar(node));
-    } else if (field.input === 'phone') {
-      node.addEventListener('input', (e) => {
-        const formatted = formatPhone(e.target.value);
-        if (formatted !== e.target.value) e.target.value = formatted;
-      });
-    } else if (field.input === 'money') {
-      node.addEventListener('input', () => {
-        // 숫자를 모두 지워 빈 값으로 돌아가면 자동 계산 모드로 복귀한다.
-        // render()는 여기서 부르지 않는다 — #form의 버블링 input 리스너가 한 번만 호출한다.
-        amountEdited = /[0-9]/.test(node.value);
-      });
-      node.addEventListener('focus', () => { amountFocused = true; });
-      node.addEventListener('blur', () => {
-        amountFocused = false;
-        render(); // 자리를 떠났고 필드를 비웠다면 즉시 자동 계산으로 복귀시킨다.
-      });
-    } else if (field.input === 'toggle') {
-      // 실제 상태는 체크박스가 그대로 들고 있다. 여기서는 스위치 시각만 맞춘다.
-      node.addEventListener('change', () => {
-        const on = node.checked;
-        $('holidayRow').classList.toggle('on', on);
-        $('holidaySwitch').classList.toggle('on', on);
-      });
+async function copyText(text, button) {
+  const original = button.dataset.label || button.textContent;
+  button.dataset.label = original;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      // http나 구형 브라우저용 폴백.
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      let ok = false;
+      try {
+        ta.select();
+        ok = document.execCommand('copy');
+      } finally {
+        ta.remove();
+        button.focus();
+      }
+      if (!ok) throw new Error('execCommand 복사 실패');
     }
-
-    if (field.remember) node.addEventListener('input', saveFields);
+    button.textContent = '복사됨';
+    showToast('계좌번호가 복사되었습니다.');
+  } catch {
+    button.textContent = '복사 실패';
   }
-
-  // 사용인원: 시각은 버튼들, 실제 값은 숨김 입력에 저장한다.
-  const guestRow = $('guestRow');
-  if (guestRow) {
-    guestRow.addEventListener('click', (e) => {
-      const btn = e.target.closest('.guest-btn');
-      if (!btn) return;
-      $('people').value = btn.dataset.n;
-      guestRow.querySelectorAll('.guest-btn').forEach((b) => b.classList.toggle('active', b === btn));
-      render();
-    });
-  }
-
-  const resetAmount = $('resetAmount');
-  if (resetAmount) {
-    resetAmount.addEventListener('click', () => {
-      amountEdited = false;
-      render();
-    });
-  }
-
-  $('form').addEventListener('input', render);
-  // select/checkbox의 input 이벤트가 일부 구형 WebKit/WebView에서 누락되는 경우를 대비한 보강.
-  $('form').addEventListener('change', render);
+  setTimeout(() => { button.textContent = original; }, 1500);
 }
 
-// ---- 저장값 ----
+$('copyAccount').addEventListener('click', (e) => copyText(ACCOUNT_NUMBER, e.currentTarget));
 
 const STORE_KEY = 'guesthouse-form';
+const SAVED_FIELDS = ['name', 'unitDong', 'unitHo', 'phone']; // 매번 같은 값만 저장한다. 날짜·인원·금액은 제외.
 
 function restoreSaved() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
     for (const id of SAVED_FIELDS) {
-      if (saved[id] && $(id)) $(id).value = saved[id];
+      if (saved[id]) $(id).value = saved[id];
     }
   } catch {
     // 저장값이 깨졌으면 무시하고 빈 폼으로 시작한다.
@@ -767,13 +860,16 @@ function restoreSaved() {
 }
 
 function saveFields() {
-  const data = {};
-  for (const id of SAVED_FIELDS) if ($(id)) data[id] = $(id).value;
+  const data = Object.fromEntries(SAVED_FIELDS.map((id) => [id, $(id).value]));
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
   } catch {
     // 사파리 프라이빗 모드 등 저장이 막힌 환경. 기능 자체는 계속 동작해야 한다.
   }
+}
+
+for (const id of SAVED_FIELDS) {
+  $(id).addEventListener('input', saveFields);
 }
 
 $('clearSaved').addEventListener('click', () => {
@@ -782,79 +878,17 @@ $('clearSaved').addEventListener('click', () => {
   } catch {
     // 저장이 막힌 환경이면 애초에 지울 것도 없다.
   }
-  for (const id of SAVED_FIELDS) if ($(id)) $(id).value = '';
+  for (const id of SAVED_FIELDS) $(id).value = '';
   render();
   showToast('저장된 값을 지웠습니다.');
 });
 
-// ---- 부팅 ----
-
-function setTodayDefaults() {
-  // (sv-SE 로케일은 YYYY-MM-DD 형식을 준다)
-  const today = new Date().toLocaleDateString('sv-SE');
-  for (const field of formFields(config)) {
-    if (field.input === 'date' && field.defaultToday && $(field.id)) $(field.id).value = today;
-  }
-}
-
-// 관리자 미리보기: admin.html이 sessionStorage에 넣어둔 편집 중인 설정을 우선 쓴다.
-const PREVIEW_KEY = 'guesthouse-config-preview';
-const isPreview = new URLSearchParams(location.search).has('preview');
-
-function previewConfig() {
-  if (!isPreview) return null;
-  try {
-    const raw = sessionStorage.getItem(PREVIEW_KEY);
-    return raw ? normalizeConfig(JSON.parse(raw)) : null;
-  } catch {
-    return null;
-  }
-}
-
-// 미리보기에서는 빈 폼 대신 예시 값을 채워 실제 생성될 이미지를 그대로 보여준다.
-function fillPreviewSamples() {
-  const samples = { text: '홍길동', phone: '010-1234-5678' };
-  for (const field of formFields(config)) {
-    const node = $(field.id);
-    if (!node || node.value) continue;
-    if (field.input === 'text') node.value = field.id === 'unit' ? '101동 1201호' : samples.text;
-    else if (field.input === 'phone') node.value = samples.phone;
-  }
-  const today = new Date();
-  const plus = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
-  if ($('checkIn')) $('checkIn').value = today.toLocaleDateString('sv-SE');
-  if ($('checkOut')) $('checkOut').value = plus.toLocaleDateString('sv-SE');
-}
-
-function boot(loaded) {
-  config = loaded;
-  buildDerived();
-  buildForm();
-  applySiteTexts();
-  attachFieldListeners();
-
-  canvas.width = config.form.width;
-  canvas.height = config.form.height;
-
-  // 오늘 기본값을 먼저 넣고 저장값을 나중에 덮어쓴다 — 기억해 둔 값이 항상 이긴다.
-  setTodayDefaults();
-  restoreSaved();
-  if (isPreview) fillPreviewSamples();
-
-  formImage.src = config.form.image;
-
-  render(); // 이미지가 아직 로딩 중이어도 요약/경고 텍스트와 버튼 잠금 상태를 즉시 반영한다.
-  imageReady.then(render).catch(() => { syncButtons(); });
-}
+restoreSaved();
 
 // 최상위 await를 쓰지 않는다 — Safari 15+/Chrome 89+ 미만에서는 모듈 전체가 파싱 실패해
 // 아무 리스너도 붙지 않는 채로 죽어버린다. .then/.catch만으로 같은 순서를 보장한다.
-const preview = previewConfig();
-if (preview) {
-  boot(preview);
-} else {
-  loadConfig().then(boot);
-}
+render(); // 이미지가 아직 로딩 중이어도 요약/경고 텍스트와 버튼 잠금 상태를 즉시 반영한다.
+imageReady.then(render).catch(() => { syncButtons(); });
 </script>
 </body>
 </html>

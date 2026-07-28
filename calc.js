@@ -21,9 +21,19 @@ export function countNights(checkIn, checkOut) {
   return nights > 0 ? nights : 0;
 }
 
-// pricing은 관리자가 바꿀 수 있는 요금표다. 생략하면 내장 기본값을 쓰므로
-// 설정을 아직 읽지 못한 시점에도 안전하게 호출할 수 있다.
-export function calcAmount({ checkIn, checkOut, people, holiday }, pricing = DEFAULT_CONFIG.pricing) {
+// 요금 계산에 필요한 두 가지를 이름 있는 옵션으로 받는다.
+//   pricing          관리자가 바꿀 수 있는 요금표. 생략하면 내장 기본값
+//   isHoliday(date)  해당 날짜가 공휴일이면 true. 생략하면 항상 false
+//
+// 위치 인자로 (values, pricing, isHoliday)처럼 나란히 두지 않는다. 둘 다 두 번째
+// 자리를 노리는 값이라 호출부에서 어느 쪽을 넘긴 건지 알아보기 어렵다.
+//
+// 요금 규정: 금·토·일 밤은 주말 요금이고, '공휴일 전날 밤~공휴일' 도 주말 요금이다.
+// 따라서 어떤 밤이 공휴일이거나 그 다음날이 공휴일이면 주말 요금을 적용한다.
+export function calcAmount({ checkIn, checkOut, people, holiday = false }, options = {}) {
+  const pricing = options.pricing || DEFAULT_CONFIG.pricing;
+  const isHoliday = options.isHoliday || (() => false);
+
   const nights = countNights(checkIn, checkOut);
   if (nights === 0) return 0;
 
@@ -33,9 +43,11 @@ export function calcAmount({ checkIn, checkOut, people, holiday }, pricing = DEF
   let total = 0;
   for (let i = 0; i < nights; i++) {
     const night = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const nextDay = new Date(night.getFullYear(), night.getMonth(), night.getDate() + 1);
     // weekendDays는 getDay() 값의 배열. 기본값은 [0, 5, 6] = 일·금·토.
     const isWeekend = pricing.weekendDays.includes(night.getDay());
-    total += (holiday || isWeekend) ? pricing.weekend : pricing.weekday;
+    const weekendRate = holiday || isWeekend || isHoliday(night) || isHoliday(nextDay);
+    total += weekendRate ? pricing.weekend : pricing.weekday;
     total += extra;
   }
   return total;

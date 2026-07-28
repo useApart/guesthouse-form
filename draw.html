@@ -24,6 +24,7 @@
   .tool-btn { height: 34px; padding: 0 12px; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; border: 1px solid #D8D6CD; background: #fff; color: #3C443B; }
   .tool-btn.active { border: 1.5px solid #1F6D57; background: #EAF3EF; color: #1F6D57; }
   .tool-btn.danger { color: #B5473A; }
+  .hint { margin: -4px 0 2px; font-size: 12px; color: #7A8177; line-height: 1.4; }
   .field-box { display: flex; flex-direction: column; gap: 6px; }
   .field-head { display: flex; align-items: center; justify-content: space-between; }
   .field-label { font-size: 13px; font-weight: 600; color: #3C443B; }
@@ -31,11 +32,21 @@
   .canvas-wrap { position: relative; border-radius: 12px; border: 1px solid #E8E6DE; background: #FBFAF7; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .canvas-wrap canvas { width: 100%; display: block; cursor: crosshair; position: relative; z-index: 1; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .guideline { position: absolute; left: 12px; right: 12px; bottom: 14px; height: 1px; background: #DCD9CE; z-index: 0; }
-  /* 캔버스 높이는 서식 칸의 가로세로 비율에서 계산해 JS가 넣는다(sizeBoard 참조).
-     비율이 맞아야 쓴 글씨가 합성될 때 찌그러지지 않는다. 아래 값은 계산 전 기본값. */
-  .canvas-wrap canvas { height: 76px; }
+  /* 홀드로 지우기 모드가 켜진 칸 표시 */
+  .canvas-wrap.erasing { background: #FCEEEC; box-shadow: inset 0 0 0 2px #E7A79E; }
+  .field-box.small .canvas-wrap canvas { height: 64px; }
+  .field-box.tall .canvas-wrap canvas { height: 100px; }
+  .field-box.wide .canvas-wrap canvas { height: 76px; }
+  .field-box.period .canvas-wrap canvas { height: 110px; }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  #fieldBoxes { display: flex; flex-direction: column; gap: 14px; }
+  /* 폰: 2칸 나란히를 세로 스택으로 펴서 전체폭 확보 + 필기 칸 높이 확대 */
+  @media (max-width: 520px) {
+    .row2 { grid-template-columns: 1fr; }
+    .field-box.small .canvas-wrap canvas { height: 96px; }
+    .field-box.tall .canvas-wrap canvas { height: 130px; }
+    .field-box.wide .canvas-wrap canvas { height: 112px; }
+    .field-box.period .canvas-wrap canvas { height: 150px; }
+  }
   .btn-row { display: flex; gap: 10px; margin-top: 6px; }
   .btn { flex: 1; height: 52px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; border: none; }
   .btn-primary { background: #1F6D57; color: #fff; }
@@ -50,8 +61,7 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .mini-preview { position: fixed; right: 16px; bottom: 16px; z-index: 50; display: flex; flex-direction: column; align-items: center; gap: 4px; background: #fff; border: 1px solid #E8E6DE; border-radius: 12px; box-shadow: 0 2px 8px rgba(30,37,30,.18); padding: 6px 8px; cursor: pointer; }
   .mini-preview[hidden] { display: none; }
-  /* 높이는 서식 비율에서 계산해 JS가 넣는다. 가로로 긴 서식으로 바뀌어도 찌그러지지 않는다. */
-  .mini-preview canvas { width: 84px; display: block; border-radius: 6px; background: #FBFAF7; }
+  .mini-preview canvas { width: 84px; height: 119px; display: block; border-radius: 6px; background: #FBFAF7; }
   .mini-caption { font-size: 10px; color: #7A8177; font-weight: 600; white-space: nowrap; }
   .preview-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; }
   .preview-overlay[hidden] { display: none; }
@@ -64,8 +74,8 @@
 <body>
 <div class="wrap">
   <div class="inner">
-    <div class="eyebrow" id="siteOrg">원흥LH13단지주거복지지원센터</div>
-    <h1 id="siteTitle">게스트하우스 신청서</h1>
+    <div class="eyebrow">원흥LH13단지주거복지지원센터</div>
+    <h1>게스트하우스 신청서</h1>
 
     <div class="tabs">
       <a href="index.html" style="text-decoration:none; flex:1;">
@@ -88,9 +98,55 @@
         <button type="button" class="tool-btn" id="eraserBtn">지우개</button>
         <button type="button" class="tool-btn danger" id="clearAllBtn">전체 지우기</button>
       </div>
+      <p class="hint">✎ 지우고 싶은 곳을 잠시(약 1.5초) 꾹 누르고 있으면 지우기 모드로 바뀌고, 그대로 문지르면 지워집니다.</p>
 
-      <!-- 손글씨 칸은 서식에 찍히는 칸(printedCells)에서 생성된다. buildFieldBoxes() 참조. -->
-      <div id="fieldBoxes"></div>
+      <div class="row2">
+        <div class="field-box small">
+          <div class="field-head"><span class="field-label">신청일</span><button type="button" class="field-clear" data-target="c-applyDate">지우기</button></div>
+          <div class="canvas-wrap"><canvas class="board" id="c-applyDate"></canvas><div class="guideline"></div></div>
+        </div>
+        <div class="field-box small">
+          <div class="field-head"><span class="field-label">은행입금일</span><button type="button" class="field-clear" data-target="c-deposit">지우기</button></div>
+          <div class="canvas-wrap"><canvas class="board" id="c-deposit"></canvas><div class="guideline"></div></div>
+        </div>
+      </div>
+
+      <div class="field-box wide">
+        <div class="field-head"><span class="field-label">성명</span><button type="button" class="field-clear" data-target="c-name">지우기</button></div>
+        <div class="canvas-wrap"><canvas class="board" id="c-name"></canvas><div class="guideline"></div></div>
+      </div>
+
+      <div class="row2">
+        <div class="field-box small tall">
+          <div class="field-head"><span class="field-label">동·호수</span><button type="button" class="field-clear" data-target="c-unit">지우기</button></div>
+          <div class="canvas-wrap"><canvas class="board" id="c-unit"></canvas><div class="guideline"></div></div>
+        </div>
+        <div class="field-box small tall">
+          <div class="field-head"><span class="field-label">연락처</span><button type="button" class="field-clear" data-target="c-phone">지우기</button></div>
+          <div class="canvas-wrap"><canvas class="board" id="c-phone"></canvas><div class="guideline"></div></div>
+        </div>
+      </div>
+
+      <div class="field-box period">
+        <div class="field-head"><span class="field-label">사용기간 (입실~퇴실)</span><button type="button" class="field-clear" data-target="c-period">지우기</button></div>
+        <div class="canvas-wrap"><canvas class="board" id="c-period"></canvas><div class="guideline"></div></div>
+      </div>
+
+      <div class="row2">
+        <div class="field-box small">
+          <div class="field-head"><span class="field-label">숙박일수</span><button type="button" class="field-clear" data-target="c-nights">지우기</button></div>
+          <div class="canvas-wrap"><canvas class="board" id="c-nights"></canvas><div class="guideline"></div></div>
+        </div>
+        <div class="field-box small">
+          <div class="field-head"><span class="field-label">사용인원</span><button type="button" class="field-clear" data-target="c-people">지우기</button></div>
+          <div class="canvas-wrap"><canvas class="board" id="c-people"></canvas><div class="guideline"></div></div>
+        </div>
+      </div>
+
+      <div class="field-box wide">
+        <div class="field-head"><span class="field-label">사용금액</span><button type="button" class="field-clear" data-target="c-amount">지우기</button></div>
+        <div class="canvas-wrap"><canvas class="board" id="c-amount"></canvas><div class="guideline"></div></div>
+      </div>
 
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="sendBtn" disabled>이미지 만들어 보내기</button>
@@ -110,99 +166,34 @@
 <div class="preview-overlay" id="previewOverlay" hidden>
   <div class="preview-overlay-backdrop" id="previewBackdrop"></div>
   <div class="preview-overlay-content">
-    <canvas id="largeCanvas" width="707" height="1000"></canvas>
+    <canvas id="largeCanvas" width="1414" height="2000"></canvas>
     <button type="button" class="preview-close-btn" id="previewCloseBtn">닫기</button>
   </div>
 </div>
 
-<script type="module">
-import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packRows } from './config.js';
-
+<script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
 
-  // 설정을 읽기 전에도 화면이 동작해야 하므로 내장 기본값에서 시작한다.
-  var config = clone(DEFAULT_CONFIG);
-  var FW = config.form.width;
-  var FH = config.form.height;
-
   // ---- 서식 이미지 로딩 ('loading' | 'ready' | 'error') ----
-  // src는 설정을 읽은 뒤 boot()에서 넣는다.
   var imageState = 'loading';
   var formImage = new Image();
   formImage.onload = function () { imageState = 'ready'; syncButtons(); markPreviewDirty(); };
   formImage.onerror = function () { imageState = 'error'; syncButtons(); };
+  formImage.src = 'form.jpg';
 
-  // 서식 좌표계의 각 칸. config.fields[].rect에서 그대로 가져오므로
-  // index.html과 같은 좌표를 공유한다.
-  var CELLS = {};
-  function buildCells() {
-    CELLS = {};
-    printedCells(config).forEach(function (field) { CELLS[field.id] = field.rect; });
-  }
-
-  // ---- 손글씨 칸 생성 ----
-  // 손글씨 페이지는 입실일·퇴실일 대신 사용기간을 직접 쓰므로, 입력 항목이 아니라
-  // "서식에 찍히는 칸" 기준으로 만든다.
-  function buildFieldBox(field, isHalf) {
-    var box = document.createElement('div');
-    box.className = 'field-box ' + (isHalf ? 'small' : 'wide');
-
-    var head = document.createElement('div');
-    head.className = 'field-head';
-    var label = document.createElement('span');
-    label.className = 'field-label';
-    label.textContent = field.label;
-    var clear = document.createElement('button');
-    clear.type = 'button';
-    clear.className = 'field-clear';
-    clear.dataset.target = 'c-' + field.id;
-    clear.textContent = '지우기';
-    head.appendChild(label);
-    head.appendChild(clear);
-
-    var wrap = document.createElement('div');
-    wrap.className = 'canvas-wrap';
-    var canvas = document.createElement('canvas');
-    canvas.className = 'board';
-    canvas.id = 'c-' + field.id;
-    var guide = document.createElement('div');
-    guide.className = 'guideline';
-    wrap.appendChild(canvas);
-    wrap.appendChild(guide);
-
-    box.appendChild(head);
-    box.appendChild(wrap);
-    return box;
-  }
-
-  function buildFieldBoxes() {
-    var host = $('fieldBoxes');
-    host.textContent = '';
-    packRows(printedCells(config)).forEach(function (row) {
-      var container = host;
-      if (row.length === 2) {
-        container = document.createElement('div');
-        container.className = 'row2';
-        host.appendChild(container);
-      }
-      row.forEach(function (field) {
-        container.appendChild(buildFieldBox(field, row.length === 2));
-      });
-    });
-  }
-
-  // 손글씨 박스의 높이를 실제 칸의 가로세로 비율에 맞춘다. 비율이 어긋나면
-  // 쓴 글씨가 합성될 때 눌리거나 늘어난다. 너무 납작해서 쓸 수 없게 되는 것은
-  // 막아야 하므로 64~140px로 제한한다.
-  function sizeBoard(canvas) {
-    var cell = CELLS[canvas.id.replace(/^c-/, '')];
-    if (!cell) return;
-    var boxWidth = canvas.getBoundingClientRect().width;
-    if (!boxWidth) return;
-    var height = Math.round(boxWidth / (cell.w / cell.h));
-    canvas.style.height = Math.max(64, Math.min(140, height)) + 'px';
-  }
+  // 707x1000 좌표계. 표 격자선을 픽셀 스캔으로 실측한 각 칸의 좌상단/너비/높이.
+  var CELLS = {
+    applyDate: { x: 231, y: 198, w: 403, h: 26 },
+    name:      { x: 231, y: 228, w: 403, h: 25 },
+    unit:      { x: 231, y: 257, w: 403, h: 26 },
+    phone:     { x: 231, y: 287, w: 403, h: 25 },
+    period:    { x: 232, y: 323, w: 138, h: 28 },
+    nights:    { x: 487, y: 323, w: 147, h: 28 },
+    amount:    { x: 232, y: 355, w: 138, h: 29 },
+    people:    { x: 487, y: 355, w: 147, h: 29 },
+    deposit:   { x: 232, y: 454, w: 138, h: 34 },
+  };
 
   function setStatus(msg) { $('status').textContent = msg; }
 
@@ -237,7 +228,6 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
   var boards = [];
 
   function setupCanvas(canvas) {
-    sizeBoard(canvas); // 배킹 스토어 크기를 재기 전에 CSS 높이를 먼저 확정한다
     var rect = canvas.getBoundingClientRect();
     var dpr = window.devicePixelRatio || 1;
     canvas.width = Math.max(1, Math.round(rect.width * dpr));
@@ -250,15 +240,11 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
     return { canvas: canvas, ctx: ctx, dpr: dpr, drawing: false, lastPoint: null, midPoint: null, activePointerId: null };
   }
 
-  // 캔버스가 buildFieldBoxes()로 생성되므로 반드시 그 이후에 호출한다.
-  function initBoards() {
-    boards = [];
-    document.querySelectorAll('.board').forEach(function (canvas) {
-      var b = setupCanvas(canvas);
-      boards.push(b);
-      attachEvents(b);
-    });
-  }
+  document.querySelectorAll('.board').forEach(function (canvas) {
+    var b = setupCanvas(canvas);
+    boards.push(b);
+    attachEvents(b);
+  });
 
   window.addEventListener('resize', function () {
     boards.forEach(function (b) {
@@ -283,6 +269,26 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
+  // 길게 누르기(홀드) → 지우기 모드. 제자리에서 HOLD_MS 이상 꾹 누르고 있으면
+  // 그 획이 지우기 상태로 바뀌고, 이후 움직이면 지나간 자리를 지운다.
+  // 누른 채 바로 움직이면(=필기) 홀드가 취소돼 정상적으로 글씨가 써진다.
+  var HOLD_MS = 1500;       // 이 시간 이상 제자리 홀드하면 지우기 모드
+  var HOLD_MOVE_TOL = 12;   // 홀드 중 이 거리(px) 넘게 움직이면 필기로 보고 취소
+  var SCRUB_ERASE_R = 26;   // 지우는 붓 지름(px)
+
+  function eraseSegment(b, from, to, width) {
+    b.ctx.save();
+    b.ctx.globalCompositeOperation = 'destination-out';
+    b.ctx.lineCap = 'round';
+    b.ctx.lineJoin = 'round';
+    b.ctx.lineWidth = width || SCRUB_ERASE_R;
+    b.ctx.beginPath();
+    b.ctx.moveTo(from.x, from.y);
+    b.ctx.lineTo(to.x, to.y);
+    b.ctx.stroke();
+    b.ctx.restore();
+  }
+
   function attachEvents(b) {
     var canvas = b.canvas;
 
@@ -295,9 +301,25 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
       e.preventDefault();
       b.activePointerId = e.pointerId;
       b.drawing = true;
-      b.lastPoint = getPoint(canvas, e);
+      b.downPoint = getPoint(canvas, e);
+      b.lastPoint = b.downPoint;
       b.midPoint = null;
       canvas.setPointerCapture(e.pointerId);
+      if (eraser) {
+        // 지우개 버튼이 켜져 있으면 바로 지우기 모드.
+        b.mode = 'erasing';
+      } else {
+        // 그 외에는 '홀드 대기' 상태. 제자리에서 HOLD_MS 이상 꾹 누르면
+        // 지우기 모드로 바뀌고, 그 전에 움직이면 필기로 확정된다.
+        b.mode = 'pending';
+        b.holdTimer = setTimeout(function () {
+          if (b.mode === 'pending') {
+            b.mode = 'erasing';
+            canvas.parentNode.classList.add('erasing');
+            markPreviewDirty();
+          }
+        }, HOLD_MS);
+      }
       markPreviewDirty();
     });
 
@@ -306,17 +328,34 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
       e.preventDefault();
       var points = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
       if (!points.length) points = [e];
-      b.ctx.globalCompositeOperation = eraser ? 'destination-out' : 'source-over';
       b.ctx.strokeStyle = color;
-      b.ctx.lineWidth = eraser ? thickness * 5 : thickness;
       points.forEach(function (ev) {
         var pt = getPoint(canvas, ev);
-        var mid = { x: (b.lastPoint.x + pt.x) / 2, y: (b.lastPoint.y + pt.y) / 2 };
-        b.ctx.beginPath();
-        b.ctx.moveTo(b.midPoint ? b.midPoint.x : b.lastPoint.x, b.midPoint ? b.midPoint.y : b.lastPoint.y);
-        b.ctx.quadraticCurveTo(b.lastPoint.x, b.lastPoint.y, mid.x, mid.y);
-        b.ctx.stroke();
-        b.midPoint = mid;
+
+        if (b.mode === 'pending') {
+          // 홀드 대기 중: 허용 오차를 넘게 움직이면 필기로 확정(홀드 취소).
+          var ddx = pt.x - b.downPoint.x, ddy = pt.y - b.downPoint.y;
+          if (ddx * ddx + ddy * ddy > HOLD_MOVE_TOL * HOLD_MOVE_TOL) {
+            clearTimeout(b.holdTimer);
+            b.mode = 'writing';
+            // 아래에서 downPoint부터 이어 그린다.
+          } else {
+            return; // 아직 제자리 홀드 중 — 그리지도 지우지도 않는다.
+          }
+        }
+
+        if (b.mode === 'erasing') {
+          eraseSegment(b, b.lastPoint, pt, eraser ? thickness * 5 : SCRUB_ERASE_R);
+        } else {
+          b.ctx.globalCompositeOperation = 'source-over';
+          b.ctx.lineWidth = thickness;
+          var mid = { x: (b.lastPoint.x + pt.x) / 2, y: (b.lastPoint.y + pt.y) / 2 };
+          b.ctx.beginPath();
+          b.ctx.moveTo(b.midPoint ? b.midPoint.x : b.lastPoint.x, b.midPoint ? b.midPoint.y : b.lastPoint.y);
+          b.ctx.quadraticCurveTo(b.lastPoint.x, b.lastPoint.y, mid.x, mid.y);
+          b.ctx.stroke();
+          b.midPoint = mid;
+        }
         b.lastPoint = pt;
       });
       markPreviewDirty();
@@ -324,10 +363,21 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
 
     function end(e) {
       if (e && e.pointerId !== b.activePointerId) return;
+      clearTimeout(b.holdTimer);
+      // 움직임 없이 톡 찍기: 아직 'pending'(필기 대기)인 채로 뗐으면 그 자리에 점을 찍는다.
+      if (b.mode === 'pending' && b.downPoint) {
+        b.ctx.globalCompositeOperation = 'source-over';
+        b.ctx.fillStyle = color;
+        b.ctx.beginPath();
+        b.ctx.arc(b.downPoint.x, b.downPoint.y, Math.max(1.1, thickness * 0.6), 0, Math.PI * 2);
+        b.ctx.fill();
+      }
+      canvas.parentNode.classList.remove('erasing');
       b.drawing = false;
       b.lastPoint = null;
       b.midPoint = null;
       b.activePointerId = null;
+      b.mode = null;
       markPreviewDirty();
     }
     canvas.addEventListener('pointerup', end);
@@ -374,14 +424,13 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
     b.ctx.clearRect(0, 0, rect.width, rect.height);
   }
 
-  // 버튼도 동적으로 생기므로 컨테이너에 위임한다. 다시 그려도 리스너가 유지된다.
-  $('fieldBoxes').addEventListener('click', function (e) {
-    var btn = e.target.closest('.field-clear');
-    if (!btn) return;
-    var canvas = document.getElementById(btn.dataset.target);
-    var b = boards.find(function (x) { return x.canvas === canvas; });
-    if (b) clearBoard(b);
-    markPreviewDirty();
+  document.querySelectorAll('.field-clear').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var canvas = document.getElementById(btn.dataset.target);
+      var b = boards.find(function (x) { return x.canvas === canvas; });
+      if (b) clearBoard(b);
+      markPreviewDirty();
+    });
   });
 
   $('clearAllBtn').addEventListener('click', function () {
@@ -408,14 +457,22 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
   }
 
   // 항상 존재하는 하나의 합성 캔버스. 미리보기와 내보내기가 동일한 결과를
-  // 보도록 이 캔버스만을 통해 렌더링한다. 크기는 boot()에서 서식에 맞춘다.
+  // 보도록 이 캔버스만을 통해 렌더링한다.
+  // 최종 이미지를 서식 좌표(707x1000)의 SS배 해상도로 렌더한다.
+  // 손글씨 잉크가 저해상도로 굳어 계단처럼 깨지는 것을 줄이기 위한 슈퍼샘플링.
+  var SS = 2;
   var compositeCanvas = document.createElement('canvas');
+  compositeCanvas.width = 707 * SS;
+  compositeCanvas.height = 1000 * SS;
   var compositeCtx = compositeCanvas.getContext('2d');
 
   function renderComposite() {
     if (imageState !== 'ready') return;
-    compositeCtx.clearRect(0, 0, FW, FH);
-    compositeCtx.drawImage(formImage, 0, 0, FW, FH);
+    // 707x1000 좌표계로 그리되 SS배로 확대 출력한다(CELLS 좌표 그대로 사용).
+    compositeCtx.setTransform(SS, 0, 0, SS, 0, 0);
+    compositeCtx.clearRect(0, 0, 707, 1000);
+    compositeCtx.imageSmoothingQuality = 'high';
+    compositeCtx.drawImage(formImage, 0, 0, 707, 1000);
     boards.forEach(function (b) {
       var key = b.canvas.id.replace(/^c-/, '');
       var cell = CELLS[key];
@@ -442,10 +499,11 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
       previewDirty = false;
       renderComposite();
       miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
-      miniCtx.drawImage(compositeCanvas, 0, 0, FW, FH, 0, 0, miniCanvas.width, miniCanvas.height);
+      miniCtx.drawImage(compositeCanvas, 0, 0, compositeCanvas.width, compositeCanvas.height, 0, 0, miniCanvas.width, miniCanvas.height);
     }
     requestAnimationFrame(previewLoop);
   }
+  requestAnimationFrame(previewLoop);
 
   // ---- 탭하면 크게 보기 ----
   var previewOverlay = $('previewOverlay');
@@ -532,48 +590,7 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
     });
   });
 
-  // ---- 부팅 ----
-
-  function applySizes() {
-    FW = config.form.width;
-    FH = config.form.height;
-    compositeCanvas.width = FW;
-    compositeCanvas.height = FH;
-    largeCanvas.width = FW;
-    largeCanvas.height = FH;
-    miniCanvas.width = 84;
-    miniCanvas.height = Math.round(84 * FH / FW);
-    miniCanvas.style.height = miniCanvas.height + 'px';
-  }
-
-  // 관리자 미리보기: admin.html이 sessionStorage에 넣어둔 편집 중인 설정을 우선 쓴다.
-  function previewConfig() {
-    if (!new URLSearchParams(location.search).has('preview')) return null;
-    try {
-      var raw = sessionStorage.getItem('guesthouse-config-preview');
-      return raw ? normalizeConfig(JSON.parse(raw)) : null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function boot(loaded) {
-    config = loaded;
-    buildCells();
-    buildFieldBoxes();
-    applySizes();
-    $('siteOrg').textContent = config.site.org;
-    $('siteTitle').textContent = config.site.title;
-    initBoards();
-    formImage.src = config.form.image;
-    syncButtons();
-    requestAnimationFrame(previewLoop);
-  }
-
-  // 최상위 await를 쓰지 않는다 — 구형 사파리에서 모듈 전체가 파싱 실패해
-  // 아무 리스너도 붙지 않는 채로 죽어버린다.
-  var preview = previewConfig();
-  if (preview) { boot(preview); } else { loadConfig().then(boot); }
+  syncButtons();
 })();
 </script>
 </body>
