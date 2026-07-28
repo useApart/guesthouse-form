@@ -1,10 +1,4 @@
-export const RATE = {
-  WEEKDAY: 35000,
-  WEEKEND: 40000,
-  EXTRA_PER_PERSON_NIGHT: 5000,
-  BASE_PEOPLE: 2,
-  MAX_PEOPLE: 4,
-};
+import { DEFAULT_CONFIG } from './config.js';
 
 // 'YYYY-MM-DD'를 로컬 시간 자정 Date로 변환한다.
 // new Date('2026-07-24')는 UTC로 해석되어 시간대에 따라 하루가 밀리므로 쓰지 않는다.
@@ -27,19 +21,21 @@ export function countNights(checkIn, checkOut) {
   return nights > 0 ? nights : 0;
 }
 
-export function calcAmount({ checkIn, checkOut, people, holiday }) {
+// pricing은 관리자가 바꿀 수 있는 요금표다. 생략하면 내장 기본값을 쓰므로
+// 설정을 아직 읽지 못한 시점에도 안전하게 호출할 수 있다.
+export function calcAmount({ checkIn, checkOut, people, holiday }, pricing = DEFAULT_CONFIG.pricing) {
   const nights = countNights(checkIn, checkOut);
   if (nights === 0) return 0;
 
   const start = parseDate(checkIn);
-  const extra = Math.max(0, people - RATE.BASE_PEOPLE) * RATE.EXTRA_PER_PERSON_NIGHT;
+  const extra = Math.max(0, people - pricing.basePeople) * pricing.extraPerPersonNight;
 
   let total = 0;
   for (let i = 0; i < nights; i++) {
     const night = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-    const day = night.getDay(); // 0=일 ... 5=금, 6=토
-    const isWeekend = day === 5 || day === 6 || day === 0;
-    total += (holiday || isWeekend) ? RATE.WEEKEND : RATE.WEEKDAY;
+    // weekendDays는 getDay() 값의 배열. 기본값은 [0, 5, 6] = 일·금·토.
+    const isWeekend = pricing.weekendDays.includes(night.getDay());
+    total += (holiday || isWeekend) ? pricing.weekend : pricing.weekday;
     total += extra;
   }
   return total;
