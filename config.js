@@ -23,12 +23,12 @@ export const DEFAULT_CONFIG = {
     { id: 'unit', label: '동·호수', input: 'unit', width: 'half',
       rect: { x: 231, y: 257, w: 403, h: 26 },
       printed: true, visible: true, required: true,
-      dongLength: 4, hoLength: 3, remember: true },
+      dongLength: 4, hoLength: 3, remember: true, tallBox: true },
 
     { id: 'phone', label: '연락처', input: 'phone', width: 'half',
       rect: { x: 231, y: 287, w: 403, h: 25 },
       printed: true, visible: true, required: true,
-      placeholder: '', maxlength: 20, remember: true },
+      placeholder: '', maxlength: 20, remember: true, tallBox: true },
 
     // 입실일·퇴실일은 서식에 직접 찍히지 않는다. 둘을 합쳐 period로 출력된다.
     { id: 'checkIn', label: '입실일 (사용기간 시작)', input: 'date', width: 'half',
@@ -42,7 +42,7 @@ export const DEFAULT_CONFIG = {
     // input: null = 화면에 칸이 없고 서식에만 찍히는 항목.
     { id: 'period', label: '사용기간', input: null, width: 'full',
       rect: { x: 232, y: 323, w: 138, h: 28 },
-      printed: true, visible: true, required: false, system: true },
+      printed: true, visible: true, required: false, system: true, tallBox: true },
 
     // readout = 사람이 못 고치는 자동 계산 표시칸.
     { id: 'nights', label: '사용일수 (자동 계산)', input: 'readout', width: 'half',
@@ -198,6 +198,11 @@ function normalizeField(raw, form, fallback) {
   }
   if (raw.remember !== undefined ? raw.remember === true : base.remember === true) {
     field.remember = true;
+  }
+  // 손글씨 칸을 높게 쓸지. 서식 칸 비율과는 무관하다 — 합성할 때 비율을 유지한 채
+  // 축소되므로, 이 값은 순전히 "쓸 공간이 얼마나 필요한가"의 문제다.
+  if (raw.tallBox !== undefined ? raw.tallBox === true : base.tallBox === true) {
+    field.tallBox = true;
   }
 
   return field;

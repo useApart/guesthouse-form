@@ -34,18 +34,22 @@
   .guideline { position: absolute; left: 12px; right: 12px; bottom: 14px; height: 1px; background: #DCD9CE; z-index: 0; }
   /* 홀드로 지우기 모드가 켜진 칸 표시 */
   .canvas-wrap.erasing { background: #FCEEEC; box-shadow: inset 0 0 0 2px #E7A79E; }
+  /* 높이는 width(half/full) x tallBox 조합으로 정해진다. buildFieldBox() 참조.
+     서식 칸의 비율과는 무관하다 — 합성 시 비율을 유지한 채 축소되므로,
+     이 값은 순전히 "손으로 쓸 공간이 얼마나 필요한가"의 문제다. */
   .field-box.small .canvas-wrap canvas { height: 64px; }
-  .field-box.tall .canvas-wrap canvas { height: 100px; }
+  .field-box.small.tall .canvas-wrap canvas { height: 100px; }
   .field-box.wide .canvas-wrap canvas { height: 76px; }
-  .field-box.period .canvas-wrap canvas { height: 110px; }
+  .field-box.wide.tall .canvas-wrap canvas { height: 110px; }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  #fieldBoxes { display: flex; flex-direction: column; gap: 14px; }
   /* 폰: 2칸 나란히를 세로 스택으로 펴서 전체폭 확보 + 필기 칸 높이 확대 */
   @media (max-width: 520px) {
     .row2 { grid-template-columns: 1fr; }
     .field-box.small .canvas-wrap canvas { height: 96px; }
-    .field-box.tall .canvas-wrap canvas { height: 130px; }
+    .field-box.small.tall .canvas-wrap canvas { height: 130px; }
     .field-box.wide .canvas-wrap canvas { height: 112px; }
-    .field-box.period .canvas-wrap canvas { height: 150px; }
+    .field-box.wide.tall .canvas-wrap canvas { height: 150px; }
   }
   .btn-row { display: flex; gap: 10px; margin-top: 6px; }
   .btn { flex: 1; height: 52px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; border: none; }
@@ -61,6 +65,7 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .mini-preview { position: fixed; right: 16px; bottom: 16px; z-index: 50; display: flex; flex-direction: column; align-items: center; gap: 4px; background: #fff; border: 1px solid #E8E6DE; border-radius: 12px; box-shadow: 0 2px 8px rgba(30,37,30,.18); padding: 6px 8px; cursor: pointer; }
   .mini-preview[hidden] { display: none; }
+  /* 높이는 서식 비율에서 계산해 applySizes()가 넣는다. 아래는 계산 전 기본값. */
   .mini-preview canvas { width: 84px; height: 119px; display: block; border-radius: 6px; background: #FBFAF7; }
   .mini-caption { font-size: 10px; color: #7A8177; font-weight: 600; white-space: nowrap; }
   .preview-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; }
@@ -74,8 +79,8 @@
 <body>
 <div class="wrap">
   <div class="inner">
-    <div class="eyebrow">원흥LH13단지주거복지지원센터</div>
-    <h1>게스트하우스 신청서</h1>
+    <div class="eyebrow" id="siteOrg">원흥LH13단지주거복지지원센터</div>
+    <h1 id="siteTitle">게스트하우스 신청서</h1>
 
     <div class="tabs">
       <a href="index.html" style="text-decoration:none; flex:1;">
@@ -100,53 +105,8 @@
       </div>
       <p class="hint">✎ 지우고 싶은 곳을 잠시(약 1.5초) 꾹 누르고 있으면 지우기 모드로 바뀌고, 그대로 문지르면 지워집니다.</p>
 
-      <div class="row2">
-        <div class="field-box small">
-          <div class="field-head"><span class="field-label">신청일</span><button type="button" class="field-clear" data-target="c-applyDate">지우기</button></div>
-          <div class="canvas-wrap"><canvas class="board" id="c-applyDate"></canvas><div class="guideline"></div></div>
-        </div>
-        <div class="field-box small">
-          <div class="field-head"><span class="field-label">은행입금일</span><button type="button" class="field-clear" data-target="c-deposit">지우기</button></div>
-          <div class="canvas-wrap"><canvas class="board" id="c-deposit"></canvas><div class="guideline"></div></div>
-        </div>
-      </div>
-
-      <div class="field-box wide">
-        <div class="field-head"><span class="field-label">성명</span><button type="button" class="field-clear" data-target="c-name">지우기</button></div>
-        <div class="canvas-wrap"><canvas class="board" id="c-name"></canvas><div class="guideline"></div></div>
-      </div>
-
-      <div class="row2">
-        <div class="field-box small tall">
-          <div class="field-head"><span class="field-label">동·호수</span><button type="button" class="field-clear" data-target="c-unit">지우기</button></div>
-          <div class="canvas-wrap"><canvas class="board" id="c-unit"></canvas><div class="guideline"></div></div>
-        </div>
-        <div class="field-box small tall">
-          <div class="field-head"><span class="field-label">연락처</span><button type="button" class="field-clear" data-target="c-phone">지우기</button></div>
-          <div class="canvas-wrap"><canvas class="board" id="c-phone"></canvas><div class="guideline"></div></div>
-        </div>
-      </div>
-
-      <div class="field-box period">
-        <div class="field-head"><span class="field-label">사용기간 (입실~퇴실)</span><button type="button" class="field-clear" data-target="c-period">지우기</button></div>
-        <div class="canvas-wrap"><canvas class="board" id="c-period"></canvas><div class="guideline"></div></div>
-      </div>
-
-      <div class="row2">
-        <div class="field-box small">
-          <div class="field-head"><span class="field-label">숙박일수</span><button type="button" class="field-clear" data-target="c-nights">지우기</button></div>
-          <div class="canvas-wrap"><canvas class="board" id="c-nights"></canvas><div class="guideline"></div></div>
-        </div>
-        <div class="field-box small">
-          <div class="field-head"><span class="field-label">사용인원</span><button type="button" class="field-clear" data-target="c-people">지우기</button></div>
-          <div class="canvas-wrap"><canvas class="board" id="c-people"></canvas><div class="guideline"></div></div>
-        </div>
-      </div>
-
-      <div class="field-box wide">
-        <div class="field-head"><span class="field-label">사용금액</span><button type="button" class="field-clear" data-target="c-amount">지우기</button></div>
-        <div class="canvas-wrap"><canvas class="board" id="c-amount"></canvas><div class="guideline"></div></div>
-      </div>
+      <!-- 손글씨 칸은 서식에 찍히는 칸(printedCells)에서 생성된다. buildFieldBoxes() 참조. -->
+      <div id="fieldBoxes"></div>
 
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="sendBtn" disabled>이미지 만들어 보내기</button>
@@ -171,29 +131,82 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packRows } from './config.js';
+
 (function () {
   var $ = function (id) { return document.getElementById(id); };
 
+  // 설정을 읽기 전에도 화면이 동작해야 하므로 내장 기본값에서 시작한다.
+  var config = clone(DEFAULT_CONFIG);
+  var FW = config.form.width;
+  var FH = config.form.height;
+
   // ---- 서식 이미지 로딩 ('loading' | 'ready' | 'error') ----
+  // src는 설정을 읽은 뒤 boot()에서 넣는다.
   var imageState = 'loading';
   var formImage = new Image();
   formImage.onload = function () { imageState = 'ready'; syncButtons(); markPreviewDirty(); };
   formImage.onerror = function () { imageState = 'error'; syncButtons(); };
-  formImage.src = 'form.jpg';
 
-  // 707x1000 좌표계. 표 격자선을 픽셀 스캔으로 실측한 각 칸의 좌상단/너비/높이.
-  var CELLS = {
-    applyDate: { x: 231, y: 198, w: 403, h: 26 },
-    name:      { x: 231, y: 228, w: 403, h: 25 },
-    unit:      { x: 231, y: 257, w: 403, h: 26 },
-    phone:     { x: 231, y: 287, w: 403, h: 25 },
-    period:    { x: 232, y: 323, w: 138, h: 28 },
-    nights:    { x: 487, y: 323, w: 147, h: 28 },
-    amount:    { x: 232, y: 355, w: 138, h: 29 },
-    people:    { x: 487, y: 355, w: 147, h: 29 },
-    deposit:   { x: 232, y: 454, w: 138, h: 34 },
-  };
+  // 서식 좌표계의 각 칸. config.fields[].rect에서 그대로 가져오므로
+  // index.html과 같은 좌표를 공유한다.
+  var CELLS = {};
+  function buildCells() {
+    CELLS = {};
+    printedCells(config).forEach(function (field) { CELLS[field.id] = field.rect; });
+  }
+
+  // ---- 손글씨 칸 생성 ----
+  // 손글씨 페이지는 입실일·퇴실일 대신 사용기간을 직접 쓰므로, 입력 항목이 아니라
+  // "서식에 찍히는 칸" 기준으로 만든다.
+  function buildFieldBox(field, isHalf) {
+    var box = document.createElement('div');
+    box.className = 'field-box ' + (isHalf ? 'small' : 'wide') + (field.tallBox ? ' tall' : '');
+
+    var head = document.createElement('div');
+    head.className = 'field-head';
+    var label = document.createElement('span');
+    label.className = 'field-label';
+    label.textContent = field.label;
+    var clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'field-clear';
+    clear.dataset.target = 'c-' + field.id;
+    clear.textContent = '지우기';
+    head.appendChild(label);
+    head.appendChild(clear);
+
+    var wrap = document.createElement('div');
+    wrap.className = 'canvas-wrap';
+    var canvas = document.createElement('canvas');
+    canvas.className = 'board';
+    canvas.id = 'c-' + field.id;
+    var guide = document.createElement('div');
+    guide.className = 'guideline';
+    wrap.appendChild(canvas);
+    wrap.appendChild(guide);
+
+    box.appendChild(head);
+    box.appendChild(wrap);
+    return box;
+  }
+
+  function buildFieldBoxes() {
+    var host = $('fieldBoxes');
+    host.textContent = '';
+    packRows(printedCells(config)).forEach(function (row) {
+      var container = host;
+      if (row.length === 2) {
+        container = document.createElement('div');
+        container.className = 'row2';
+        host.appendChild(container);
+      }
+      row.forEach(function (field) {
+        container.appendChild(buildFieldBox(field, row.length === 2));
+      });
+    });
+  }
 
   function setStatus(msg) { $('status').textContent = msg; }
 
@@ -240,11 +253,15 @@
     return { canvas: canvas, ctx: ctx, dpr: dpr, drawing: false, lastPoint: null, midPoint: null, activePointerId: null };
   }
 
-  document.querySelectorAll('.board').forEach(function (canvas) {
-    var b = setupCanvas(canvas);
-    boards.push(b);
-    attachEvents(b);
-  });
+  // 캔버스가 buildFieldBoxes()로 생성되므로 반드시 그 이후에 호출한다.
+  function initBoards() {
+    boards = [];
+    document.querySelectorAll('.board').forEach(function (canvas) {
+      var b = setupCanvas(canvas);
+      boards.push(b);
+      attachEvents(b);
+    });
+  }
 
   window.addEventListener('resize', function () {
     boards.forEach(function (b) {
@@ -424,13 +441,14 @@
     b.ctx.clearRect(0, 0, rect.width, rect.height);
   }
 
-  document.querySelectorAll('.field-clear').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var canvas = document.getElementById(btn.dataset.target);
-      var b = boards.find(function (x) { return x.canvas === canvas; });
-      if (b) clearBoard(b);
-      markPreviewDirty();
-    });
+  // 버튼도 동적으로 생기므로 컨테이너에 위임한다. 다시 그려도 리스너가 유지된다.
+  $('fieldBoxes').addEventListener('click', function (e) {
+    var btn = e.target.closest('.field-clear');
+    if (!btn) return;
+    var canvas = document.getElementById(btn.dataset.target);
+    var b = boards.find(function (x) { return x.canvas === canvas; });
+    if (b) clearBoard(b);
+    markPreviewDirty();
   });
 
   $('clearAllBtn').addEventListener('click', function () {
@@ -462,17 +480,15 @@
   // 손글씨 잉크가 저해상도로 굳어 계단처럼 깨지는 것을 줄이기 위한 슈퍼샘플링.
   var SS = 2;
   var compositeCanvas = document.createElement('canvas');
-  compositeCanvas.width = 707 * SS;
-  compositeCanvas.height = 1000 * SS;
   var compositeCtx = compositeCanvas.getContext('2d');
 
   function renderComposite() {
     if (imageState !== 'ready') return;
-    // 707x1000 좌표계로 그리되 SS배로 확대 출력한다(CELLS 좌표 그대로 사용).
+    // 서식 좌표계로 그리되 SS배로 확대 출력한다(CELLS 좌표 그대로 사용).
     compositeCtx.setTransform(SS, 0, 0, SS, 0, 0);
-    compositeCtx.clearRect(0, 0, 707, 1000);
+    compositeCtx.clearRect(0, 0, FW, FH);
     compositeCtx.imageSmoothingQuality = 'high';
-    compositeCtx.drawImage(formImage, 0, 0, 707, 1000);
+    compositeCtx.drawImage(formImage, 0, 0, FW, FH);
     boards.forEach(function (b) {
       var key = b.canvas.id.replace(/^c-/, '');
       var cell = CELLS[key];
@@ -503,7 +519,6 @@
     }
     requestAnimationFrame(previewLoop);
   }
-  requestAnimationFrame(previewLoop);
 
   // ---- 탭하면 크게 보기 ----
   var previewOverlay = $('previewOverlay');
@@ -590,7 +605,49 @@
     });
   });
 
-  syncButtons();
+  // ---- 부팅 ----
+
+  function applySizes() {
+    FW = config.form.width;
+    FH = config.form.height;
+    compositeCanvas.width = FW * SS;
+    compositeCanvas.height = FH * SS;
+    largeCanvas.width = FW;
+    largeCanvas.height = FH;
+    // 미니 미리보기는 서식 비율을 따라간다. 가로로 긴 서식으로 바뀌어도 찌그러지지 않는다.
+    miniCanvas.width = 84;
+    miniCanvas.height = Math.round(84 * FH / FW);
+    miniCanvas.style.height = miniCanvas.height + 'px';
+  }
+
+  // 관리자 미리보기: admin.html이 sessionStorage에 넣어둔 편집 중인 설정을 우선 쓴다.
+  function previewConfig() {
+    if (!new URLSearchParams(location.search).has('preview')) return null;
+    try {
+      var raw = sessionStorage.getItem('guesthouse-config-preview');
+      return raw ? normalizeConfig(JSON.parse(raw)) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function boot(loaded) {
+    config = loaded;
+    buildCells();
+    buildFieldBoxes();
+    applySizes();
+    $('siteOrg').textContent = config.site.org;
+    $('siteTitle').textContent = config.site.title;
+    initBoards();
+    formImage.src = config.form.image;
+    syncButtons();
+    requestAnimationFrame(previewLoop);
+  }
+
+  // 최상위 await를 쓰지 않는다 — 구형 사파리에서 모듈 전체가 파싱 실패해
+  // 아무 리스너도 붙지 않는 채로 죽어버린다.
+  var preview = previewConfig();
+  if (preview) { boot(preview); } else { loadConfig().then(boot); }
 })();
 </script>
 </body>

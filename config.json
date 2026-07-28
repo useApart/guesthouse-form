@@ -61,7 +61,8 @@
       "required": true,
       "dongLength": 4,
       "hoLength": 3,
-      "remember": true
+      "remember": true,
+      "tallBox": true
     },
     {
       "id": "phone",
@@ -79,7 +80,8 @@
       "required": true,
       "placeholder": "",
       "maxlength": 20,
-      "remember": true
+      "remember": true,
+      "tallBox": true
     },
     {
       "id": "checkIn",
@@ -121,7 +123,8 @@
       "printed": true,
       "visible": true,
       "required": false,
-      "system": true
+      "system": true,
+      "tallBox": true
     },
     {
       "id": "nights",
