@@ -19,9 +19,40 @@
 - 공휴일은 자동 판별하지 않습니다. "공휴일 요금 적용"을 직접 체크하세요.
 - 금액은 직접 수정할 수 있습니다. 최종 확인은 관리사무소(031-965-7502) 기준입니다.
 
+위 금액과 기준은 초기값이며 관리자 페이지에서 변경할 수 있습니다.
+
+## 관리자
+
+`admin.html`에서 서식 이미지·칸 위치·입력 항목·요금·계좌를 바꿀 수 있습니다.
+저장하면 `config.json`이 저장소에 커밋되고 약 1분 뒤 모두에게 반영됩니다.
+
+1. GitHub 파인그레인드 토큰을 만듭니다.
+   Settings → Developer settings → Personal access tokens → Fine-grained tokens
+   → 이 저장소만 선택 → **Contents: Read and write**
+2. `admin.html`을 열고 토큰을 한 번 등록합니다. 토큰은 이 브라우저에만 저장되며
+   GitHub 외 어디로도 전송되지 않습니다.
+3. 편집한 뒤 "미리보기 & 저장" 탭에서 실제 화면을 확인하고 저장합니다.
+4. 잘못 저장했다면 같은 탭의 "되돌리기"에서 이전 설정을 불러옵니다.
+
+`admin.html`은 공개 URL이라 누구나 열 수 있지만, 토큰이 없으면 저장할 수 없습니다.
+정적 사이트에서 비밀번호는 소스코드에 그대로 노출되므로 두지 않았습니다.
+
+`config.json`이 없거나 깨져도 신청서는 `config.js`의 내장 기본값으로 동작합니다.
+
+## 설정 구조
+
+| 파일 | 역할 |
+|---|---|
+| `config.json` | 실제 설정값. 관리자 페이지가 쓰는 유일한 데이터 |
+| `config.js` | 내장 기본값 · 검증/정규화 · 좌표 변환 · 배치 규칙 |
+| `github.js` | GitHub Contents API 래퍼 |
+
+서식 칸의 좌표는 사각형(`rect`) 하나로 저장하고, `index.html`은 중심점으로
+변환해 쓰고 `draw.html`은 사각형 그대로 씁니다. 관리자는 칸을 한 번만 잡으면 됩니다.
+
 ## 개발
 
 ```bash
-node --test calc.test.mjs   # 요금 계산 테스트
+node --test calc.test.mjs config.test.mjs github.test.mjs
 python -m http.server 8000  # 로컬 확인 (file://로 열면 이미지 저장이 실패합니다)
 ```

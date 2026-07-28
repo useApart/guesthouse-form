@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   DEFAULT_CONFIG, rectToPoint, clone, normalizeConfig, parseConfig,
   formFields, printedCells, packRows,
@@ -236,4 +237,29 @@ test('숨긴 항목은 화면에서 빠지고 배치가 다시 계산된다', ()
 
 test('packRows는 빈 배열에 빈 배열을 돌려준다', () => {
   assert.deepEqual(packRows([]), []);
+});
+
+// ---- 저장소의 config.json ----
+
+test('저장소의 config.json이 정규화를 통과한다', () => {
+  const text = readFileSync(new URL('./config.json', import.meta.url), 'utf8');
+  const parsed = parseConfig(text);
+  // 관리자가 저장한 뒤에는 기본값과 달라지는 것이 정상이므로 구조만 확인한다.
+  assert.equal(parsed.version, 1);
+  assert.ok(parsed.fields.length >= 12, '항목이 12개 미만이다');
+  assert.ok(printedCells(parsed).length >= 1, '서식에 찍히는 칸이 하나도 없다');
+  assert.ok(parsed.account.number, '계좌번호가 비어 있다');
+  assert.ok(parsed.form.image, '서식 이미지 경로가 비어 있다');
+});
+
+test('config.json의 모든 칸이 서식 이미지 범위 안에 있다', () => {
+  // 관리자가 좌표를 잘못 잡아 커밋해도 정규화가 잡아주지만, 저장된 파일 자체가
+  // 이미 범위를 벗어났다면 관리자 페이지 쪽에 문제가 있다는 신호다.
+  const parsed = parseConfig(readFileSync(new URL('./config.json', import.meta.url), 'utf8'));
+  for (const field of printedCells(parsed)) {
+    const { x, y, w, h } = field.rect;
+    assert.ok(x >= 0 && y >= 0, `${field.id}의 좌표가 음수다`);
+    assert.ok(x + w <= parsed.form.width, `${field.id}이 이미지 오른쪽을 넘는다`);
+    assert.ok(y + h <= parsed.form.height, `${field.id}이 이미지 아래를 넘는다`);
+  }
 });
