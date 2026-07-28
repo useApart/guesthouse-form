@@ -139,7 +139,13 @@ fetch('config.json', { cache: 'no-cache' })
     { "id": "checkOut", "label": "퇴실일", "input": "date", "width": "half",
       "rect": null, "required": true, "visible": true, "system": true, "clearable": true },
 
-    { "id": "people", "label": "사용인원", "input": "choice", "width": "full",
+    { "id": "period", "label": "사용기간", "input": null, "width": "full",
+      "rect": { "x": 232, "y": 323, "w": 138, "h": 28 }, "visible": true, "system": true },
+
+    { "id": "nights", "label": "숙박일수", "input": null, "width": "half",
+      "rect": { "x": 487, "y": 323, "w": 147, "h": 28 }, "visible": true, "system": true },
+
+    { "id": "people", "label": "사용인원", "input": "choice", "width": "half",
       "rect": { "x": 487, "y": 355, "w": 147, "h": 29 },
       "visible": true, "system": true },
 
@@ -148,13 +154,7 @@ fetch('config.json', { cache: 'no-cache' })
 
     { "id": "amount", "label": "사용금액", "input": "money", "width": "full",
       "rect": { "x": 232, "y": 355, "w": 138, "h": 29 },
-      "visible": true, "system": true },
-
-    { "id": "period", "label": "사용기간", "input": null,
-      "rect": { "x": 232, "y": 323, "w": 138, "h": 28 }, "visible": true, "system": true },
-
-    { "id": "nights", "label": "숙박일수", "input": null,
-      "rect": { "x": 487, "y": 323, "w": 147, "h": 28 }, "visible": true, "system": true }
+      "visible": true, "system": true }
   ],
 
   "pricing": {
@@ -330,9 +330,32 @@ export function rectToPoint(rect) {
 - 항목별 설정: 입력 유형 / 필수 여부 / 기억하기(`remember`) / 폭(`full`·`half`) /
   플레이스홀더 / 최대 글자수 / 날짜 지우기 허용(`clearable`) / 오늘 기본값(`defaultToday`)
 
-`half` 두 개가 연속하면 한 줄에 나란히 배치된다 (현재의 `.row2` 레이아웃을 자동 생성).
-
 새 항목의 `id`는 라벨을 영문 슬러그로 변환해 자동 생성하고 충돌 시 숫자를 붙인다.
+
+### 배치 규칙 — `width`와 "홀로 남은 반 칸"
+
+두 페이지가 같은 규칙으로 `fields` 순서를 훑어 줄을 만든다.
+
+1. `half`가 **연속 두 개** 나오면 한 줄에 나란히 놓는다 (현재의 `.row2`)
+2. `half` 다음이 `full`이거나 목록의 끝이면, 그 `half`는 **한 줄 전체로 늘린다**
+3. `full`은 항상 한 줄을 차지한다
+
+두 페이지는 서로 다른 부분집합을 그린다는 점이 중요하다. `index.html`은 `visible`이면서
+`input !== null`인 항목(입력칸이 있는 것)을, `draw.html`은 **서식에 찍히는 칸**
+(`rect !== null && printed !== false`)을 그린다. `draw.html`에는 입실일·퇴실일·공휴일 입력이
+없고 사용기간·숙박일수를 손으로 직접 쓰기 때문이다.
+
+이 규칙과 위 `fields` 순서가 맞물리면 두 페이지 모두 **현재 레이아웃이 그대로 재현된다.**
+
+| | 배치 결과 |
+|---|---|
+| `index.html` | [신청일·은행입금일] [성명] [동호수·연락처] [입실일·퇴실일] [사용인원*] [공휴일] [사용금액] |
+| `draw.html` | [신청일·은행입금일] [성명] [동호수·연락처] [사용기간] [숙박일수·사용인원] [사용금액] |
+
+`사용인원`은 `width: half`지만 `index.html`에서는 다음 항목이 `full`(공휴일)이라 규칙 2에
+따라 한 줄로 늘어난다(*). 현재 인원 버튼 3개가 한 줄을 쓰는 모습 그대로다. 반면 `draw.html`
+에서는 앞의 `숙박일수`와 짝을 이뤄 현재의 2열 배치가 유지된다. **하나의 `width` 값으로 두
+페이지의 현재 모습이 모두 나온다.**
 
 ### 탭 ③ 요금 · 계좌 · 문구
 
@@ -409,8 +432,15 @@ export function rectToPoint(rect) {
 | `index.html` | `CLEARABLE` | `config.fields[].clearable` |
 | `index.html` | `ACCOUNT_NUMBER` | `config.account` |
 | `index.html` | 손으로 작성한 입력칸 HTML | `config.fields`로 생성 |
-| `draw.html` | `BOXES` | `config.fields[].rect` |
+| `index.html` | `canvas width="707" height="1000"` | `config.form.width/height` |
+| `draw.html` | `CELLS` | `config.fields[].rect` |
+| `draw.html` | 손으로 작성한 `.field-box` 9개 HTML | 서식에 찍히는 칸으로부터 생성 |
+| `draw.html` | `compositeCanvas` · `largeCanvas`의 707×1000 리터럴 | `config.form.width/height` |
 | `calc.js` | `RATE` | `calcAmount(values, pricing)` 인자 |
+
+`draw.html`의 손글씨 캔버스는 `id="c-<필드id>"` 규칙으로 `CELLS`와 연결되어 있다. 이 규칙은
+유지하되 캔버스 자체를 config에서 생성한다. 미니 미리보기 캔버스(84×119)의 크기도 서식 비율에서
+계산한다 — 서식이 가로로 긴 이미지로 바뀌면 지금은 찌그러진다.
 
 ### 유지되는 것
 
