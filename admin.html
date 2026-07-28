@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>신청서 설정 · 관리자</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; background: #F5F4F0; color: #1E251E; }
+  .wrap { min-height: 100vh; display: flex; justify-content: center; padding: 28px 16px 80px; }
+  .inner { width: 100%; max-width: 940px; }
+  .eyebrow { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: .02em; color: #7A8177; margin-bottom: 6px; }
+  h1 { text-align: center; margin: 0 0 20px; font-size: 24px; font-weight: 700; letter-spacing: -.01em; }
+  h2 { font-size: 15px; font-weight: 700; margin: 0 0 12px; color: #3C443B; }
+  .tabs { display: flex; background: #EAE8E1; border-radius: 14px; padding: 4px; margin-bottom: 18px; gap: 4px; }
+  .tab { flex: 1; height: 42px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; background: transparent; color: #7A8177; }
+  .tab.active { background: #fff; color: #1F6D57; box-shadow: 0 1px 2px rgba(30,37,30,.08); }
+  .card { background: #fff; border-radius: 20px; border: 1px solid #E8E6DE; box-shadow: 0 1px 3px rgba(30,37,30,.04); padding: 22px; margin-bottom: 16px; }
+  .card[hidden] { display: none; }
+
+  label { font-size: 13px; font-weight: 600; color: #3C443B; display: block; margin-bottom: 5px; }
+  input[type="text"], input[type="number"], input[type="password"], select {
+    height: 42px; width: 100%; border-radius: 10px; border: 1px solid #DDDBD2; padding: 0 12px;
+    font-size: 14px; font-family: inherit; color: #1E251E; background: #fff;
+  }
+  select:disabled, input:disabled { background: #F5F4F0; color: #9A9F92; cursor: not-allowed; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+  .field { margin-bottom: 14px; }
+  .hint { font-size: 12px; color: #7A8177; margin: 6px 0 0; line-height: 1.6; }
+
+  .btn { height: 44px; padding: 0 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; border: none; }
+  .btn-primary { background: #1F6D57; color: #fff; }
+  .btn-primary:hover { background: #195C49; }
+  .btn-secondary { background: #fff; color: #3C443B; border: 1px solid #D8D6CD; }
+  .btn-secondary:hover { background: #F5F4F0; }
+  .btn-danger { background: #fff; color: #B5473A; border: 1px solid #E4C9C4; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-sm { height: 32px; padding: 0 10px; font-size: 12px; border-radius: 8px; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .banner { padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.6; margin-bottom: 14px; }
+  .banner-warn { background: #FDF3E7; border: 1px solid #EBD3AE; color: #7A5A22; }
+  .banner-info { background: #EAF3EF; border: 1px solid #C5DDD4; color: #1F6D57; }
+
+  /* ---- 좌표 피커 ---- */
+  .picker { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
+  @media (max-width: 800px) { .picker { grid-template-columns: 1fr; } }
+  .stage { position: relative; user-select: none; touch-action: none; background: #F5F4F0; border-radius: 12px; overflow: hidden; border: 1px solid #E8E6DE; }
+  .stage img { width: 100%; display: block; }
+  .overlay { position: absolute; inset: 0; }
+  .cell-box {
+    position: absolute; border: 1.5px solid rgba(31,109,87,.85); background: rgba(31,109,87,.10);
+    cursor: move; overflow: visible;
+  }
+  .cell-box.selected { border-color: #B5473A; background: rgba(181,71,58,.12); z-index: 3; }
+  .cell-box.overflow { border-color: #C0392B; background: rgba(192,57,43,.16); }
+  .cell-tag {
+    position: absolute; top: -17px; left: -1px; font-size: 10px; font-weight: 700; line-height: 16px;
+    padding: 0 5px; border-radius: 4px 4px 0 0; background: #1F6D57; color: #fff; white-space: nowrap;
+  }
+  .cell-box.selected .cell-tag { background: #B5473A; }
+  .cell-sample {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #111; white-space: nowrap; overflow: hidden; pointer-events: none;
+  }
+  .handle { position: absolute; width: 10px; height: 10px; background: #fff; border: 1.5px solid #B5473A; border-radius: 2px; }
+  .handle[data-mode="nw"] { left: -5px; top: -5px; cursor: nwse-resize; }
+  .handle[data-mode="ne"] { right: -5px; top: -5px; cursor: nesw-resize; }
+  .handle[data-mode="sw"] { left: -5px; bottom: -5px; cursor: nesw-resize; }
+  .handle[data-mode="se"] { right: -5px; bottom: -5px; cursor: nwse-resize; }
+  .handle[data-mode="n"] { left: 50%; top: -5px; margin-left: -5px; cursor: ns-resize; }
+  .handle[data-mode="s"] { left: 50%; bottom: -5px; margin-left: -5px; cursor: ns-resize; }
+  .handle[data-mode="w"] { left: -5px; top: 50%; margin-top: -5px; cursor: ew-resize; }
+  .handle[data-mode="e"] { right: -5px; top: 50%; margin-top: -5px; cursor: ew-resize; }
+  .stage.drawing { cursor: crosshair; }
+  .draw-ghost { position: absolute; border: 1.5px dashed #B5473A; background: rgba(181,71,58,.10); pointer-events: none; }
+
+  .cell-list { display: flex; flex-direction: column; gap: 4px; max-height: 340px; overflow-y: auto; }
+  .cell-row { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 8px; font-size: 13px; cursor: pointer; border: 1px solid transparent; }
+  .cell-row:hover { background: #F5F4F0; }
+  .cell-row.selected { background: #EAF3EF; border-color: #1F6D57; }
+  .cell-row .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cell-row .muted { color: #9A9F92; font-size: 11px; }
+  .detail { background: #F5F4F0; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+  .detail .grid4 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .detail input { height: 34px; font-size: 13px; }
+  .detail .row { display: flex; justify-content: space-between; font-size: 12px; color: #7A8177; margin-top: 8px; }
+  .warn-text { color: #C0392B; font-weight: 700; font-size: 12px; margin-top: 8px; }
+
+  /* ---- 항목 목록 ---- */
+  .field-row { display: grid; grid-template-columns: 44px 1fr 108px 92px auto; gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid #F0EEE7; }
+  @media (max-width: 700px) { .field-row { grid-template-columns: 44px 1fr; } .field-row .wide-only { grid-column: 1 / -1; } }
+  .field-row input[type="text"], .field-row select { height: 36px; font-size: 13px; }
+  .move-btns { display: flex; gap: 2px; }
+  .move-btns button { width: 20px; height: 28px; border: 1px solid #DDDBD2; background: #fff; border-radius: 6px; cursor: pointer; font-size: 11px; padding: 0; color: #3C443B; }
+  .checks { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .checks label { display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px; font-weight: 500; color: #3C443B; cursor: pointer; }
+  .tag { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #EAE8E1; color: #7A8177; }
+
+  /* ---- 미리보기 ---- */
+  .preview-frame { width: 100%; height: 640px; border: 1px solid #E8E6DE; border-radius: 12px; background: #fff; }
+  .history-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #F0EEE7; font-size: 13px; }
+  .history-row .grow { flex: 1; min-width: 0; }
+
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; text-align: center; z-index: 200; }
+  .toast.show { opacity: 1; }
+  .savebar { position: sticky; bottom: 0; background: #fff; border-top: 1px solid #E8E6DE; padding: 14px 22px; margin: 0 -22px -22px; border-radius: 0 0 20px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .dirty-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #B5473A; margin-right: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="inner">
+    <div class="eyebrow">관리자</div>
+    <h1>신청서 설정</h1>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="layout" type="button">서식 &amp; 칸</button>
+      <button class="tab" data-tab="fields" type="button">항목</button>
+      <button class="tab" data-tab="values" type="button">요금 · 계좌</button>
+      <button class="tab" data-tab="save" type="button">미리보기 &amp; 저장</button>
+    </div>
+
+    <section class="card" id="panel-layout">
+      <h2>서식 이미지와 칸 위치</h2>
+      <div class="btn-row" style="margin-bottom:14px;">
+        <button type="button" class="btn btn-secondary btn-sm" id="pickImage">이미지 교체</button>
+        <input type="file" id="imageInput" accept="image/*" hidden>
+        <span class="hint" id="formInfo" style="margin:0;"></span>
+      </div>
+      <div class="picker">
+        <div class="stage" id="stage">
+          <img id="formPreview" alt="서식 이미지">
+          <div class="overlay" id="overlay"></div>
+        </div>
+        <div class="picker-side">
+          <div class="detail" id="cellDetail"></div>
+          <h2 style="font-size:13px;">서식에 찍히는 칸</h2>
+          <div class="cell-list" id="cellList"></div>
+          <p class="hint">
+            박스를 끌어 옮기고 모서리로 크기를 맞춥니다. 선택한 뒤 방향키로 1px씩(Shift는 10px) 움직일 수 있습니다.
+            체크를 끄면 좌표는 남긴 채 서식에만 안 찍힙니다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="panel-fields" hidden>
+      <h2>화면에 보이는 입력 항목</h2>
+      <div id="fieldList"></div>
+      <div class="btn-row" style="margin-top:14px;">
+        <button type="button" class="btn btn-secondary btn-sm" id="addField">+ 항목 추가</button>
+      </div>
+      <p class="hint">
+        <span class="tag">고정</span> 표시된 항목은 요금 계산에 쓰이므로 삭제할 수 없습니다.
+        입실일·퇴실일은 숨길 수도 없습니다 — 숨기면 숙박일수와 금액을 계산할 방법이 없어집니다.
+      </p>
+    </section>
+
+    <section class="card" id="panel-values" hidden>
+      <h2>요금</h2>
+      <div class="grid2">
+        <div class="field"><label for="p-weekday">평일 1박 요금</label><input type="number" id="p-weekday" min="0" step="1000"></div>
+        <div class="field"><label for="p-weekend">주말 1박 요금</label><input type="number" id="p-weekend" min="0" step="1000"></div>
+        <div class="field"><label for="p-extra">추가 인원 1박 요금</label><input type="number" id="p-extra" min="0" step="1000"></div>
+        <div class="field"><label for="p-base">기준 인원 (이 인원까지는 추가 요금 없음)</label><input type="number" id="p-base" min="1" step="1"></div>
+      </div>
+      <div class="field">
+        <label>주말 요금을 적용할 요일</label>
+        <div class="checks" id="weekendDays"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="p-people">인원 선택 버튼 (쉼표로 구분)</label><input type="text" id="p-people" placeholder="2, 3, 4"></div>
+        <div class="field"><label for="p-maxnights">최대 숙박일수</label><input type="number" id="p-maxnights" min="1" step="1"></div>
+      </div>
+      <div class="field"><label for="p-maxtext">최대 숙박일수 초과 시 경고 문구</label><input type="text" id="p-maxtext"></div>
+
+      <h2 style="margin-top:22px;">입금 계좌</h2>
+      <div class="grid2">
+        <div class="field"><label for="a-bank">은행</label><input type="text" id="a-bank"></div>
+        <div class="field"><label for="a-number">계좌번호</label><input type="text" id="a-number"></div>
+        <div class="field"><label for="a-holder">예금주</label><input type="text" id="a-holder"></div>
+      </div>
+      <p class="hint">복사 버튼은 은행명과 계좌번호를 붙여 복사합니다. 토스·카카오페이가 한 번에 인식하도록 하기 위함입니다.</p>
+
+      <h2 style="margin-top:22px;">화면 문구</h2>
+      <div class="grid2">
+        <div class="field"><label for="s-org">기관명 (제목 위 작은 글씨)</label><input type="text" id="s-org"></div>
+        <div class="field"><label for="s-title">제목</label><input type="text" id="s-title"></div>
+      </div>
+
+      <h2 style="margin-top:22px;">GitHub 토큰</h2>
+      <div id="tokenArea"></div>
+    </section>
+
+    <section class="card" id="panel-save" hidden>
+      <h2>미리보기</h2>
+      <div class="btn-row" style="margin-bottom:12px;">
+        <button type="button" class="btn btn-secondary btn-sm" data-preview="index.html">타이핑 화면</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-preview="draw.html">손글씨 화면</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="refreshPreview">새로고침</button>
+      </div>
+      <iframe class="preview-frame" id="previewFrame" title="미리보기"></iframe>
+      <p class="hint">실제 신청서 화면을 그대로 띄웁니다. 예시 값이 채워진 상태로 보이며, 아래 이미지가 실제로 만들어질 결과입니다.</p>
+
+      <h2 style="margin-top:22px;">되돌리기</h2>
+      <div class="btn-row"><button type="button" class="btn btn-secondary btn-sm" id="loadHistory">저장 이력 불러오기</button></div>
+      <div id="historyList"></div>
+
+      <div class="savebar">
+        <div id="saveState" class="hint" style="margin:0;"></div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" id="reload">저장소에서 다시 불러오기</button>
+          <button type="button" class="btn btn-primary" id="save" disabled>저장</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import {
+  DEFAULT_CONFIG, clone, loadConfig, normalizeConfig,
+  printedCells, rectToPoint,
+} from './config.js';
+import { createClient, commitMessage, imageFileName, toBase64 } from './github.js';
+
+const REPO = 'useApart/guesthouse-form';
+const TOKEN_KEY = 'guesthouse-admin-token';
+const PREVIEW_KEY = 'guesthouse-config-preview';
+
+const $ = (id) => document.getElementById(id);
+
+const state = {
+  config: clone(DEFAULT_CONFIG),
+  token: localStorage.getItem(TOKEN_KEY) || '',
+  sha: null,        // config.json의 현재 sha. 충돌 감지에 쓴다.
+  imageFile: null,  // 교체할 이미지 File. 저장할 때만 커밋한다.
+  imageUrl: null,   // 위 파일의 blob: URL (미리보기용)
+  selected: null,   // 좌표 피커에서 선택된 항목 id
+  drawTarget: null, // 위치를 새로 잡는 중인 항목 id
+  dirty: false,
+  saving: false,
+};
+
+let toastTimer;
+function showToast(msg) {
+  const toast = $('toast');
+  clearTimeout(toastTimer);
+  toast.textContent = msg;
+  toast.classList.add('show');
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+}
+
+// 편집할 때마다 정규화를 돌려 항상 유효한 상태를 유지한다. 검증 규칙이 한 곳에만
+// 있으므로 여기서 좌표 반올림·범위 보정도 함께 처리된다.
+function touch() {
+  state.config = normalizeConfig(state.config);
+  state.dirty = true;
+  renderAll();
+}
+
+// ---- 탭 ----
+
+document.querySelectorAll('.tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === tab));
+    for (const name of ['layout', 'fields', 'values', 'save']) {
+      $(`panel-${name}`).hidden = name !== tab.dataset.tab;
+    }
+    if (tab.dataset.tab === 'layout') renderPicker();
+    if (tab.dataset.tab === 'save') refreshPreview();
+  });
+});
+
+// ---- 좌표 피커 ----
+
+const SAMPLE = {
+  applyDate: '2026.7.28', deposit: '2026.7.28', name: '홍길동',
+  unit: '101동 1201호', phone: '010-1234-5678',
+  period: '2026.7.28 ~ 7.30', nights: '2일', amount: '70,000원', people: '3명',
+};
+
+function sampleText(field) {
+  return SAMPLE[field.id] || field.label;
+}
+
+// index.html의 drawForm()과 같은 규칙으로 폰트 크기를 정한다. 여기서 줄어들면
+// 실제 출력에서도 줄어든다는 뜻이므로 그 자리에서 경고한다.
+const measureCtx = document.createElement('canvas').getContext('2d');
+function fitFontSize(text, maxWidth) {
+  let size = 14;
+  const font = (s) => `${s}px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`;
+  measureCtx.font = font(size);
+  while (measureCtx.measureText(text).width > maxWidth && size > 8) {
+    size -= 1;
+    measureCtx.font = font(size);
+  }
+  return { size, overflow: size < 14 };
+}
+
+function stageScale() {
+  const img = $('formPreview');
+  return img.clientWidth ? img.clientWidth / state.config.form.width : 0;
+}
+
+function formImageSrc() {
+  return state.imageUrl || state.config.form.image;
+}
+
+function renderPicker() {
+  const img = $('formPreview');
+  const src = formImageSrc();
+  if (img.getAttribute('src') !== src) img.src = src;
+
+  const form = state.config.form;
+  $('formInfo').textContent = `${form.image} · ${form.width}×${form.height}`
+    + (state.imageFile ? ' (저장 시 새 파일로 올라갑니다)' : '');
+
+  renderOverlay();
+  renderCellList();
+  renderCellDetail();
+}
+
+function renderOverlay() {
+  const overlay = $('overlay');
+  overlay.textContent = '';
+  const form = state.config.form;
+  const scale = stageScale();
+
+  for (const field of printedCells(state.config)) {
+    const r = field.rect;
+    const box = document.createElement('div');
+    box.className = 'cell-box' + (state.selected === field.id ? ' selected' : '');
+    box.dataset.id = field.id;
+    box.style.left = `${(r.x / form.width) * 100}%`;
+    box.style.top = `${(r.y / form.height) * 100}%`;
+    box.style.width = `${(r.w / form.width) * 100}%`;
+    box.style.height = `${(r.h / form.height) * 100}%`;
+
+    const tag = document.createElement('div');
+    tag.className = 'cell-tag';
+    tag.textContent = field.label;
+    box.appendChild(tag);
+
+    const text = sampleText(field);
+    const { size, overflow } = fitFontSize(text, rectToPoint(r).maxWidth);
+    if (overflow) box.classList.add('overflow');
+    const sample = document.createElement('div');
+    sample.className = 'cell-sample';
+    sample.textContent = text;
+    sample.style.fontSize = `${Math.max(6, size * scale)}px`;
+    box.appendChild(sample);
+
+    if (state.selected === field.id) {
+      for (const mode of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
+        const handle = document.createElement('div');
+        handle.className = 'handle';
+        handle.dataset.mode = mode;
+        box.appendChild(handle);
+      }
+    }
+    overlay.appendChild(box);
+  }
+}
+
+function renderCellList() {
+  const list = $('cellList');
+  list.textContent = '';
+  for (const field of state.config.fields) {
+    if (field.input === 'toggle') continue; // 공휴일은 서식에 찍힐 값이 없다
+    const row = document.createElement('div');
+    row.className = 'cell-row' + (state.selected === field.id ? ' selected' : '');
+
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.checked = Boolean(field.rect) && field.printed !== false;
+    check.disabled = !field.rect;
+    check.addEventListener('click', (e) => e.stopPropagation());
+    check.addEventListener('change', () => {
+      field.printed = check.checked;
+      touch();
+    });
+
+    const name = document.createElement('span');
+    name.className = 'grow';
+    name.textContent = field.label;
+
+    row.appendChild(check);
+    row.appendChild(name);
+
+    if (!field.rect) {
+      const note = document.createElement('span');
+      note.className = 'muted';
+      note.textContent = '위치 미지정';
+      row.appendChild(note);
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary btn-sm';
+      btn.textContent = state.drawTarget === field.id ? '취소' : '위치 잡기';
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.drawTarget = state.drawTarget === field.id ? null : field.id;
+        $('stage').classList.toggle('drawing', Boolean(state.drawTarget));
+        renderCellList();
+        if (state.drawTarget) showToast('서식 위에서 넣을 칸만큼 드래그하세요.');
+      });
+      row.appendChild(btn);
+    }
+
+    row.addEventListener('click', () => {
+      state.selected = field.rect ? field.id : null;
+      renderPicker();
+    });
+    list.appendChild(row);
+  }
+}
+
+function renderCellDetail() {
+  const box = $('cellDetail');
+  box.textContent = '';
+  const field = state.config.fields.find((f) => f.id === state.selected);
+  if (!field || !field.rect) {
+    box.innerHTML = '<div class="hint" style="margin:0;">칸을 선택하면 좌표를 직접 입력할 수 있습니다.</div>';
+    return;
+  }
+
+  const title = document.createElement('div');
+  title.style.cssText = 'font-weight:700;font-size:13px;margin-bottom:8px;';
+  title.textContent = field.label;
+  box.appendChild(title);
+
+  const grid = document.createElement('div');
+  grid.className = 'grid4';
+  for (const [key, label] of [['x', '가로 위치'], ['y', '세로 위치'], ['w', '폭'], ['h', '높이']]) {
+    const wrap = document.createElement('div');
+    const lab = document.createElement('label');
+    lab.textContent = label;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.value = String(field.rect[key]);
+    input.addEventListener('change', () => {
+      const n = Number(input.value);
+      if (!Number.isFinite(n)) return;
+      field.rect = { ...field.rect, [key]: n };
+      touch();
+    });
+    wrap.appendChild(lab);
+    wrap.appendChild(input);
+    grid.appendChild(wrap);
+  }
+  box.appendChild(grid);
+
+  const sample = sampleText(field);
+  const { size, overflow } = fitFontSize(sample, rectToPoint(field.rect).maxWidth);
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `<span>미리보기</span><span>${sample}</span>`;
+  box.appendChild(row);
+
+  if (overflow) {
+    const warn = document.createElement('div');
+    warn.className = 'warn-text';
+    warn.textContent = `글자가 칸을 넘쳐 ${size}px로 줄어듭니다. 칸을 넓히세요.`;
+    box.appendChild(warn);
+  }
+}
+
+// 드래그: 박스 이동과 핸들 크기 조절. 좌표 반올림·범위 보정은 touch()의
+// normalizeConfig가 맡으므로 여기서는 계산만 한다.
+let drag = null;
+
+$('stage').addEventListener('pointerdown', (e) => {
+  const scale = stageScale();
+  if (!scale) return;
+
+  const handle = e.target.closest('.handle');
+  const box = e.target.closest('.cell-box');
+
+  if (box) {
+    e.preventDefault();
+    const field = state.config.fields.find((f) => f.id === box.dataset.id);
+    if (!field || !field.rect) return;
+    if (state.selected !== field.id) {
+      state.selected = field.id;
+      renderPicker();
+    }
+    $('stage').setPointerCapture(e.pointerId);
+    drag = {
+      kind: 'edit', id: field.id, mode: handle ? handle.dataset.mode : 'move',
+      startX: e.clientX, startY: e.clientY, origin: { ...field.rect },
+    };
+    return;
+  }
+
+  if (state.drawTarget) {
+    e.preventDefault();
+    const rect = $('stage').getBoundingClientRect();
+    $('stage').setPointerCapture(e.pointerId);
+    drag = {
+      kind: 'draw', startX: e.clientX, startY: e.clientY,
+      originX: (e.clientX - rect.left) / scale, originY: (e.clientY - rect.top) / scale,
+    };
+    const ghost = document.createElement('div');
+    ghost.className = 'draw-ghost';
+    ghost.id = 'drawGhost';
+    $('overlay').appendChild(ghost);
+    return;
+  }
+
+  // 빈 곳을 누르면 선택을 푼다.
+  if (state.selected !== null) {
+    state.selected = null;
+    renderPicker();
+  }
+});
+
+$('stage').addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  const scale = stageScale();
+  if (!scale) return;
+  const dx = (e.clientX - drag.startX) / scale;
+  const dy = (e.clientY - drag.startY) / scale;
+
+  if (drag.kind === 'draw') {
+    const ghost = $('drawGhost');
+    if (!ghost) return;
+    const form = state.config.form;
+    const x = Math.min(drag.originX, drag.originX + dx);
+    const y = Math.min(drag.originY, drag.originY + dy);
+    ghost.style.left = `${(x / form.width) * 100}%`;
+    ghost.style.top = `${(y / form.height) * 100}%`;
+    ghost.style.width = `${(Math.abs(dx) / form.width) * 100}%`;
+    ghost.style.height = `${(Math.abs(dy) / form.height) * 100}%`;
+    return;
+  }
+
+  const field = state.config.fields.find((f) => f.id === drag.id);
+  if (!field) return;
+  const o = drag.origin;
+
+  if (drag.mode === 'move') {
+    field.rect = { ...o, x: o.x + dx, y: o.y + dy };
+  } else {
+    let { x, y, w, h } = o;
+    if (drag.mode.includes('w')) { x = o.x + dx; w = o.w - dx; }
+    if (drag.mode.includes('e')) { w = o.w + dx; }
+    if (drag.mode.includes('n')) { y = o.y + dy; h = o.h - dy; }
+    if (drag.mode.includes('s')) { h = o.h + dy; }
+    field.rect = { x, y, w, h };
+  }
+  state.config = normalizeConfig(state.config);
+  state.dirty = true;
+  // 드래그 중에는 박스만 다시 그린다. 목록과 상세까지 매 프레임 새로 만들면
+  // DOM 생성 비용 때문에 끌리는 느낌이 난다.
+  renderOverlay();
+  renderCellDetail();
+});
+
+function endDrag(e) {
+  if (!drag) return;
+  const scale = stageScale();
+
+  if (drag.kind === 'draw') {
+    const ghost = $('drawGhost');
+    if (ghost) ghost.remove();
+    const dx = (e.clientX - drag.startX) / scale;
+    const dy = (e.clientY - drag.startY) / scale;
+    // 실수로 클릭한 것과 구분한다.
+    if (Math.abs(dx) >= 5 && Math.abs(dy) >= 5) {
+      const field = state.config.fields.find((f) => f.id === state.drawTarget);
+      if (field) {
+        field.rect = {
+          x: Math.min(drag.originX, drag.originX + dx),
+          y: Math.min(drag.originY, drag.originY + dy),
+          w: Math.abs(dx), h: Math.abs(dy),
+        };
+        field.printed = true;
+        state.selected = field.id;
+      }
+    }
+    state.drawTarget = null;
+    $('stage').classList.remove('drawing');
+    drag = null;
+    touch();
+    return;
+  }
+
+  drag = null;
+  updateSaveState();
+}
+
+$('stage').addEventListener('pointerup', endDrag);
+$('stage').addEventListener('pointercancel', endDrag);
+
+document.addEventListener('keydown', (e) => {
+  if (!state.selected || $('panel-layout').hidden) return;
+  // 좌표 입력칸에서 방향키를 누르면 숫자만 바뀌어야 한다. 박스까지 같이 움직이면
+  // 값이 두 번 적용된다.
+  if (e.target.matches('input, select, textarea')) return;
+  const delta = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (!delta) return;
+  const field = state.config.fields.find((f) => f.id === state.selected);
+  if (!field || !field.rect) return;
+  e.preventDefault();
+  const step = e.shiftKey ? 10 : 1;
+  field.rect = { ...field.rect, x: field.rect.x + delta[0] * step, y: field.rect.y + delta[1] * step };
+  touch();
+});
+
+window.addEventListener('resize', () => { if (!$('panel-layout').hidden) renderOverlay(); });
+
+// ---- 이미지 교체 ----
+
+$('pickImage').addEventListener('click', () => $('imageInput').click());
+
+$('imageInput').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = ''; // 같은 파일을 다시 골라도 change가 뜨도록
+  if (!file) return;
+
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    const old = state.config.form;
+    const sizeChanged = img.naturalWidth !== old.width || img.naturalHeight !== old.height;
+
+    // 같은 서식을 고화질로 다시 스캔한 경우가 흔하다. 좌표를 다시 잡는 것은 낭비다.
+    if (sizeChanged && confirm(
+      `이미지 크기가 ${old.width}×${old.height}에서 ${img.naturalWidth}×${img.naturalHeight}로 바뀌었습니다.\n\n`
+      + '기존 칸 위치를 비율에 맞춰 자동 조정할까요?\n'
+      + '(취소하면 좌표를 그대로 두고 직접 다시 잡습니다)'
+    )) {
+      const rx = img.naturalWidth / old.width;
+      const ry = img.naturalHeight / old.height;
+      for (const field of state.config.fields) {
+        if (!field.rect) continue;
+        field.rect = {
+          x: Math.round(field.rect.x * rx), y: Math.round(field.rect.y * ry),
+          w: Math.round(field.rect.w * rx), h: Math.round(field.rect.h * ry),
+        };
+      }
+    }
+
+    if (state.imageUrl) URL.revokeObjectURL(state.imageUrl);
+    state.imageFile = file;
+    state.imageUrl = url;
+    state.config.form = {
+      image: old.image, // 실제 파일명은 저장할 때 정한다
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+    };
+    touch();
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    showToast('이미지를 읽지 못했습니다.');
+  };
+  img.src = url;
+});
+
+// ---- 항목 탭 ----
+
+const EDITABLE_INPUTS = [['text', '텍스트'], ['date', '날짜'], ['phone', '연락처']];
+const INPUT_LABELS = {
+  text: '텍스트', date: '날짜', phone: '연락처',
+  choice: '선택 버튼', toggle: '스위치', money: '금액', null: '계산 결과',
+};
+
+function slugify(label, existingIds) {
+  const base = label.trim().toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/^-|-$/g, '') || 'field';
+  let id = base;
+  let n = 2;
+  while (existingIds.includes(id)) id = `${base}-${n++}`;
+  return id;
+}
+
+function renderFieldList() {
+  const host = $('fieldList');
+  host.textContent = '';
+
+  state.config.fields.forEach((field, index) => {
+    const row = document.createElement('div');
+    row.className = 'field-row';
+
+    // 순서 이동
+    const moves = document.createElement('div');
+    moves.className = 'move-btns';
+    for (const [dir, glyph] of [[-1, '↑'], [1, '↓']]) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = glyph;
+      btn.disabled = index + dir < 0 || index + dir >= state.config.fields.length;
+      btn.addEventListener('click', () => {
+        const fields = state.config.fields;
+        [fields[index], fields[index + dir]] = [fields[index + dir], fields[index]];
+        touch();
+      });
+      moves.appendChild(btn);
+    }
+    row.appendChild(moves);
+
+    // 라벨
+    const label = document.createElement('input');
+    label.type = 'text';
+    label.value = field.label;
+    label.addEventListener('change', () => { field.label = label.value; touch(); });
+    row.appendChild(label);
+
+    // 입력 유형
+    const select = document.createElement('select');
+    select.className = 'wide-only';
+    const options = field.system || field.input === null
+      ? [[String(field.input), INPUT_LABELS[String(field.input)]]]
+      : EDITABLE_INPUTS;
+    for (const [value, text] of options) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = text;
+      option.selected = String(field.input) === value;
+      select.appendChild(option);
+    }
+    select.disabled = Boolean(field.system) || field.input === null;
+    select.addEventListener('change', () => { field.input = select.value; touch(); });
+    row.appendChild(select);
+
+    // 폭
+    const width = document.createElement('select');
+    width.className = 'wide-only';
+    for (const [value, text] of [['full', '한 줄 전체'], ['half', '반 칸']]) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = text;
+      option.selected = field.width === value;
+      width.appendChild(option);
+    }
+    width.addEventListener('change', () => { field.width = width.value; touch(); });
+    row.appendChild(width);
+
+    // 체크박스 묶음 + 삭제
+    const checks = document.createElement('div');
+    checks.className = 'checks wide-only';
+    const lockedVisible = field.id === 'checkIn' || field.id === 'checkOut';
+    const toggles = [
+      ['화면 표시', 'visible', lockedVisible],
+      ['필수', 'required', field.input === null],
+      ['기억', 'remember', field.input === null || field.system],
+    ];
+    for (const [text, key, disabled] of toggles) {
+      const wrap = document.createElement('label');
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = Boolean(field[key]);
+      input.disabled = disabled;
+      input.addEventListener('change', () => { field[key] = input.checked; touch(); });
+      wrap.appendChild(input);
+      wrap.appendChild(document.createTextNode(text));
+      checks.appendChild(wrap);
+    }
+    if (field.system) {
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = '고정';
+      checks.appendChild(tag);
+    } else {
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'btn btn-danger btn-sm';
+      del.textContent = '삭제';
+      del.addEventListener('click', () => {
+        if (!confirm(`'${field.label}' 항목을 삭제할까요?`)) return;
+        state.config.fields = state.config.fields.filter((f) => f.id !== field.id);
+        if (state.selected === field.id) state.selected = null;
+        touch();
+      });
+      checks.appendChild(del);
+    }
+    row.appendChild(checks);
+
+    host.appendChild(row);
+  });
+}
+
+$('addField').addEventListener('click', () => {
+  const label = prompt('새 항목의 이름을 입력하세요 (예: 이메일)');
+  if (!label || !label.trim()) return;
+  const id = slugify(label, state.config.fields.map((f) => f.id));
+  state.config.fields.push({
+    id, label: label.trim(), input: 'text', width: 'full',
+    rect: null, printed: true, visible: true, required: false,
+    placeholder: '', maxlength: 20,
+  });
+  touch();
+  showToast('추가했습니다. "서식 & 칸" 탭에서 위치를 잡아 주세요.');
+});
+
+// ---- 요금 · 계좌 탭 ----
+
+const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+
+function bindValue(id, get, set) {
+  const node = $(id);
+  node.value = get();
+  node.onchange = () => { set(node.value); touch(); };
+}
+
+function renderValues() {
+  const p = state.config.pricing;
+  bindValue('p-weekday', () => p.weekday, (v) => { p.weekday = Number(v); });
+  bindValue('p-weekend', () => p.weekend, (v) => { p.weekend = Number(v); });
+  bindValue('p-extra', () => p.extraPerPersonNight, (v) => { p.extraPerPersonNight = Number(v); });
+  bindValue('p-base', () => p.basePeople, (v) => { p.basePeople = Number(v); });
+  bindValue('p-maxnights', () => p.maxNights, (v) => { p.maxNights = Number(v); });
+  bindValue('p-maxtext', () => p.maxNightsText, (v) => { p.maxNightsText = v; });
+  bindValue('p-people', () => p.peopleOptions.join(', '), (v) => {
+    p.peopleOptions = v.split(',').map((s) => Number(s.trim())).filter((n) => Number.isInteger(n) && n > 0);
+  });
+
+  const days = $('weekendDays');
+  days.textContent = '';
+  DAY_NAMES.forEach((name, index) => {
+    const wrap = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = p.weekendDays.includes(index);
+    input.addEventListener('change', () => {
+      const set = new Set(p.weekendDays);
+      if (input.checked) set.add(index); else set.delete(index);
+      p.weekendDays = [...set].sort((a, b) => a - b);
+      touch();
+    });
+    wrap.appendChild(input);
+    wrap.appendChild(document.createTextNode(name));
+    days.appendChild(wrap);
+  });
+
+  const a = state.config.account;
+  bindValue('a-bank', () => a.bank, (v) => { a.bank = v; });
+  bindValue('a-number', () => a.number, (v) => { a.number = v; });
+  bindValue('a-holder', () => a.holder, (v) => { a.holder = v; });
+
+  const s = state.config.site;
+  bindValue('s-org', () => s.org, (v) => { s.org = v; });
+  bindValue('s-title', () => s.title, (v) => { s.title = v; });
+
+  renderTokenArea();
+}
+
+function renderTokenArea() {
+  const host = $('tokenArea');
+  host.textContent = '';
+
+  if (state.token) {
+    const banner = document.createElement('div');
+    banner.className = 'banner banner-info';
+    banner.textContent = '토큰이 등록되어 있습니다. 저장할 수 있습니다.';
+    host.appendChild(banner);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-danger btn-sm';
+    btn.textContent = '토큰 삭제';
+    btn.addEventListener('click', () => {
+      state.token = '';
+      localStorage.removeItem(TOKEN_KEY);
+      renderAll();
+      showToast('토큰을 삭제했습니다.');
+    });
+    host.appendChild(btn);
+    return;
+  }
+
+  const banner = document.createElement('div');
+  banner.className = 'banner banner-warn';
+  banner.innerHTML = `
+    토큰이 없으면 편집과 미리보기는 되지만 <strong>저장할 수 없습니다.</strong><br>
+    GitHub → Settings → Developer settings → Personal access tokens → <strong>Fine-grained tokens</strong>에서
+    <code>${REPO}</code> 저장소 하나만 선택하고 <strong>Contents: Read and write</strong> 권한만 준 토큰을 만들어
+    아래에 붙여넣으세요. 토큰은 이 브라우저에만 저장되며 GitHub 외 어디로도 전송되지 않습니다.
+  `;
+  host.appendChild(banner);
+
+  const field = document.createElement('div');
+  field.className = 'field';
+  const input = document.createElement('input');
+  input.type = 'password';
+  input.placeholder = 'github_pat_...';
+  field.appendChild(input);
+  host.appendChild(field);
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-primary btn-sm';
+  btn.textContent = '토큰 등록';
+  btn.addEventListener('click', () => {
+    const value = input.value.trim();
+    if (!value) return;
+    state.token = value;
+    localStorage.setItem(TOKEN_KEY, value);
+    showToast('등록했습니다. 저장소에서 설정을 불러옵니다.');
+    loadFromRepo();
+  });
+  host.appendChild(btn);
+}
+
+// ---- 미리보기 ----
+
+// 아직 커밋되지 않은 이미지는 저장소에 없다. 미리보기에는 blob: 주소를 대신 넣는다.
+function previewPayload() {
+  const config = clone(state.config);
+  if (state.imageUrl) config.form.image = state.imageUrl;
+  return config;
+}
+
+let previewPage = 'index.html';
+
+function refreshPreview() {
+  try {
+    sessionStorage.setItem(PREVIEW_KEY, JSON.stringify(previewPayload()));
+  } catch {
+    showToast('미리보기 설정을 저장하지 못했습니다.');
+    return;
+  }
+  // src를 다시 넣지 않으면 캐시된 프레임이 새 설정을 읽지 않는다.
+  $('previewFrame').src = `${previewPage}?preview=1&t=${Date.now()}`;
+}
+
+document.querySelectorAll('[data-preview]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    previewPage = btn.dataset.preview;
+    refreshPreview();
+  });
+});
+$('refreshPreview').addEventListener('click', refreshPreview);
+
+// ---- 저장 ----
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]); // data: 접두어 제거
+    reader.onerror = () => reject(new Error('이미지를 읽지 못했습니다.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function updateSaveState() {
+  const parts = [];
+  if (state.dirty) parts.push('<span class="dirty-dot"></span>저장하지 않은 변경이 있습니다.');
+  else parts.push('변경 사항 없음');
+  if (!state.token) parts.push('토큰이 없어 저장할 수 없습니다.');
+  if (state.imageFile) parts.push('새 서식 이미지가 함께 올라갑니다.');
+  $('saveState').innerHTML = parts.join(' · ');
+  $('save').disabled = state.saving || !state.dirty || !state.token;
+  $('save').textContent = state.saving ? '저장 중...' : '저장';
+}
+
+$('save').addEventListener('click', () => {
+  if (!state.token) { showToast('먼저 GitHub 토큰을 등록해 주세요.'); return; }
+  const client = createClient({ repo: REPO, token: state.token });
+  const now = new Date();
+  state.saving = true;
+  updateSaveState();
+
+  // 이미지를 먼저 커밋한다. 이미지만 올라가고 설정이 실패해도 옛 설정이 옛
+  // 이미지를 계속 가리키므로 주민 화면은 정상이다. 순서를 반대로 하면 설정이
+  // 아직 없는 파일을 가리켜 화면이 깨진다.
+  const uploadImage = state.imageFile
+    ? readFileAsBase64(state.imageFile).then((content) => {
+        const ext = (state.imageFile.name.split('.').pop() || 'jpg').toLowerCase();
+        const path = imageFileName(now, ext);
+        return client
+          .putFile({ path, content, message: `chore: 서식 이미지 교체 (${path})` })
+          .then(() => path);
+      })
+    : Promise.resolve(null);
+
+  uploadImage
+    .then((imagePath) => {
+      const config = clone(state.config);
+      if (imagePath) config.form.image = imagePath;
+      const text = `${JSON.stringify(config, null, 2)}\n`;
+      return client.putFile({
+        path: 'config.json',
+        content: toBase64(text),
+        sha: state.sha, // null이면 새로 만든다
+        message: commitMessage(now),
+      }).then((result) => {
+        state.config = config;
+        state.sha = result.content.sha;
+        if (state.imageUrl) { URL.revokeObjectURL(state.imageUrl); state.imageUrl = null; }
+        state.imageFile = null;
+        state.dirty = false;
+        showToast('저장했습니다. 1분 안에 모두에게 반영됩니다.');
+        renderAll();
+      });
+    })
+    .catch((err) => {
+      if (err.status === 409 || err.status === 422) {
+        showToast('다른 곳에서 설정이 변경되었습니다. "저장소에서 다시 불러오기" 후 다시 시도해 주세요.');
+      } else if (err.status === 401 || err.status === 403) {
+        showToast('토큰이 유효하지 않거나 권한이 없습니다. 토큰을 다시 등록해 주세요.');
+      } else {
+        showToast(`저장하지 못했습니다: ${err.message}`);
+      }
+    })
+    .finally(() => {
+      state.saving = false;
+      updateSaveState();
+    });
+});
+
+// ---- 되돌리기 ----
+
+$('loadHistory').addEventListener('click', () => {
+  if (!state.token) { showToast('이력을 보려면 토큰이 필요합니다.'); return; }
+  createClient({ repo: REPO, token: state.token })
+    .listCommits('config.json', 10)
+    .then(renderHistory)
+    .catch((err) => showToast(`이력을 불러오지 못했습니다: ${err.message}`));
+});
+
+function renderHistory(commits) {
+  const host = $('historyList');
+  host.textContent = '';
+  if (!commits.length) {
+    host.innerHTML = '<p class="hint">아직 저장 이력이 없습니다.</p>';
+    return;
+  }
+  for (const commit of commits) {
+    const row = document.createElement('div');
+    row.className = 'history-row';
+
+    const info = document.createElement('div');
+    info.className = 'grow';
+    info.textContent = new Date(commit.date).toLocaleString('ko-KR');
+    row.appendChild(info);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-secondary btn-sm';
+    btn.textContent = '이 시점으로 되돌리기';
+    btn.addEventListener('click', () => restore(commit.sha));
+    row.appendChild(btn);
+
+    host.appendChild(row);
+  }
+}
+
+function restore(sha) {
+  createClient({ repo: REPO, token: state.token })
+    .getCommitContent('config.json', sha)
+    .then((text) => {
+      if (!text) { showToast('그 시점의 설정을 불러오지 못했습니다.'); return; }
+      // 이력을 되감지 않고 옛 값을 편집기로 불러온다. 확인 후 새 커밋으로
+      // 저장하므로 되돌리기를 되돌리는 것도 똑같이 동작한다.
+      state.config = normalizeConfig(JSON.parse(text));
+      if (state.imageUrl) { URL.revokeObjectURL(state.imageUrl); state.imageUrl = null; }
+      state.imageFile = null;
+      state.selected = null;
+      state.dirty = true;
+      renderAll();
+      refreshPreview();
+      showToast('불러왔습니다. 미리보기로 확인한 뒤 저장하세요.');
+    })
+    .catch((err) => showToast(`불러오지 못했습니다: ${err.message}`));
+}
+
+// ---- 불러오기 · 초기화 ----
+
+function loadFromRepo() {
+  if (!state.token) {
+    return loadConfig().then((config) => {
+      state.config = config;
+      state.dirty = false;
+      renderAll();
+    });
+  }
+  return createClient({ repo: REPO, token: state.token })
+    .getFile('config.json')
+    .then((file) => {
+      if (file) {
+        state.config = normalizeConfig(JSON.parse(file.text));
+        state.sha = file.sha;
+      } else {
+        // 저장소에 아직 config.json이 없다. 기본값에서 시작하고 sha는 비워 둔다.
+        state.config = clone(DEFAULT_CONFIG);
+        state.sha = null;
+      }
+      state.dirty = false;
+      state.selected = null;
+      renderAll();
+    })
+    .catch((err) => {
+      showToast(`설정을 불러오지 못했습니다: ${err.message}`);
+      return loadConfig().then((config) => { state.config = config; renderAll(); });
+    });
+}
+
+$('reload').addEventListener('click', () => {
+  if (state.dirty && !confirm('저장하지 않은 변경이 있습니다. 버리고 다시 불러올까요?')) return;
+  if (state.imageUrl) { URL.revokeObjectURL(state.imageUrl); state.imageUrl = null; }
+  state.imageFile = null;
+  loadFromRepo();
+});
+
+window.addEventListener('beforeunload', (e) => {
+  if (!state.dirty) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
+
+function renderAll() {
+  if (!$('panel-layout').hidden) renderPicker();
+  renderFieldList();
+  renderValues();
+  updateSaveState();
+}
+
+loadFromRepo();
+</script>
+</body>
+</html>
