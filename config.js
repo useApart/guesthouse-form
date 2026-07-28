@@ -1,0 +1,97 @@
+// 설정의 단일 진실. config.json이 없거나 깨졌을 때 여기로 복귀하므로,
+// 이 값은 항상 "지금 실제로 쓰이는 서식"과 일치해야 한다.
+export const DEFAULT_CONFIG = {
+  version: 1,
+
+  site: { org: '원흥LH13단지주거복지지원센터', title: '게스트하우스 신청서' },
+
+  form: { image: 'form.jpg', width: 707, height: 1000 },
+
+  // 순서가 곧 화면 배치 순서다. packRows()가 이 순서대로 줄을 묶는다.
+  fields: [
+    { id: 'applyDate', label: '신청일', input: 'date', width: 'half',
+      rect: { x: 231, y: 198, w: 403, h: 26 },
+      printed: true, visible: true, required: true, clearable: false, defaultToday: true },
+
+    { id: 'deposit', label: '은행입금일', input: 'date', width: 'half',
+      rect: { x: 232, y: 454, w: 138, h: 34 },
+      printed: true, visible: true, required: false, clearable: true, defaultToday: true },
+
+    { id: 'name', label: '성명', input: 'text', width: 'full',
+      rect: { x: 231, y: 228, w: 403, h: 25 },
+      printed: true, visible: true, required: true,
+      placeholder: '이름을 입력하세요', maxlength: 20, remember: true },
+
+    { id: 'unit', label: '동·호수', input: 'text', width: 'half',
+      rect: { x: 231, y: 257, w: 403, h: 26 },
+      printed: true, visible: true, required: true,
+      placeholder: '예: 101동 1201호', maxlength: 20, remember: true },
+
+    { id: 'phone', label: '연락처', input: 'phone', width: 'half',
+      rect: { x: 231, y: 287, w: 403, h: 25 },
+      printed: true, visible: true, required: true,
+      placeholder: '010-0000-0000', maxlength: 20, remember: true },
+
+    // 입실일·퇴실일은 서식에 직접 찍히지 않는다. 둘을 합쳐 period로 출력된다.
+    { id: 'checkIn', label: '입실일', input: 'date', width: 'half',
+      rect: null, printed: true, visible: true, required: true,
+      system: true, clearable: true, defaultToday: false },
+
+    { id: 'checkOut', label: '퇴실일', input: 'date', width: 'half',
+      rect: null, printed: true, visible: true, required: true,
+      system: true, clearable: true, defaultToday: false },
+
+    // input: null = 입력칸 없이 계산 결과로만 출력되는 항목.
+    { id: 'period', label: '사용기간', input: null, width: 'full',
+      rect: { x: 232, y: 323, w: 138, h: 28 },
+      printed: true, visible: true, required: false, system: true },
+
+    { id: 'nights', label: '숙박일수', input: null, width: 'half',
+      rect: { x: 487, y: 323, w: 147, h: 28 },
+      printed: true, visible: true, required: false, system: true },
+
+    { id: 'people', label: '사용인원', input: 'choice', width: 'half',
+      rect: { x: 487, y: 355, w: 147, h: 29 },
+      printed: true, visible: true, required: false, system: true },
+
+    { id: 'holiday', label: '공휴일 요금 적용', input: 'toggle', width: 'full',
+      rect: null, printed: true, visible: true, required: false, system: true },
+
+    { id: 'amount', label: '사용금액', input: 'money', width: 'full',
+      rect: { x: 232, y: 355, w: 138, h: 29 },
+      printed: true, visible: true, required: false, system: true },
+  ],
+
+  pricing: {
+    weekday: 35000,
+    weekend: 40000,
+    weekendDays: [0, 5, 6], // getDay() 기준: 0=일, 5=금, 6=토
+    extraPerPersonNight: 5000,
+    basePeople: 2,
+    peopleOptions: [2, 3, 4],
+    maxNights: 5,
+    maxNightsText: '운영규정상 1세대가 한 달 기준 5박 이상 사용할 수 없습니다.',
+  },
+
+  account: {
+    bank: '국민은행',
+    number: '856901-00-129046',
+    holder: '원흥LH13단지주거복지지원센터',
+  },
+};
+
+// structuredClone은 Safari 15.4+ 전용이라 쓰지 않는다. 설정은 순수 JSON 값만
+// 담으므로 이 방식으로 충분하다.
+export function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+// 사각형을 canvas fillText용 중심 좌표로 바꾼다. draw.html은 사각형을 그대로 쓰고
+// index.html은 이 변환 결과를 쓴다 — 좌표의 진실은 사각형 하나뿐이다.
+export function rectToPoint(rect) {
+  return {
+    x: Math.round(rect.x + rect.w / 2),
+    y: Math.round(rect.y + rect.h / 2),
+    maxWidth: rect.w - 2, // 좌우 1px 안쪽 여백
+  };
+}
