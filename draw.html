@@ -612,8 +612,11 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
     FH = config.form.height;
     compositeCanvas.width = FW * SS;
     compositeCanvas.height = FH * SS;
-    largeCanvas.width = FW;
-    largeCanvas.height = FH;
+    // 크게 보기는 합성 캔버스를 3인자 drawImage로 1:1 복사한다. 그래서 크기가
+    // 반드시 같아야 한다 — 어긋나면 오류 없이 잘려 그려진다. FW*SS로 따로
+    // 계산하면 SS가 바뀔 때 또 어긋나므로 합성 캔버스에서 직접 가져온다.
+    largeCanvas.width = compositeCanvas.width;
+    largeCanvas.height = compositeCanvas.height;
     // 미니 미리보기는 서식 비율을 따라간다. 가로로 긴 서식으로 바뀌어도 찌그러지지 않는다.
     miniCanvas.width = 84;
     miniCanvas.height = Math.round(84 * FH / FW);
