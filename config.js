@@ -95,3 +95,193 @@ export function rectToPoint(rect) {
     maxWidth: rect.w - 2, // 좌우 1px 안쪽 여백
   };
 }
+
+// ---- 검증·정규화 ----
+// config.json은 관리자가 브라우저에서 쓰는 파일이라 신뢰할 수 없는 입력이다.
+// 여기가 깨진 값이 화면에 닿기 전에 막는 유일한 방어선이다.
+
+const INPUT_TYPES = new Set(['text', 'date', 'phone', 'choice', 'toggle', 'money']);
+
+// 요금 계산에 물려 있어 삭제할 수 없는 항목.
+const SYSTEM_IDS = ['checkIn', 'checkOut', 'period', 'nights', 'people', 'holiday', 'amount'];
+
+// 숨기면 숙박일수·금액 계산이 불가능해지는 항목. 유일한 예외다.
+const ALWAYS_VISIBLE_IDS = ['checkIn', 'checkOut'];
+
+function positiveNumber(value, fallback) {
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function nonEmptyString(value, fallback) {
+  return typeof value === 'string' && value.trim() ? value : fallback;
+}
+
+function normalizeForm(raw) {
+  const base = DEFAULT_CONFIG.form;
+  if (!raw || typeof raw !== 'object') return clone(base);
+  return {
+    image: nonEmptyString(raw.image, base.image),
+    width: Math.round(positiveNumber(raw.width, base.width)),
+    height: Math.round(positiveNumber(raw.height, base.height)),
+  };
+}
+
+// 좌표를 이미지 범위 안으로 밀어 넣는다. 관리자가 이미지를 더 작은 것으로
+// 교체했을 때 옛 좌표가 그대로 남아 캔버스 밖에 찍히는 것을 막는다.
+function normalizeRect(raw, form) {
+  if (!raw || typeof raw !== 'object') return null;
+  if (![raw.x, raw.y, raw.w, raw.h].every((n) => Number.isFinite(n))) return null;
+
+  const x = Math.min(Math.max(0, Math.round(raw.x)), form.width - 1);
+  const y = Math.min(Math.max(0, Math.round(raw.y)), form.height - 1);
+  const w = Math.min(Math.max(1, Math.round(raw.w)), form.width - x);
+  const h = Math.min(Math.max(1, Math.round(raw.h)), form.height - y);
+  return { x, y, w, h };
+}
+
+function normalizeField(raw, form, fallback) {
+  const base = fallback || {};
+  const input = raw.input === null ? null
+    : INPUT_TYPES.has(raw.input) ? raw.input
+    : base.input !== undefined ? base.input
+    : 'text';
+
+  const field = {
+    id: raw.id,
+    label: nonEmptyString(raw.label, base.label || raw.id),
+    input,
+    width: raw.width === 'full' || raw.width === 'half' ? raw.width : (base.width || 'full'),
+    rect: normalizeRect(raw.rect, form),
+    printed: raw.printed !== false,
+    visible: raw.visible !== false,
+    required: raw.required === true,
+  };
+
+  if (SYSTEM_IDS.includes(field.id)) field.system = true;
+  if (ALWAYS_VISIBLE_IDS.includes(field.id)) field.visible = true;
+
+  // 입력 유형별 선택 속성. 해당 없는 유형에는 붙이지 않는다.
+  if (field.input === 'text' || field.input === 'phone') {
+    field.placeholder = typeof raw.placeholder === 'string' ? raw.placeholder : (base.placeholder || '');
+    field.maxlength = Math.round(positiveNumber(raw.maxlength, base.maxlength || 20));
+  }
+  if (field.input === 'date') {
+    field.clearable = raw.clearable !== undefined ? raw.clearable === true : base.clearable === true;
+    field.defaultToday = raw.defaultToday !== undefined
+      ? raw.defaultToday === true
+      : base.defaultToday === true;
+  }
+  if (raw.remember !== undefined ? raw.remember === true : base.remember === true) {
+    field.remember = true;
+  }
+
+  return field;
+}
+
+function normalizeFields(raw, form) {
+  const defaults = new Map(DEFAULT_CONFIG.fields.map((f) => [f.id, f]));
+
+  // 항목 목록이 통째로 없거나 비었으면 손을 댄 것으로 보지 않고 기본값을 쓴다.
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return DEFAULT_CONFIG.fields.map((f) => normalizeField(clone(f), form, f));
+  }
+
+  const seen = new Set();
+  const fields = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    if (typeof item.id !== 'string' || !item.id.trim()) continue;
+    if (seen.has(item.id)) continue; // 중복 id는 첫 번째만 살린다
+    seen.add(item.id);
+    fields.push(normalizeField(item, form, defaults.get(item.id)));
+  }
+
+  // 삭제된 system 항목을 원래 자리 순서대로 되살린다.
+  for (const id of SYSTEM_IDS) {
+    if (seen.has(id)) continue;
+    const index = DEFAULT_CONFIG.fields.findIndex((f) => f.id === id);
+    const restored = normalizeField(clone(defaults.get(id)), form, defaults.get(id));
+    fields.splice(Math.min(index, fields.length), 0, restored);
+  }
+
+  return fields;
+}
+
+function normalizePricing(raw) {
+  const base = DEFAULT_CONFIG.pricing;
+  if (!raw || typeof raw !== 'object') return clone(base);
+
+  const days = Array.isArray(raw.weekendDays)
+    ? raw.weekendDays.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)
+    : [];
+  const people = Array.isArray(raw.peopleOptions)
+    ? raw.peopleOptions.filter((n) => Number.isInteger(n) && n > 0)
+    : [];
+
+  return {
+    weekday: positiveNumber(raw.weekday, base.weekday),
+    weekend: positiveNumber(raw.weekend, base.weekend),
+    weekendDays: days.length ? [...new Set(days)].sort((a, b) => a - b) : clone(base.weekendDays),
+    // 추가 인원 요금만은 0이 유효한 값이다(추가 요금 없음).
+    extraPerPersonNight: Number.isFinite(raw.extraPerPersonNight) && raw.extraPerPersonNight >= 0
+      ? raw.extraPerPersonNight
+      : base.extraPerPersonNight,
+    basePeople: Math.round(positiveNumber(raw.basePeople, base.basePeople)),
+    peopleOptions: people.length ? [...new Set(people)].sort((a, b) => a - b) : clone(base.peopleOptions),
+    maxNights: Math.round(positiveNumber(raw.maxNights, base.maxNights)),
+    maxNightsText: nonEmptyString(raw.maxNightsText, base.maxNightsText),
+  };
+}
+
+function normalizeAccount(raw) {
+  const base = DEFAULT_CONFIG.account;
+  if (!raw || typeof raw !== 'object') return clone(base);
+  return {
+    bank: nonEmptyString(raw.bank, base.bank),
+    number: nonEmptyString(raw.number, base.number),
+    holder: nonEmptyString(raw.holder, base.holder),
+  };
+}
+
+function normalizeSite(raw) {
+  const base = DEFAULT_CONFIG.site;
+  if (!raw || typeof raw !== 'object') return clone(base);
+  return {
+    org: nonEmptyString(raw.org, base.org),
+    title: nonEmptyString(raw.title, base.title),
+  };
+}
+
+// 어떤 입력이 들어와도 항상 쓸 수 있는 설정을 돌려준다.
+export function normalizeConfig(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return clone(DEFAULT_CONFIG);
+  const form = normalizeForm(raw.form);
+  return {
+    version: 1,
+    site: normalizeSite(raw.site),
+    form,
+    fields: normalizeFields(raw.fields, form),
+    pricing: normalizePricing(raw.pricing),
+    account: normalizeAccount(raw.account),
+  };
+}
+
+export function parseConfig(text) {
+  try {
+    return normalizeConfig(JSON.parse(text));
+  } catch {
+    return clone(DEFAULT_CONFIG);
+  }
+}
+
+// 브라우저 전용. no-cache는 ETag 재검증을 쓴다 — 안 바뀌었으면 304로 끝나고
+// 바뀌었으면 즉시 새 값을 받는다. GitHub Pages의 기본 10분 캐시를 안 기다린다.
+export function loadConfig(url = 'config.json') {
+  return fetch(url, { cache: 'no-cache' })
+    .then((res) => {
+      if (!res.ok) throw new Error(`config.json ${res.status}`);
+      return res.json();
+    })
+    .then(normalizeConfig)
+    .catch(() => clone(DEFAULT_CONFIG));
+}

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_CONFIG, rectToPoint, clone } from './config.js';
+import { DEFAULT_CONFIG, rectToPoint, clone, normalizeConfig, parseConfig } from './config.js';
 
 // 리팩터 전 index.html이 하드코딩하고 있던 값. 설정 기반으로 바꾼 뒤에도
 // 같은 자리에 찍혀야 한다. 이 테스트가 리팩터 전체의 안전망이다.
@@ -55,4 +55,117 @@ test('clone은 원본을 공유하지 않는 깊은 복사본을 만든다', () 
   copy.pricing.weekday = 1;
   assert.notEqual(DEFAULT_CONFIG.fields[0].rect.x, 999);
   assert.equal(DEFAULT_CONFIG.pricing.weekday, 35000);
+});
+
+// ---- 검증·정규화 ----
+
+test('입력이 없거나 객체가 아니면 기본값을 돌려준다', () => {
+  for (const bad of [null, undefined, 'x', 42, []]) {
+    assert.deepEqual(normalizeConfig(bad), DEFAULT_CONFIG);
+  }
+});
+
+test('기본 설정을 정규화하면 자기 자신이 나온다', () => {
+  // normalizeField가 만드는 속성 집합과 DEFAULT_CONFIG가 어긋나면
+  // 위 테스트가 조용히 깨진다. 그 불일치를 직접 잡는다.
+  assert.deepEqual(normalizeConfig(clone(DEFAULT_CONFIG)), DEFAULT_CONFIG);
+});
+
+test('깨진 JSON 문자열은 기본값으로 복귀한다', () => {
+  assert.deepEqual(parseConfig('{ 이건 JSON이 아니다'), DEFAULT_CONFIG);
+  assert.deepEqual(parseConfig(''), DEFAULT_CONFIG);
+});
+
+test('일부 키만 있으면 나머지는 기본값으로 채운다', () => {
+  const result = normalizeConfig({ account: { bank: '신한은행', number: '110-1', holder: '홍길동' } });
+  assert.equal(result.account.bank, '신한은행');
+  assert.equal(result.pricing.weekday, 35000);      // 손대지 않은 부분은 기본값
+  assert.equal(result.fields.length, DEFAULT_CONFIG.fields.length);
+});
+
+test('rect가 이미지 범위를 벗어나면 범위 안으로 보정한다', () => {
+  const result = normalizeConfig({
+    form: { image: 'form.jpg', width: 707, height: 1000 },
+    fields: [{ id: 'name', label: '성명', input: 'text', rect: { x: -50, y: 990, w: 5000, h: 5000 } }],
+  });
+  const rect = result.fields.find((f) => f.id === 'name').rect;
+  assert.ok(rect.x >= 0 && rect.y >= 0);
+  assert.ok(rect.x + rect.w <= 707);
+  assert.ok(rect.y + rect.h <= 1000);
+});
+
+test('입실일·퇴실일은 숨길 수 없다', () => {
+  // 숨기면 숙박일수와 금액을 계산할 방법이 사라진다.
+  const result = normalizeConfig({
+    fields: [
+      { id: 'checkIn', label: '입실일', input: 'date', rect: null, visible: false },
+      { id: 'checkOut', label: '퇴실일', input: 'date', rect: null, visible: false },
+    ],
+  });
+  assert.equal(result.fields.find((f) => f.id === 'checkIn').visible, true);
+  assert.equal(result.fields.find((f) => f.id === 'checkOut').visible, true);
+});
+
+test('삭제된 system 항목은 되살린다', () => {
+  const result = normalizeConfig({
+    fields: [{ id: 'name', label: '성명', input: 'text', rect: null }],
+  });
+  for (const id of ['checkIn', 'checkOut', 'period', 'nights', 'people', 'holiday', 'amount']) {
+    assert.ok(result.fields.some((f) => f.id === id), `${id}가 복구되지 않았다`);
+  }
+});
+
+test('알 수 없는 input 유형은 text로 대체한다', () => {
+  const result = normalizeConfig({
+    fields: [{ id: 'memo', label: '메모', input: 'rocket', rect: null }],
+  });
+  assert.equal(result.fields.find((f) => f.id === 'memo').input, 'text');
+});
+
+test('printed가 없으면 true로 취급하고, false면 좌표는 남긴다', () => {
+  const result = normalizeConfig({
+    fields: [
+      { id: 'name', label: '성명', input: 'text', rect: { x: 10, y: 10, w: 100, h: 20 } },
+      { id: 'unit', label: '동·호수', input: 'text', rect: { x: 10, y: 40, w: 100, h: 20 }, printed: false },
+    ],
+  });
+  assert.equal(result.fields.find((f) => f.id === 'name').printed, true);
+  const unit = result.fields.find((f) => f.id === 'unit');
+  assert.equal(unit.printed, false);
+  assert.ok(unit.rect, 'printed:false여도 좌표는 보관해야 한다');
+});
+
+test('peopleOptions가 비었거나 숫자가 아니면 기본값으로 복귀한다', () => {
+  assert.deepEqual(normalizeConfig({ pricing: { peopleOptions: [] } }).pricing.peopleOptions, [2, 3, 4]);
+  assert.deepEqual(normalizeConfig({ pricing: { peopleOptions: ['둘'] } }).pricing.peopleOptions, [2, 3, 4]);
+});
+
+test('요금이 음수거나 숫자가 아니면 기본값으로 복귀한다', () => {
+  const result = normalizeConfig({ pricing: { weekday: -1, weekend: 'x', extraPerPersonNight: 7000 } });
+  assert.equal(result.pricing.weekday, 35000);
+  assert.equal(result.pricing.weekend, 40000);
+  assert.equal(result.pricing.extraPerPersonNight, 7000); // 유효한 값은 살린다
+});
+
+test('추가 인원 요금 0은 유효한 값이다', () => {
+  // 0은 "추가 요금 없음"이라는 뜻이지 잘못된 값이 아니다.
+  assert.equal(normalizeConfig({ pricing: { extraPerPersonNight: 0 } }).pricing.extraPerPersonNight, 0);
+});
+
+test('중복 id는 첫 번째만 남긴다', () => {
+  const result = normalizeConfig({
+    fields: [
+      { id: 'name', label: '첫번째', input: 'text', rect: null },
+      { id: 'name', label: '두번째', input: 'text', rect: null },
+    ],
+  });
+  assert.equal(result.fields.filter((f) => f.id === 'name').length, 1);
+  assert.equal(result.fields.find((f) => f.id === 'name').label, '첫번째');
+});
+
+test('정규화 결과는 원본 기본값을 오염시키지 않는다', () => {
+  const result = normalizeConfig({ pricing: { weekday: 99000 } });
+  result.fields[0].label = '바뀐 라벨';
+  assert.equal(DEFAULT_CONFIG.pricing.weekday, 35000);
+  assert.equal(DEFAULT_CONFIG.fields[0].label, '신청일');
 });
