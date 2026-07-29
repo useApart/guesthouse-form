@@ -97,6 +97,13 @@
   .checks { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .checks label { display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px; font-weight: 500; color: #3C443B; cursor: pointer; }
   .tag { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #EAE8E1; color: #7A8177; }
+  .field-item { border-bottom: 1px solid #F0EEE7; }
+  .field-item .field-row { border-bottom: none; }
+  .field-extra { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; padding: 0 0 10px 52px; }
+  .field-extra .mini { min-width: 118px; }
+  .field-extra .mini label { font-size: 11px; margin-bottom: 3px; font-weight: 500; color: #7A8177; }
+  .field-extra input, .field-extra select { height: 32px; font-size: 12px; }
+  @media (max-width: 700px) { .field-extra { padding-left: 0; } }
 
   /* ---- 미리보기 ---- */
   .preview-frame { width: 100%; height: 640px; border: 1px solid #E8E6DE; border-radius: 12px; background: #fff; }
@@ -170,11 +177,31 @@
         <label>주말 요금을 적용할 요일</label>
         <div class="checks" id="weekendDays"></div>
       </div>
-      <div class="grid2">
-        <div class="field"><label for="p-people">인원 선택 버튼 (쉼표로 구분)</label><input type="text" id="p-people" placeholder="2, 3, 4"></div>
-        <div class="field"><label for="p-maxnights">최대 숙박일수</label><input type="number" id="p-maxnights" min="1" step="1"></div>
+      <div class="field"><label for="p-people">인원 선택 버튼 (쉼표로 구분)</label><input type="text" id="p-people" placeholder="2, 3, 4"></div>
+
+      <h2 style="margin-top:22px;">예약 가능 기간</h2>
+      <div class="checks" style="margin-bottom:14px;">
+        <label><input type="checkbox" id="st-limit">날짜 선택 범위를 제한한다</label>
       </div>
-      <div class="field"><label for="p-maxtext">최대 숙박일수 초과 시 경고 문구</label><input type="text" id="p-maxtext"></div>
+      <div class="grid2">
+        <div class="field"><label for="st-ahead">오늘부터 몇 개월 뒤까지 예약 가능</label><input type="number" id="st-ahead" min="1" step="1"></div>
+        <div class="field"><label for="st-min">최소 숙박일수</label><input type="number" id="st-min" min="1" step="1"></div>
+        <div class="field"><label for="st-max">최대 숙박일수</label><input type="number" id="st-max" min="1" step="1"></div>
+      </div>
+      <p class="hint">
+        달력에서 아예 고를 수 없게 막는 값입니다. 경고를 띄우는 것이 아니라 선택 자체를 차단합니다.
+        신청서 화면의 안내 문구도 이 값에서 자동으로 만들어집니다.
+      </p>
+
+      <h2 style="margin-top:22px;">공휴일 요금</h2>
+      <div class="checks">
+        <label><input type="checkbox" id="hd-enabled">공휴일을 자동으로 판정한다</label>
+        <label><input type="checkbox" id="hd-eve">공휴일 전날 밤도 주말 요금</label>
+      </div>
+      <p class="hint">
+        한국천문연구원 특일정보 API로 공휴일을 조회합니다. 끄면 주말(요일) 규칙만 적용됩니다.
+        서비스키는 <code>index.html</code>에 있습니다.
+      </p>
 
       <h2 style="margin-top:22px;">입금 계좌</h2>
       <div class="grid2">
@@ -223,7 +250,7 @@
 <script type="module">
 import {
   DEFAULT_CONFIG, clone, loadConfig, normalizeConfig,
-  printedCells, rectToPoint,
+  printedCells, rectToPoint, CREATABLE_INPUTS, CHARSETS,
 } from './config.js';
 import { createClient, commitMessage, imageFileName, toBase64 } from './github.js';
 
@@ -370,7 +397,7 @@ function renderCellList() {
   const list = $('cellList');
   list.textContent = '';
   for (const field of state.config.fields) {
-    if (field.input === 'toggle') continue; // 공휴일은 서식에 찍힐 값이 없다
+    if (field.input === null && !field.rect) continue; // 서식 전용인데 위치도 없으면 다룰 게 없다
     const row = document.createElement('div');
     row.className = 'cell-row' + (state.selected === field.id ? ' selected' : '');
 
@@ -670,11 +697,12 @@ $('imageInput').addEventListener('change', (e) => {
 
 // ---- 항목 탭 ----
 
-const EDITABLE_INPUTS = [['text', '텍스트'], ['date', '날짜'], ['phone', '연락처']];
 const INPUT_LABELS = {
-  text: '텍스트', date: '날짜', phone: '연락처',
-  choice: '선택 버튼', toggle: '스위치', money: '금액', null: '계산 결과',
+  text: '텍스트', date: '날짜', phone: '연락처', unit: '동·호수',
+  choice: '선택 버튼', readout: '자동 계산 표시', null: '서식 전용',
 };
+const EDITABLE_INPUTS = CREATABLE_INPUTS.map((v) => [v, INPUT_LABELS[v]]);
+const CHARSET_LABELS = { any: '제한 없음', korean: '한글만', digits: '숫자만' };
 
 function slugify(label, existingIds) {
   const base = label.trim().toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/^-|-$/g, '') || 'field';
@@ -689,6 +717,8 @@ function renderFieldList() {
   host.textContent = '';
 
   state.config.fields.forEach((field, index) => {
+    const item = document.createElement('div');
+    item.className = 'field-item';
     const row = document.createElement('div');
     row.className = 'field-row';
 
@@ -719,9 +749,14 @@ function renderFieldList() {
     // 입력 유형
     const select = document.createElement('select');
     select.className = 'wide-only';
+    // system 항목과 서식 전용 항목은 유형을 바꿀 수 없다. 그 외에 현재 유형이
+    // 새로 만들 수 있는 목록(text/date/phone)에 없으면(예: 동·호수) 지금 값을
+    // 맨 앞에 끼워 넣는다. 안 그러면 select가 엉뚱한 유형을 고른 것처럼 보인다.
     const options = field.system || field.input === null
       ? [[String(field.input), INPUT_LABELS[String(field.input)]]]
-      : EDITABLE_INPUTS;
+      : CREATABLE_INPUTS.includes(field.input)
+        ? EDITABLE_INPUTS
+        : [[field.input, INPUT_LABELS[field.input] || field.input], ...EDITABLE_INPUTS];
     for (const [value, text] of options) {
       const option = document.createElement('option');
       option.value = value;
@@ -785,9 +820,82 @@ function renderFieldList() {
       checks.appendChild(del);
     }
     row.appendChild(checks);
+    item.appendChild(row);
 
-    host.appendChild(row);
+    const extra = buildFieldExtra(field);
+    if (extra) item.appendChild(extra);
+
+    host.appendChild(item);
   });
+}
+
+// 입력 유형별 세부 설정. 해당 없는 유형에는 아무것도 만들지 않는다.
+function buildFieldExtra(field) {
+  const parts = [];
+
+  const miniSelect = (labelText, options, current, onPick) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'mini';
+    const lab = document.createElement('label');
+    lab.textContent = labelText;
+    const sel = document.createElement('select');
+    for (const [value, text] of options) {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = text;
+      opt.selected = current === value;
+      sel.appendChild(opt);
+    }
+    sel.addEventListener('change', () => { onPick(sel.value); touch(); });
+    wrap.appendChild(lab);
+    wrap.appendChild(sel);
+    return wrap;
+  };
+
+  const miniInput = (labelText, value, onSet, type = 'text') => {
+    const wrap = document.createElement('div');
+    wrap.className = 'mini';
+    const lab = document.createElement('label');
+    lab.textContent = labelText;
+    const input = document.createElement('input');
+    input.type = type;
+    input.value = value;
+    input.addEventListener('change', () => { onSet(input.value); touch(); });
+    wrap.appendChild(lab);
+    wrap.appendChild(input);
+    return wrap;
+  };
+
+  if (field.input === 'text' || field.input === 'phone') {
+    parts.push(miniSelect('받을 문자', CHARSETS.map((c) => [c, CHARSET_LABELS[c]]), field.charset,
+      (v) => { field.charset = v; }));
+    parts.push(miniInput('최대 글자수', field.maxlength, (v) => { field.maxlength = Number(v); }, 'number'));
+    parts.push(miniInput('안내 문구', field.placeholder || '', (v) => { field.placeholder = v; }));
+  }
+  if (field.input === 'unit') {
+    parts.push(miniInput('동 자리수', field.dongLength, (v) => { field.dongLength = Number(v); }, 'number'));
+    parts.push(miniInput('호 자리수', field.hoLength, (v) => { field.hoLength = Number(v); }, 'number'));
+  }
+  if (field.input === 'readout') {
+    parts.push(miniInput('단위 (뒤에 붙는 글자)', field.suffix || '', (v) => { field.suffix = v; }));
+  }
+  if (field.input === 'date') {
+    parts.push(miniSelect('기본값', [['none', '비워 둠'], ['today', '오늘']],
+      field.defaultToday ? 'today' : 'none', (v) => { field.defaultToday = v === 'today'; }));
+    parts.push(miniSelect('달력의 지우기 버튼', [['off', '숨김'], ['on', '표시']],
+      field.clearable ? 'on' : 'off', (v) => { field.clearable = v === 'on'; }));
+  }
+  // 손글씨 칸 높이는 서식에 찍히는 항목에만 의미가 있다.
+  if (field.rect) {
+    parts.push(miniSelect('손글씨 칸 높이', [['normal', '보통'], ['tall', '높게']],
+      field.tallBox ? 'tall' : 'normal', (v) => { field.tallBox = v === 'tall'; }));
+  }
+
+  if (!parts.length) return null;
+  const extra = document.createElement('div');
+  extra.className = 'field-extra';
+  parts.forEach((node) => extra.appendChild(node));
+  return extra;
 }
 
 $('addField').addEventListener('click', () => {
@@ -813,17 +921,31 @@ function bindValue(id, get, set) {
   node.onchange = () => { set(node.value); touch(); };
 }
 
+function bindChecked(id, get, set) {
+  const node = $(id);
+  node.checked = Boolean(get());
+  node.onchange = () => { set(node.checked); touch(); };
+}
+
 function renderValues() {
   const p = state.config.pricing;
   bindValue('p-weekday', () => p.weekday, (v) => { p.weekday = Number(v); });
   bindValue('p-weekend', () => p.weekend, (v) => { p.weekend = Number(v); });
   bindValue('p-extra', () => p.extraPerPersonNight, (v) => { p.extraPerPersonNight = Number(v); });
   bindValue('p-base', () => p.basePeople, (v) => { p.basePeople = Number(v); });
-  bindValue('p-maxnights', () => p.maxNights, (v) => { p.maxNights = Number(v); });
-  bindValue('p-maxtext', () => p.maxNightsText, (v) => { p.maxNightsText = v; });
   bindValue('p-people', () => p.peopleOptions.join(', '), (v) => {
     p.peopleOptions = v.split(',').map((s) => Number(s.trim())).filter((n) => Number.isInteger(n) && n > 0);
   });
+
+  const stay = state.config.stay;
+  bindChecked('st-limit', () => stay.limitDates, (on) => { stay.limitDates = on; });
+  bindValue('st-ahead', () => stay.maxAheadMonths, (v) => { stay.maxAheadMonths = Number(v); });
+  bindValue('st-min', () => stay.minNights, (v) => { stay.minNights = Number(v); });
+  bindValue('st-max', () => stay.maxNights, (v) => { stay.maxNights = Number(v); });
+
+  const hd = state.config.holiday;
+  bindChecked('hd-enabled', () => hd.enabled, (on) => { hd.enabled = on; });
+  bindChecked('hd-eve', () => hd.eveOfHoliday, (on) => { hd.eveOfHoliday = on; });
 
   const days = $('weekendDays');
   days.textContent = '';
