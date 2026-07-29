@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   occupiedNights, bookedNights, isHouseFree, availableHouses, nightStatus,
+  makeSecret, buildRequest,
 } from './reservations.js';
 
 const HOUSES = [{ id: 'a', label: '1호실' }, { id: 'b', label: '2호실' }];
@@ -86,4 +87,53 @@ test('nightStatus는 달력 한 칸에 표시할 집별 상태를 준다', () =>
   ]);
   // 퇴실일은 두 집 다 비어 있다
   assert.deepEqual(nightStatus(HOUSES, booked, '2026-01-12').map((h) => h.free), [true, true]);
+});
+
+// ---- 요청 조립 ----
+
+const REMOTE = { enabled: true, url: 'https://demo.supabase.co', anonKey: 'anon-key' };
+
+test('조회 요청에 apikey와 Authorization이 함께 실린다', () => {
+  const { url, options } = buildRequest(REMOTE, { path: '/rest/v1/public_calendar?select=house' });
+  assert.equal(url, 'https://demo.supabase.co/rest/v1/public_calendar?select=house');
+  assert.equal(options.method, 'GET');
+  assert.equal(options.headers.apikey, 'anon-key');
+  assert.equal(options.headers.Authorization, 'Bearer anon-key');
+  assert.equal(options.body, undefined);
+});
+
+test('본문이 있으면 Content-Type이 붙고 JSON으로 직렬화된다', () => {
+  const { options } = buildRequest(REMOTE, {
+    path: '/rest/v1/reservations', method: 'POST', body: { house: 'a' },
+  });
+  assert.equal(options.headers['Content-Type'], 'application/json');
+  assert.equal(options.body, '{"house":"a"}');
+});
+
+test('minimal이면 반환을 끈다', () => {
+  // 익명 키에는 reservations 조회 권한이 없다. 삽입 결과를 돌려받으려 하면
+  // 권한 오류가 나므로 반환을 꺼야 한다.
+  const { options } = buildRequest(REMOTE, {
+    path: '/rest/v1/reservations', method: 'POST', body: {}, minimal: true,
+  });
+  assert.equal(options.headers.Prefer, 'return=minimal');
+});
+
+test('minimal이 아니면 Prefer를 붙이지 않는다', () => {
+  const { options } = buildRequest(REMOTE, { path: '/rest/v1/public_calendar' });
+  assert.equal(options.headers.Prefer, undefined);
+});
+
+test('로그인한 관리사무소는 자기 토큰으로 요청한다', () => {
+  const { options } = buildRequest(REMOTE, { path: '/rest/v1/reservations', accessToken: 'staff-token' });
+  assert.equal(options.headers.apikey, 'anon-key');        // apikey는 늘 익명 키
+  assert.equal(options.headers.Authorization, 'Bearer staff-token');
+});
+
+test('secret은 매번 다르고 충분히 길다', () => {
+  const a = makeSecret();
+  const b = makeSecret();
+  assert.notEqual(a, b);
+  assert.equal(a.length, 32);
+  assert.match(a, /^[0-9a-f]+$/);
 });

@@ -70,3 +70,39 @@ export function nightStatus(houses, booked, dateStr) {
     return { id: h.id, label: h.label, free: !(set && set.has(dateStr)) };
   });
 }
+
+// ---- Supabase 호출 ----
+
+// Postgres 오류 코드. 클라이언트가 상황을 구분해 안내하려면 필요하다.
+export const CONFLICT_OVERLAP = '23P01';   // 같은 집 날짜 겹침 (no_overlap 제약)
+export const CONFLICT_DUPLICATE = '23505'; // 세대당 대기 신청 중복 (one_pending_per_unit)
+
+// 주민이 자기 신청을 확인·취소할 때 쓰는 값. 브라우저에만 보관한다.
+export function makeSecret() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// 네트워크를 타지 않는 순수 함수다. 헤더 조립이 틀리면 전부 실패하므로
+// 여기까지는 테스트로 고정한다.
+export function buildRequest(reservation, spec) {
+  const { path, method = 'GET', body, accessToken, minimal = false } = spec;
+
+  const headers = {
+    apikey: reservation.anonKey,
+    // 로그인하지 않았으면 익명 키가 곧 신원이다. 관리사무소는 자기 토큰을 쓴다.
+    Authorization: `Bearer ${accessToken || reservation.anonKey}`,
+  };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (minimal) headers.Prefer = 'return=minimal';
+
+  return {
+    url: `${reservation.url}${path}`,
+    options: {
+      method,
+      headers,
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    },
+  };
+}
