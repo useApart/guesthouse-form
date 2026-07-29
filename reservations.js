@@ -106,3 +106,87 @@ export function buildRequest(reservation, spec) {
     },
   };
 }
+
+// 아래는 fetch를 쓰므로 자동 테스트하지 않는다. 조립과 오류 해석은 위의
+// buildRequest와 여기의 request가 전부 맡는다.
+function request(reservation, spec) {
+  const { url, options } = buildRequest(reservation, spec);
+  return fetch(url, options).then((res) => {
+    if (res.status === 204) return null;
+    return res.json().catch(() => null).then((body) => {
+      if (!res.ok) {
+        const error = new Error(
+          (body && (body.message || body.error_description || body.msg)) || `Supabase ${res.status}`
+        );
+        error.status = res.status;
+        // PostgREST는 Postgres 오류 코드를 code로 돌려준다. 날짜 겹침과
+        // 세대별 중복을 구분해 안내하려면 이 값이 필요하다.
+        error.code = body && body.code;
+        throw error;
+      }
+      return body;
+    });
+  });
+}
+
+// ---- 주민용 (익명 키) ----
+
+export function fetchCalendar(reservation) {
+  return request(reservation, {
+    path: '/rest/v1/public_calendar?select=house,check_in,check_out,status',
+  }).then((rows) => rows || []);
+}
+
+export function submitReservation(reservation, row) {
+  return request(reservation, {
+    path: '/rest/v1/reservations',
+    method: 'POST',
+    body: row,
+    minimal: true, // 익명 키는 삽입 결과를 읽을 수 없다
+  });
+}
+
+// 익명 키는 테이블을 못 읽으므로 함수로만 조회한다. 삽입 결과에서 id를 받을 수
+// 없어 secret만으로 찾는다(p_id는 null을 넘긴다).
+export function myReservation(reservation, secret) {
+  return request(reservation, {
+    path: '/rest/v1/rpc/my_reservation',
+    method: 'POST',
+    body: { p_id: null, p_secret: secret },
+  }).then((rows) => (Array.isArray(rows) && rows.length ? rows[0] : null));
+}
+
+export function cancelReservation(reservation, id, secret) {
+  return request(reservation, {
+    path: '/rest/v1/rpc/cancel_reservation',
+    method: 'POST',
+    body: { p_id: id, p_secret: secret },
+  }).then((ok) => ok === true);
+}
+
+// ---- 관리사무소용 (로그인 토큰) ----
+
+export function signIn(reservation, email, password) {
+  return request(reservation, {
+    path: '/auth/v1/token?grant_type=password',
+    method: 'POST',
+    body: { email, password },
+  });
+}
+
+export function listReservations(reservation, accessToken) {
+  return request(reservation, {
+    path: '/rest/v1/reservations?select=*&order=check_in.asc',
+    accessToken,
+  }).then((rows) => rows || []);
+}
+
+export function setStatus(reservation, accessToken, id, status) {
+  return request(reservation, {
+    path: `/rest/v1/reservations?id=eq.${encodeURIComponent(id)}`,
+    method: 'PATCH',
+    body: { status },
+    accessToken,
+    minimal: true,
+  });
+}

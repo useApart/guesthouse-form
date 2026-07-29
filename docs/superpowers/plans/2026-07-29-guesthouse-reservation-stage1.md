@@ -719,7 +719,7 @@ What:
 - Produces:
   - `fetchCalendar(reservation)` → `Promise<[{house, check_in, check_out, status}]>`
   - `submitReservation(reservation, row)` → `Promise<void>` (실패 시 `error.code`에 Postgres 코드)
-  - `myReservation(reservation, id, secret)` → `Promise<row|null>`
+  - `myReservation(reservation, secret)` → `Promise<row|null>` — 익명 키는 삽입 결과에서 `id`를 받을 수 없으므로 `secret`만으로 찾는다. 내부에서 `p_id: null`을 넘긴다
   - `cancelReservation(reservation, id, secret)` → `Promise<boolean>`
   - `signIn(reservation, email, password)` → `Promise<{access_token, ...}>`
   - `listReservations(reservation, accessToken)` → `Promise<[row]>`
@@ -1262,7 +1262,9 @@ language sql security definer stable as $$
 $$;
 ```
 
-클라이언트는 `p_id`에 `null`을 넣고 `secret`만으로 조회한다.
+클라이언트는 `myReservation(reservation, secret)`으로 호출한다. `p_id: null`은 함수 안에서 넘긴다 — 호출부가 늘 `null`을 적어야 하면 왜 그런지 잊어버린다.
+
+**이 SQL은 Task 1의 버전을 대체한다.** Task 1을 이미 실행했다면 위 `create or replace`를 다시 실행해야 한다.
 
 ```js
 function saveMine(data) {
@@ -1283,7 +1285,7 @@ function renderMine() {
   const box = $('resMine');
   if (!mine || !mine.secret) { box.hidden = true; return; }
 
-  myReservation(config.reservation, null, mine.secret)
+  myReservation(config.reservation, mine.secret)
     .then((row) => {
       if (!row) { box.hidden = true; return; }
       const label = { pending: '확인 대기 중', confirmed: '확정됨', cancelled: '취소됨' }[row.status] || row.status;
@@ -1299,7 +1301,7 @@ function renderMine() {
 $('resCancel').addEventListener('click', () => {
   const mine = loadMine();
   if (!mine || !confirm('신청을 취소할까요?')) return;
-  myReservation(config.reservation, null, mine.secret)
+  myReservation(config.reservation, mine.secret)
     .then((row) => (row ? cancelReservation(config.reservation, row.id, mine.secret) : false))
     .then((ok) => {
       showToast(ok ? '취소했습니다.' : '취소하지 못했습니다. 확정된 예약은 관리사무소에 문의해 주세요.');
