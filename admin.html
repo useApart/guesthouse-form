@@ -264,6 +264,7 @@ const state = {
   config: clone(DEFAULT_CONFIG),
   token: localStorage.getItem(TOKEN_KEY) || '',
   sha: null,        // config.json의 현재 sha. 충돌 감지에 쓴다.
+  savedText: '',    // 저장소에 들어 있는 내용. 바뀐 게 없으면 커밋하지 않으려고 들고 있다.
   imageFile: null,  // 교체할 이미지 File. 저장할 때만 커밋한다.
   imageUrl: null,   // 위 파일의 blob: URL (미리보기용)
   selected: null,   // 좌표 피커에서 선택된 항목 id
@@ -1111,6 +1112,16 @@ $('save').addEventListener('click', () => {
       const config = clone(state.config);
       if (imagePath) config.form.image = imagePath;
       const text = `${JSON.stringify(config, null, 2)}\n`;
+
+      // 저장소 내용과 같으면 커밋하지 않는다. 값을 바꿨다가 되돌린 뒤 저장을
+      // 누르면 내용이 같은 빈 커밋이 쌓이고 배포도 괜히 한 번 더 돈다.
+      if (!imagePath && text === state.savedText) {
+        state.dirty = false;
+        showToast('바뀐 내용이 없습니다.');
+        renderAll();
+        return null;
+      }
+
       return client.putFile({
         path: 'config.json',
         content: toBase64(text),
@@ -1119,6 +1130,7 @@ $('save').addEventListener('click', () => {
       }).then((result) => {
         state.config = config;
         state.sha = result.content.sha;
+        state.savedText = text;
         if (state.imageUrl) { URL.revokeObjectURL(state.imageUrl); state.imageUrl = null; }
         state.imageFile = null;
         state.dirty = false;
@@ -1199,11 +1211,17 @@ function restore(sha) {
 
 // ---- 불러오기 · 초기화 ----
 
+// 지금 설정을 저장할 때 만들어질 문자열. save()가 이 값과 비교해 변경 여부를 본다.
+function snapshotSaved() {
+  state.savedText = `${JSON.stringify(state.config, null, 2)}\n`;
+}
+
 function loadFromRepo() {
   if (!state.token) {
     return loadConfig().then((config) => {
       state.config = config;
       state.dirty = false;
+      snapshotSaved();
       renderAll();
     });
   }
@@ -1220,6 +1238,7 @@ function loadFromRepo() {
       }
       state.dirty = false;
       state.selected = null;
+      snapshotSaved();
       renderAll();
     })
     .catch((err) => {
