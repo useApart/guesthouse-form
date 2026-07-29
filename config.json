@@ -43,7 +43,8 @@
       "required": true,
       "placeholder": "",
       "maxlength": 20,
-      "remember": true
+      "remember": true,
+      "charset": "korean"
     },
     {
       "id": "unit",
@@ -81,7 +82,8 @@
       "placeholder": "",
       "maxlength": 20,
       "remember": true,
-      "tallBox": true
+      "tallBox": true,
+      "charset": "any"
     },
     {
       "id": "checkIn",

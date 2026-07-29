@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   DEFAULT_CONFIG, rectToPoint, clone, normalizeConfig, parseConfig,
-  formFields, printedCells, packRows,
+  formFields, printedCells, packRows, derive, domIds,
 } from './config.js';
 
 // 리팩터 전 index.html이 하드코딩하고 있던 값. 설정 기반으로 바꾼 뒤에도
@@ -260,6 +260,47 @@ test('숨긴 항목은 화면에서 빠지고 배치가 다시 계산된다', ()
 
 test('packRows는 빈 배열에 빈 배열을 돌려준다', () => {
   assert.deepEqual(packRows([]), []);
+});
+
+// ---- derive(): index.html이 쓰던 하드코딩 상수 재현 ----
+// 아래 기대값은 리팩터 전 index.html에 손으로 적혀 있던 값 그대로다.
+// 설정 기반으로 바꾼 뒤에도 같은 값이 나와야 동작이 보존된다.
+
+test('derive가 기존 REQUIRED와 같은 필수 항목을 만든다', () => {
+  const { required } = derive(DEFAULT_CONFIG);
+  assert.deepEqual(Object.keys(required).sort(), ['applyDate', 'checkIn', 'checkOut', 'name', 'phone', 'unit']);
+});
+
+test('derive가 기존 SAVED_FIELDS와 같은 저장 대상을 만든다', () => {
+  // 리팩터 전: ['name', 'unitDong', 'unitHo', 'phone']
+  assert.deepEqual(derive(DEFAULT_CONFIG).rememberedIds, ['name', 'unitDong', 'unitHo', 'phone']);
+});
+
+test('derive가 기존 CLEARABLE과 같은 지우기 허용 칸을 만든다', () => {
+  // 리팩터 전: ['deposit', 'checkIn', 'checkOut'] — 신청일은 필수라 지우기를 숨겼다.
+  assert.deepEqual(derive(DEFAULT_CONFIG).clearableIds.sort(), ['checkIn', 'checkOut', 'deposit']);
+});
+
+test('derive가 달력을 붙일 날짜 칸 네 개를 찾는다', () => {
+  assert.deepEqual(derive(DEFAULT_CONFIG).dateIds.sort(), ['applyDate', 'checkIn', 'checkOut', 'deposit']);
+});
+
+test('derive가 기존 ACCOUNT_NUMBER와 같은 복사 문자열을 만든다', () => {
+  assert.equal(derive(DEFAULT_CONFIG).accountText, '국민은행 856901-00-129046');
+});
+
+test('derive의 좌표가 서식에 찍히는 칸 9개를 모두 담는다', () => {
+  const { positions } = derive(DEFAULT_CONFIG);
+  assert.deepEqual(Object.keys(positions).sort(), [
+    'amount', 'applyDate', 'deposit', 'name', 'nights', 'people', 'period', 'phone', 'unit',
+  ]);
+});
+
+test('domIds는 unit만 두 칸으로 나눈다', () => {
+  const unit = DEFAULT_CONFIG.fields.find((f) => f.id === 'unit');
+  const name = DEFAULT_CONFIG.fields.find((f) => f.id === 'name');
+  assert.deepEqual(domIds(unit), ['unitDong', 'unitHo']);
+  assert.deepEqual(domIds(name), ['name']);
 });
 
 // ---- 저장소의 config.json ----

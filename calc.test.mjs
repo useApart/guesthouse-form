@@ -125,6 +125,21 @@ test('공휴일 전날 밤도 주말 요금', () => {
   assert.equal(calcAmount(values, { isHoliday: holidaysOn('2026-07-29') }), 40000);
 });
 
+test('eveOfHoliday를 끄면 공휴일 전날 밤은 평일 요금', () => {
+  const values = { checkIn: '2026-07-28', checkOut: '2026-07-29', people: 2 };
+  const isHoliday = holidaysOn('2026-07-29');
+  assert.equal(calcAmount(values, { isHoliday }), 40000);
+  assert.equal(calcAmount(values, { isHoliday, eveOfHoliday: false }), 35000);
+});
+
+test('eveOfHoliday를 꺼도 공휴일 당일 밤은 주말 요금', () => {
+  const values = { checkIn: '2026-07-28', checkOut: '2026-07-29', people: 2 };
+  assert.equal(
+    calcAmount(values, { isHoliday: holidaysOn('2026-07-28'), eveOfHoliday: false }),
+    40000
+  );
+});
+
 test('공휴일과 무관한 평일 밤은 그대로 평일 요금', () => {
   // 2026-07-27(월)~28(화) 한 밤. 공휴일은 30일이라 이 밤과 다음날 모두 아니다.
   const values = { checkIn: '2026-07-27', checkOut: '2026-07-28', people: 2 };

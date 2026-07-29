@@ -17,7 +17,7 @@ export const DEFAULT_CONFIG = {
     { id: 'name', label: '성명', input: 'text', width: 'full',
       rect: { x: 231, y: 228, w: 403, h: 25 },
       printed: true, visible: true, required: true,
-      placeholder: '', maxlength: 20, remember: true },
+      placeholder: '', maxlength: 20, remember: true, charset: 'korean' },
 
     // 화면에서는 동·호를 따로 받고, 서식에는 'N동 M호' 한 줄로 찍는다.
     { id: 'unit', label: '동·호수', input: 'unit', width: 'half',
@@ -28,7 +28,7 @@ export const DEFAULT_CONFIG = {
     { id: 'phone', label: '연락처', input: 'phone', width: 'half',
       rect: { x: 231, y: 287, w: 403, h: 25 },
       printed: true, visible: true, required: true,
-      placeholder: '', maxlength: 20, remember: true, tallBox: true },
+      placeholder: '', maxlength: 20, remember: true, tallBox: true, charset: 'any' },
 
     // 입실일·퇴실일은 서식에 직접 찍히지 않는다. 둘을 합쳐 period로 출력된다.
     { id: 'checkIn', label: '입실일 (사용기간 시작)', input: 'date', width: 'half',
@@ -115,6 +115,9 @@ export function rectToPoint(rect) {
 
 const INPUT_TYPES = new Set(['text', 'date', 'phone', 'unit', 'choice', 'readout']);
 
+// 입력 가능한 문자 종류. index.html이 입력할 때마다 나머지 문자를 지운다.
+export const CHARSETS = ['any', 'korean', 'digits'];
+
 // 관리자가 새로 만들 수 있는 입력 유형. 나머지는 계산 로직에 묶여 있어
 // 자유롭게 생성해도 의미가 없다.
 export const CREATABLE_INPUTS = ['text', 'date', 'phone'];
@@ -181,6 +184,8 @@ function normalizeField(raw, form, fallback) {
   if (field.input === 'text' || field.input === 'phone') {
     field.placeholder = typeof raw.placeholder === 'string' ? raw.placeholder : (base.placeholder || '');
     field.maxlength = Math.round(positiveNumber(raw.maxlength, base.maxlength || 20));
+    // 받을 문자 종류. 성명에 숫자가 섞여 들어가는 것 같은 오입력을 막는다.
+    field.charset = CHARSETS.includes(raw.charset) ? raw.charset : (base.charset || 'any');
   }
   if (field.input === 'date') {
     field.clearable = raw.clearable !== undefined ? raw.clearable === true : base.clearable === true;
@@ -332,6 +337,34 @@ export function formFields(config) {
 // 대신 사용기간을 직접 쓰므로 "입력 항목"이 아니라 "출력 칸" 기준이다.
 export function printedCells(config) {
   return config.fields.filter((f) => f.rect && f.printed !== false);
+}
+
+// unit 유형은 화면에서 동·호 두 칸이라 DOM id가 두 개다. 저장·입력필터처럼
+// "실제 입력칸"을 대상으로 하는 처리는 이 목록을 써야 한다.
+export function domIds(field) {
+  return field.input === 'unit' ? [field.id + 'Dong', field.id + 'Ho'] : [field.id];
+}
+
+// index.html이 쓰던 하드코딩 상수들(POS·REQUIRED·SAVED_FIELDS·CLEARABLE·
+// ACCOUNT_NUMBER)을 설정에서 한 번에 유도한다. DOM에 얽히지 않은 순수 함수라
+// 값이 옛 하드코딩과 같은지 테스트로 고정할 수 있다.
+export function derive(config) {
+  const form = formFields(config);
+  const positions = {};
+  for (const field of printedCells(config)) positions[field.id] = rectToPoint(field.rect);
+
+  const required = {};
+  for (const field of form) if (field.required) required[field.id] = field.label;
+
+  return {
+    positions,
+    required,
+    rememberedIds: form.filter((f) => f.remember).flatMap(domIds),
+    clearableIds: form.filter((f) => f.clearable).map((f) => f.id),
+    dateIds: form.filter((f) => f.input === 'date').map((f) => f.id),
+    // 토스·카카오페이 등의 '붙여넣기'가 은행과 계좌번호를 함께 인식하도록 은행명을 붙인다.
+    accountText: config.account.bank + ' ' + config.account.number,
+  };
 }
 
 // 연속한 half 둘은 한 줄에 나란히, 홀로 남은 half는 한 줄 전체로 늘린다.
