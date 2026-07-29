@@ -22,7 +22,7 @@
         "h": 26
       },
       "printed": true,
-      "visible": true,
+      "visible": false,
       "required": true,
       "clearable": false,
       "defaultToday": true
