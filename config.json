@@ -23,7 +23,7 @@
       },
       "printed": true,
       "visible": false,
-      "required": true,
+      "required": false,
       "clearable": false,
       "defaultToday": true
     },
