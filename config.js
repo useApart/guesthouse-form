@@ -86,6 +86,21 @@ export const DEFAULT_CONFIG = {
     eveOfHoliday: true, // 공휴일 '전날 밤'도 주말 요금으로 볼지
   },
 
+  // 게스트하우스 두 곳. 요금·인원·규정이 같으므로 pricing은 하나를 공유한다.
+  // 집마다 조건이 달라지면 그때 houses[].pricing으로 덮어쓰는 구조를 더한다.
+  houses: [
+    { id: 'a', label: '1호실' },
+    { id: 'b', label: '2호실' },
+  ],
+
+  // 예약 저장소(Supabase). anonKey는 공개되어도 되는 키다 — 이 키로 할 수 있는
+  // 일은 DB의 RLS가 허용한 범위(대기 신청 추가, 공개 달력 조회)뿐이다.
+  reservation: {
+    enabled: false,
+    url: '',
+    anonKey: '',
+  },
+
   account: {
     bank: '국민은행',
     number: '856901-00-129046',
@@ -300,6 +315,39 @@ function normalizeAccount(raw) {
   };
 }
 
+function normalizeHouses(raw) {
+  const base = DEFAULT_CONFIG.houses;
+  if (!Array.isArray(raw)) return clone(base);
+
+  const seen = new Set();
+  const houses = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    if (typeof item.id !== 'string' || !item.id.trim()) continue;
+    if (seen.has(item.id)) continue; // 중복 id는 첫 번째만 살린다
+    seen.add(item.id);
+    houses.push({ id: item.id, label: nonEmptyString(item.label, item.id) });
+  }
+  return houses.length ? houses : clone(base);
+}
+
+function normalizeReservation(raw) {
+  const base = DEFAULT_CONFIG.reservation;
+  if (!raw || typeof raw !== 'object') return clone(base);
+
+  // 주소 끝의 슬래시를 떼지 않으면 요청 URL에 //가 생긴다.
+  const url = nonEmptyString(raw.url, '').replace(/\/+$/, '');
+  const anonKey = nonEmptyString(raw.anonKey, '');
+
+  return {
+    // 주소나 키가 없으면 켜져 있어도 끈다. 반쯤 설정된 상태로 예약 화면이 뜨면
+    // 주민은 신청했다고 믿는데 실제로는 아무 데도 저장되지 않는다.
+    enabled: raw.enabled === true && Boolean(url) && Boolean(anonKey),
+    url,
+    anonKey,
+  };
+}
+
 function normalizeSite(raw) {
   const base = DEFAULT_CONFIG.site;
   if (!raw || typeof raw !== 'object') return clone(base);
@@ -321,6 +369,8 @@ export function normalizeConfig(raw) {
     pricing: normalizePricing(raw.pricing),
     stay: normalizeStay(raw.stay),
     holiday: normalizeHoliday(raw.holiday),
+    houses: normalizeHouses(raw.houses),
+    reservation: normalizeReservation(raw.reservation),
     account: normalizeAccount(raw.account),
   };
 }

@@ -296,6 +296,60 @@ test('derive의 좌표가 서식에 찍히는 칸 9개를 모두 담는다', () 
   ]);
 });
 
+// ---- 예약 설정 ----
+
+test('기본 설정에 게스트하우스 두 곳이 있다', () => {
+  assert.equal(DEFAULT_CONFIG.houses.length, 2);
+  assert.deepEqual(DEFAULT_CONFIG.houses.map((h) => h.id), ['a', 'b']);
+});
+
+test('예약 기능은 기본으로 꺼져 있다', () => {
+  assert.equal(DEFAULT_CONFIG.reservation.enabled, false);
+});
+
+test('주소나 키가 없으면 예약 기능을 켤 수 없다', () => {
+  // 반쯤 설정된 상태로 예약 화면이 뜨면, 주민은 신청했다고 믿는데
+  // 실제로는 아무 데도 저장되지 않는다.
+  assert.equal(normalizeConfig({ reservation: { enabled: true } }).reservation.enabled, false);
+  assert.equal(
+    normalizeConfig({ reservation: { enabled: true, url: 'https://x.supabase.co' } }).reservation.enabled,
+    false
+  );
+  assert.equal(
+    normalizeConfig({ reservation: { enabled: true, url: 'https://x.supabase.co', anonKey: 'k' } }).reservation.enabled,
+    true
+  );
+});
+
+test('주소 끝의 슬래시를 떼어 URL이 이중 슬래시가 되지 않게 한다', () => {
+  const r = normalizeConfig({
+    reservation: { enabled: true, url: 'https://x.supabase.co///', anonKey: 'k' },
+  }).reservation;
+  assert.equal(r.url, 'https://x.supabase.co');
+});
+
+test('집 목록이 비었거나 깨지면 기본값으로 복귀한다', () => {
+  assert.deepEqual(normalizeConfig({ houses: [] }).houses, DEFAULT_CONFIG.houses);
+  assert.deepEqual(normalizeConfig({ houses: 'x' }).houses, DEFAULT_CONFIG.houses);
+  assert.deepEqual(normalizeConfig({ houses: [{ label: '이름만' }] }).houses, DEFAULT_CONFIG.houses);
+});
+
+test('집이 셋으로 늘어나도 그대로 받는다', () => {
+  const houses = normalizeConfig({
+    houses: [{ id: 'a', label: '1호실' }, { id: 'b', label: '2호실' }, { id: 'c', label: '3호실' }],
+  }).houses;
+  assert.equal(houses.length, 3);
+  assert.equal(houses[2].label, '3호실');
+});
+
+test('집 id가 중복되면 첫 번째만 남긴다', () => {
+  const houses = normalizeConfig({
+    houses: [{ id: 'a', label: '먼저' }, { id: 'a', label: '나중' }],
+  }).houses;
+  assert.equal(houses.length, 1);
+  assert.equal(houses[0].label, '먼저');
+});
+
 test('domIds는 unit만 두 칸으로 나눈다', () => {
   const unit = DEFAULT_CONFIG.fields.find((f) => f.id === 'unit');
   const name = DEFAULT_CONFIG.fields.find((f) => f.id === 'name');
