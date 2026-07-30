@@ -71,6 +71,73 @@ export function nightStatus(houses, booked, dateStr) {
   });
 }
 
+// ---- 이용 이력 ----
+// 관리사무소가 승인할 때 "이 세대가 전에 얼마나 썼나"를 보기 위한 계산.
+// 전체 예약 목록을 받아 클라이언트에서 거른다 — 하루 한 팀 규모라 연 최대
+// 730건이고, 통째로 다뤄도 부담이 없다.
+
+// 최신순(입실일 내림차순). 같은 날이면 순서는 상관없다.
+function byCheckInDesc(a, b) {
+  return String(b.check_in).localeCompare(String(a.check_in));
+}
+
+export function findByHousehold(rows, dong, ho) {
+  const d = String(dong || '').trim();
+  const h = String(ho || '').trim();
+  if (!d || !h) return [];
+  return (rows || [])
+    .filter((r) => String(r.unit_dong).trim() === d && String(r.unit_ho).trim() === h)
+    .sort(byCheckInDesc);
+}
+
+export function findByName(rows, query) {
+  const q = String(query || '').trim();
+  // 빈 검색어는 모든 이름에 포함되므로 그냥 두면 전체가 나온다. 빈 결과로 막는다.
+  if (!q) return [];
+  return (rows || [])
+    .filter((r) => String(r.name || '').includes(q))
+    .sort(byCheckInDesc);
+}
+
+// 최근 months개월의 이용 횟수와 박수. 취소된 예약은 실제로 쓰지 않은 것이므로 뺀다.
+// now를 인자로 받는 이유는 테스트다 — 함수 안에서 new Date()를 부르면
+// 기간 경계를 검증할 수 없다.
+export function summarize(rows, months, now = new Date()) {
+  const from = new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
+  let count = 0;
+  let nights = 0;
+
+  for (const row of rows || []) {
+    if (row.status === 'cancelled') continue;
+    const nightList = occupiedNights(row);
+    if (nightList.length === 0) continue;
+    // 입실일 기준으로 기간에 드는지 본다.
+    const [y, m, d] = String(row.check_in).split('-').map(Number);
+    if (new Date(y, m - 1, d) < from) continue;
+    count += 1;
+    nights += nightList.length;
+  }
+  return { count, nights };
+}
+
+// 그 달의 날짜별 예약 목록. 주민 달력이 쓰는 occupiedNights를 그대로 재사용한다 —
+// 같은 함수를 쓰므로 두 화면의 점유 판정이 어긋날 수 없다.
+// month는 0-11(Date와 같은 규칙).
+export function monthGrid(rows, year, month) {
+  const prefix = `${year}-${pad2(month + 1)}-`;
+  const grid = new Map();
+
+  for (const row of rows || []) {
+    if (row.status === 'cancelled') continue;
+    for (const night of occupiedNights(row)) {
+      if (!night.startsWith(prefix)) continue;
+      if (!grid.has(night)) grid.set(night, []);
+      grid.get(night).push(row);
+    }
+  }
+  return grid;
+}
+
 // ---- Supabase 호출 ----
 
 // Postgres 오류 코드. 클라이언트가 상황을 구분해 안내하려면 필요하다.
