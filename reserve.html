@@ -47,16 +47,12 @@
   .res-day.res-disabled:hover { background: none; }
   .res-day.res-selected { background: #1F6D57; color: #fff; font-weight: 700; }
   .res-day.res-inrange { background: #EAF3EF; }
-  /* 집별 막대. 위에서부터 config.houses 순서다. */
-  .res-bars { display: flex; flex-direction: column; gap: 2px; width: 58%; }
-  .res-bar { height: 3px; border-radius: 2px; background: #7FB3A0; }
-  .res-bar.taken { background: #DCD9CE; }
-  .res-day.res-selected .res-bar { background: rgba(255,255,255,.85); }
-  .res-day.res-selected .res-bar.taken { background: rgba(255,255,255,.3); }
-  .legend { display: flex; justify-content: center; gap: 16px; font-size: 12px; color: #7A8177; }
-  .legend span { display: flex; align-items: center; gap: 5px; }
-  .swatch { display: inline-block; width: 14px; height: 4px; border-radius: 2px; background: #7FB3A0; }
-  .swatch.taken { background: #DCD9CE; }
+  /* 남은 자리 수. 집을 고르지 않으므로 A동·B동을 구분해 보일 이유가 없고,
+     한 칸에 막대 두 개보다 숫자 하나가 훨씬 읽기 쉽다. */
+  .seats { font-size: 11px; font-weight: 600; color: #1F6D57; }
+  .res-day.res-disabled .seats { color: #CFCDC4; font-weight: 400; }
+  .res-day.res-selected .seats { color: rgba(255,255,255,.9); }
+  .legend { font-size: 12px; color: #7A8177; text-align: center; line-height: 1.5; }
 
   /* ---- 선택 요약 ---- */
   .picked { padding: 14px 16px; border-radius: 12px; background: #EAF3EF; border: 1px solid #C5DDD4; font-size: 14px; line-height: 1.6; }
@@ -156,10 +152,6 @@
       <div class="legend" id="legend"></div>
       <p class="hint" id="calHint"></p>
       <div class="picked" id="pickedBox" hidden></div>
-      <div id="houseWrap" hidden>
-        <div class="frow-slabel">사용할 곳</div>
-        <div class="choice-row" id="houseRow"></div>
-      </div>
       <p class="warning" id="calWarn" hidden></p>
       <button type="button" class="btn btn-primary" id="toFormBtn" disabled>다음</button>
     </section>
@@ -220,7 +212,6 @@ let calYear = 0;
 let calMonth = 0;            // 0-11
 let pickStart = '';
 let pickEnd = '';
-let pickHouse = '';
 
 const MY_KEY = 'guesthouse-my-reservation';
 const SAVE_KEY = 'guesthouse-form'; // 기존 화면과 같은 키를 써서 저장값을 공유한다
@@ -267,9 +258,12 @@ function houseLabel(id) {
   return h ? h.label : id;
 }
 
-function pickedSummary() {
+// house를 넘기면 집을 붙이고, 안 넘기면 날짜만 나온다.
+// 신청 단계에서는 배정을 알리지 않으므로 인자 없이 부른다.
+function pickedSummary(house) {
   const nights = countNights(pickStart, pickEnd);
-  return `<strong>${houseLabel(pickHouse)}</strong> · ${humanDate(pickStart)} ~ ${humanDate(pickEnd)} · ${nights}박`;
+  const where = house ? `<strong>${houseLabel(house)}</strong> · ` : '';
+  return `${where}${humanDate(pickStart)} ~ ${humanDate(pickEnd)} · ${nights}박`;
 }
 
 // ---- 화면 전환 ----
@@ -315,17 +309,12 @@ function renderCalendar() {
     if (dow === 6) btn.classList.add('res-sat');
     btn.appendChild(el('span', null, { textContent: String(d) }));
 
-    const bars = el('div', 'res-bars');
-    const status = nightStatus(config.houses, bookedMap, key);
-    for (const s of status) {
-      const bar = el('div', `res-bar${s.free ? '' : ' taken'}`);
-      bar.title = `${s.label} ${s.free ? '빈자리' : '예약됨'}`;
-      bars.appendChild(bar);
-    }
-    btn.appendChild(bars);
+    // 집을 고르지 않으므로 어느 집이 비었는지는 알리지 않고 개수만 보여준다.
+    const free = nightStatus(config.houses, bookedMap, key).filter((s) => s.free).length;
+    btn.appendChild(el('span', 'seats', { textContent: free > 0 ? `${free}자리` : '만실' }));
 
     const outOfRange = (min && date < min) || (max && date > max);
-    const allTaken = status.every((s) => !s.free);
+    const allTaken = free === 0;
     if (outOfRange || allTaken) {
       btn.classList.add('res-disabled');
       btn.disabled = true;
@@ -359,18 +348,14 @@ function pickDate(key) {
   }
 
   renderCalendar();
-  renderHousePick();
+  renderPicked();
 }
 
-function renderHousePick() {
-  const wrap = $('houseWrap');
-  const row = $('houseRow');
+function renderPicked() {
   const box = $('pickedBox');
 
   if (!pickStart) {
     box.hidden = true;
-    wrap.hidden = true;
-    pickHouse = '';
     $('toFormBtn').disabled = true;
     $('calHint').textContent = '입실일을 누르고, 이어서 퇴실일을 누르세요.';
     return;
@@ -379,8 +364,6 @@ function renderHousePick() {
   if (!pickEnd) {
     box.hidden = false;
     box.innerHTML = `입실 <strong>${humanDate(pickStart)}</strong> · 퇴실일을 선택하세요`;
-    wrap.hidden = true;
-    pickHouse = '';
     $('toFormBtn').disabled = true;
     $('calHint').textContent = `퇴실일을 누르세요. ${config.stay.minNights}~${config.stay.maxNights}박까지 됩니다.`;
     return;
@@ -391,29 +374,14 @@ function renderHousePick() {
   box.innerHTML = `${humanDate(pickStart)} ~ ${humanDate(pickEnd)} · <strong>${nights}박</strong>`;
   $('calHint').textContent = '';
 
-  const options = availableHouses(config.houses, bookedMap, pickStart, pickEnd);
-  row.textContent = '';
-
-  if (options.length === 0) {
-    wrap.hidden = true;
-    pickHouse = '';
+  // 빈 곳이 하나도 없으면 다음으로 넘어갈 수 없다. 어느 집인지는 알리지 않는다.
+  const free = availableHouses(config.houses, bookedMap, pickStart, pickEnd);
+  if (free.length === 0) {
     $('toFormBtn').disabled = true;
     $('calWarn').textContent = '고르신 기간에 빈 곳이 없습니다. 다른 날짜를 선택해 주세요.';
     $('calWarn').hidden = false;
     return;
   }
-
-  // 한 곳만 비었으면 자동으로 고른다. 단계를 하나 줄인다.
-  if (!options.some((h) => h.id === pickHouse)) pickHouse = options[0].id;
-
-  for (const house of options) {
-    const btn = el('button', `choice-btn${house.id === pickHouse ? ' active' : ''}`, {
-      type: 'button', textContent: house.label,
-    });
-    btn.addEventListener('click', () => { pickHouse = house.id; renderHousePick(); });
-    row.appendChild(btn);
-  }
-  wrap.hidden = false;
   $('toFormBtn').disabled = false;
 }
 
@@ -422,7 +390,7 @@ function refreshCalendar() {
     .then((rows) => {
       bookedMap = bookedNights(rows);
       renderCalendar();
-      renderHousePick();
+      renderPicked();
     })
     .catch(() => {
       showToast('예약 현황을 불러오지 못했습니다. 새로고침해 주세요.');
@@ -622,13 +590,22 @@ function submit() {
   }
   $('formWarn').hidden = true;
 
+  // 클라이언트가 아는 빈 집 목록은 마지막으로 달력을 읽은 시점의 것이라
+  // 이미 낡았을 수 있다. 그 간극은 아래 재시도와 DB 제약이 함께 메운다.
+  const candidates = availableHouses(config.houses, bookedMap, pickStart, pickEnd).map((h) => h.id);
+  if (candidates.length === 0) {
+    $('formWarn').textContent = '고르신 기간에 빈 곳이 없습니다. 날짜를 다시 골라 주세요.';
+    $('formWarn').hidden = false;
+    refreshCalendar();
+    return;
+  }
+
   const v = readForm();
   const secret = makeSecret();
   const unitField = reserveFields().find((f) => f.input === 'unit');
   const peopleField = reserveFields().find((f) => f.input === 'choice');
 
-  const row = {
-    house: pickHouse,
+  const base = {
     check_in: pickStart,
     check_out: pickEnd,
     name: v.name || '',
@@ -642,29 +619,40 @@ function submit() {
   };
 
   $('submitBtn').disabled = true;
-  submitReservation(config.reservation, row)
+  tryHouses(candidates, base, secret)
+    .finally(() => { $('submitBtn').disabled = false; });
+}
+
+// 후보를 순서대로 시도한다. 한 번만 시도하면, 두 사람이 거의 동시에 신청할 때
+// 뒤에 온 사람이 다른 집이 비어 있는데도 거절당한다.
+function tryHouses(candidates, base, secret) {
+  if (candidates.length === 0) {
+    $('formWarn').textContent = '방금 다른 분이 예약했습니다. 날짜를 다시 골라 주세요.';
+    $('formWarn').hidden = false;
+    return refreshCalendar();
+  }
+
+  const [house, ...rest] = candidates;
+  return submitReservation(config.reservation, { ...base, house })
     .then(() => {
       try { localStorage.setItem(MY_KEY, JSON.stringify({ secret })); } catch { /* 저장 막힌 환경 */ }
+      // 완료 화면에서는 배정된 집을 알리지 않는다. 확정 뒤에 '내 신청'에서 본다.
       $('donePicked').innerHTML = pickedSummary();
       showStep(3);
-      pickStart = ''; pickEnd = ''; pickHouse = '';
-      return refreshCalendar().then(renderMine);
+      pickStart = ''; pickEnd = '';
+      return refreshCalendar().then(() => { renderPicked(); return renderMine(); });
     })
     .catch((err) => {
-      if (err.code === CONFLICT_OVERLAP) {
-        $('formWarn').textContent = '방금 다른 분이 예약했습니다. 날짜를 다시 골라 주세요.';
-        $('formWarn').hidden = false;
-        refreshCalendar();
-      } else if (err.code === CONFLICT_DUPLICATE) {
+      if (err.code === CONFLICT_OVERLAP) return tryHouses(rest, base, secret);
+      if (err.code === CONFLICT_DUPLICATE) {
         $('formWarn').textContent = '이미 확인 대기 중인 신청이 있습니다. 위에서 확인하실 수 있습니다.';
         $('formWarn').hidden = false;
-        renderMine();
-      } else {
-        $('formWarn').textContent = `신청하지 못했습니다: ${err.message}`;
-        $('formWarn').hidden = false;
+        return renderMine();
       }
-    })
-    .finally(() => { $('submitBtn').disabled = false; });
+      $('formWarn').textContent = `신청하지 못했습니다: ${err.message}`;
+      $('formWarn').hidden = false;
+      return null;
+    });
 }
 
 // ---- 내 신청 ----
@@ -682,10 +670,13 @@ function renderMine() {
       if (!row || row.status === 'cancelled') { $('mineCard').hidden = true; return; }
       const label = { pending: '확인 대기 중', confirmed: '확정되었습니다' }[row.status] || row.status;
       const nights = countNights(row.check_in, row.check_out);
+      // 대기 중에 집을 보여주면 관리사무소가 나중에 바꿨을 때 주민이 혼란스럽다.
+      // 확정된 뒤에는 어디로 가야 할지 알아야 하므로 반드시 보여준다.
+      const where = row.status === 'confirmed' ? `${houseLabel(row.house)} · ` : '';
       $('mineBox').className = `mine${row.status === 'confirmed' ? ' confirmed' : ''}`;
       $('mineBox').innerHTML =
         `<strong>내 신청 · ${label}</strong><br>`
-        + `${houseLabel(row.house)} · ${humanDate(row.check_in)} ~ ${humanDate(row.check_out)} · ${nights}박 · `
+        + `${where}${humanDate(row.check_in)} ~ ${humanDate(row.check_out)} · ${nights}박 · `
         + `${row.amount.toLocaleString('ko-KR')}원`;
       $('cancelBtn').hidden = row.status !== 'pending';
       $('mineCard').hidden = false;
@@ -751,7 +742,7 @@ $('backBtn').addEventListener('click', () => showStep(1));
 
 $('restartBtn').addEventListener('click', () => {
   $('formWarn').hidden = true;
-  renderHousePick();
+  renderPicked();
   showStep(1);
 });
 
@@ -769,12 +760,9 @@ $('nextBtn').addEventListener('click', () => {
 // ---- 부팅 ----
 
 function renderLegend() {
-  const host = $('legend');
-  host.textContent = '';
-  host.appendChild(el('span', null, { innerHTML: '<i class="swatch"></i> 빈자리' }));
-  host.appendChild(el('span', null, { innerHTML: '<i class="swatch taken"></i> 예약됨' }));
-  const names = config.houses.map((h) => h.label).join(' / ');
-  host.appendChild(el('span', null, { textContent: `위에서부터 ${names}` }));
+  // 집을 고르지 않으므로 색 견본 대신 숫자의 뜻만 알려준다.
+  $('legend').textContent =
+    `숫자는 그날 예약할 수 있는 자리 수입니다. 전체 ${config.houses.length}자리.`;
 }
 
 function boot(loaded) {
@@ -798,7 +786,7 @@ function boot(loaded) {
 
   renderLegend();
   renderCalendar();
-  renderHousePick();
+  renderPicked();
   showStep(1);
 
   refreshCalendar().then(renderMine);
