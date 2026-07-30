@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>게스트하우스 예약 관리</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; background: #F5F4F0; color: #1E251E; }
+  .wrap { min-height: 100vh; display: flex; justify-content: center; padding: 28px 16px 64px; }
+  .inner { width: 100%; max-width: 620px; }
+  .eyebrow { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: .02em; color: #7A8177; margin-bottom: 6px; }
+  h1 { text-align: center; margin: 0 0 20px; font-size: 24px; font-weight: 700; letter-spacing: -.01em; }
+  h2 { font-size: 15px; font-weight: 700; margin: 0 0 12px; color: #3C443B; }
+  .card { background: #fff; border-radius: 20px; border: 1px solid #E8E6DE; box-shadow: 0 1px 3px rgba(30,37,30,.04); padding: 22px; margin-bottom: 16px; }
+  .card[hidden] { display: none; }
+  label { font-size: 13px; font-weight: 600; color: #3C443B; display: block; margin-bottom: 5px; }
+  input[type="email"], input[type="password"] {
+    height: 46px; width: 100%; border-radius: 10px; border: 1px solid #DDDBD2; padding: 0 12px;
+    font-size: 16px; font-family: inherit; color: #1E251E; background: #fff;
+  }
+  .field { margin-bottom: 14px; }
+  .hint { font-size: 13px; color: #7A8177; margin: 6px 0 0; line-height: 1.6; }
+  .btn { height: 48px; padding: 0 18px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; border: none; }
+  .btn-primary { background: #1F6D57; color: #fff; }
+  .btn-primary:hover { background: #195C49; }
+  .btn-secondary { background: #fff; color: #3C443B; border: 1px solid #D8D6CD; }
+  .btn-secondary:hover { background: #F5F4F0; }
+  .btn-danger { background: #fff; color: #B5473A; border: 1px solid #E4C9C4; }
+  .btn-danger:hover { background: #FDF5F4; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-full { width: 100%; }
+  .btn-row { display: flex; gap: 10px; }
+  .btn-row .btn { flex: 1; }
+
+  /* ---- 예약 카드 ---- */
+  .res { border: 1px solid #E2E0D8; border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+  .res.pending { border-color: #EBD3AE; background: #FEFBF6; }
+  .res-when { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .res-who { font-size: 15px; color: #3C443B; margin-bottom: 2px; }
+  .res-phone { font-size: 15px; color: #3C443B; }
+  .res-phone a { color: #1F6D57; }
+  .res-money { font-size: 20px; font-weight: 700; margin: 10px 0 0; }
+  .res-mismatch { color: #C0392B; font-size: 13px; font-weight: 700; margin-top: 4px; line-height: 1.5; }
+  .res-actions { display: flex; gap: 8px; margin-top: 14px; }
+  .res-actions .btn { flex: 1; height: 46px; }
+  .empty { font-size: 14px; color: #9A9F92; text-align: center; padding: 20px 0; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 16px; }
+  .toolbar .btn { flex: 1; height: 42px; font-size: 14px; }
+
+  /* ---- 신청서 미리보기 ---- */
+  .sheet-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .sheet-overlay[hidden] { display: none; }
+  .sheet-backdrop { position: absolute; inset: 0; background: rgba(30,37,30,.72); }
+  .sheet-content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 100%; max-height: 100%; }
+  .sheet-content canvas { max-width: 92vw; max-height: 74vh; width: auto; height: auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.35); background: #fff; }
+  .sheet-actions { display: flex; gap: 10px; }
+  .sheet-actions .btn { min-width: 120px; }
+
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; text-align: center; z-index: 200; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="inner">
+    <div class="eyebrow">관리사무소</div>
+    <h1>게스트하우스 예약</h1>
+
+    <section class="card" id="offCard" hidden>
+      <p class="hint" id="offText"></p>
+    </section>
+
+    <section class="card" id="loginCard" hidden>
+      <h2>로그인</h2>
+      <div class="field"><label for="email">이메일</label><input type="email" id="email" autocomplete="username"></div>
+      <div class="field"><label for="password">비밀번호</label><input type="password" id="password" autocomplete="current-password"></div>
+      <button type="button" class="btn btn-primary btn-full" id="loginBtn">로그인</button>
+      <p class="hint" id="loginMsg"></p>
+    </section>
+
+    <section id="listArea" hidden>
+      <div class="toolbar">
+        <button type="button" class="btn btn-secondary" id="reloadBtn">새로고침</button>
+        <button type="button" class="btn btn-secondary" id="logoutBtn">로그아웃</button>
+      </div>
+
+      <div class="card">
+        <h2 id="pendingTitle">확인 필요</h2>
+        <div id="pendingList"></div>
+      </div>
+
+      <div class="card">
+        <h2>확정된 예약</h2>
+        <div id="confirmedList"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="sheetOverlay" hidden>
+  <div class="sheet-backdrop" id="sheetBackdrop"></div>
+  <div class="sheet-content">
+    <canvas id="sheetCanvas"></canvas>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-primary" id="sheetSave">이미지 저장</button>
+      <button type="button" class="btn btn-secondary" id="sheetClose">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { countNights, calcAmount } from './calc.js';
+import { DEFAULT_CONFIG, clone, loadConfig, printedCells, rectToPoint } from './config.js';
+import { signIn, listReservations, setStatus } from './reservations.js';
+
+const $ = (id) => document.getElementById(id);
+
+const TOKEN_KEY = 'guesthouse-staff-token';
+
+let config = clone(DEFAULT_CONFIG);
+let accessToken = '';
+try { accessToken = localStorage.getItem(TOKEN_KEY) || ''; } catch { accessToken = ''; }
+
+let toastTimer;
+function showToast(msg) {
+  const toast = $('toast');
+  clearTimeout(toastTimer);
+  toast.textContent = msg;
+  toast.classList.add('show');
+  const ms = Math.min(8000, Math.max(2600, msg.length * 110));
+  toastTimer = setTimeout(() => toast.classList.remove('show'), ms);
+}
+
+function el(tag, className, props) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  Object.assign(node, props || {});
+  return node;
+}
+
+function houseLabel(id) {
+  const h = config.houses.find((x) => x.id === id);
+  return h ? h.label : id;
+}
+
+// 'YYYY-MM-DD' -> 'M월 D일'
+function humanDate(s) {
+  if (!s) return '';
+  const [, m, d] = s.split('-').map(Number);
+  return `${m}월 ${d}일`;
+}
+
+// 'YYYY-MM-DD' -> 'YYYY.M.D'. 서식 칸이 좁아 앞자리 0을 뗀다.
+function compactDate(s) {
+  if (!s) return '';
+  const [y, m, d] = s.split('-').map(Number);
+  return `${y}.${m}.${d}`;
+}
+
+// 입실일·퇴실일로 사용기간 문자열. 연도는 앞에 한 번만 쓰고 월·일의 앞자리 0은 뗀다.
+function shortDate(checkIn, checkOut) {
+  if (!checkIn || !checkOut) return '';
+  const [y1, m1, d1] = checkIn.split('-').map(Number);
+  const [y2, m2, d2] = checkOut.split('-').map(Number);
+  const end = y1 === y2 ? `${m2}.${d2}` : `${y2}.${m2}.${d2}`;
+  return `${y1}.${m1}.${d1} ~ ${end}`;
+}
+
+// ---- 로그인 ----
+
+function showLogin(msg) {
+  $('listArea').hidden = true;
+  $('loginCard').hidden = false;
+  if (msg) $('loginMsg').textContent = msg;
+}
+
+function showList() {
+  $('loginCard').hidden = true;
+  $('listArea').hidden = false;
+  loadList();
+}
+
+function logout() {
+  accessToken = '';
+  try { localStorage.removeItem(TOKEN_KEY); } catch { /* 저장 막힌 환경 */ }
+  $('email').value = '';
+  $('password').value = '';
+  showLogin('');
+}
+
+$('loginBtn').addEventListener('click', () => {
+  const email = $('email').value.trim();
+  const password = $('password').value;
+  if (!email || !password) { $('loginMsg').textContent = '이메일과 비밀번호를 입력해 주세요.'; return; }
+
+  $('loginBtn').disabled = true;
+  $('loginMsg').textContent = '';
+  signIn(config.reservation, email, password)
+    .then((session) => {
+      accessToken = session.access_token;
+      try { localStorage.setItem(TOKEN_KEY, accessToken); } catch { /* 저장 막힌 환경 */ }
+      showList();
+    })
+    .catch(() => { $('loginMsg').textContent = '이메일 또는 비밀번호가 맞지 않습니다.'; })
+    .finally(() => { $('loginBtn').disabled = false; });
+});
+
+$('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('loginBtn').click(); });
+$('logoutBtn').addEventListener('click', logout);
+$('reloadBtn').addEventListener('click', () => loadList());
+
+// ---- 목록 ----
+
+function renderRow(row, host) {
+  const box = el('div', `res${row.status === 'pending' ? ' pending' : ''}`);
+  const nights = countNights(row.check_in, row.check_out);
+
+  box.appendChild(el('div', 'res-when', {
+    textContent: `${houseLabel(row.house)} · ${humanDate(row.check_in)} ~ ${humanDate(row.check_out)} · ${nights}박 · ${row.people}명`,
+  }));
+  box.appendChild(el('div', 'res-who', {
+    textContent: `${row.name} · ${row.unit_dong}동 ${row.unit_ho}호`,
+  }));
+
+  const phone = el('div', 'res-phone');
+  phone.appendChild(el('a', null, { href: `tel:${row.phone}`, textContent: row.phone }));
+  box.appendChild(phone);
+
+  box.appendChild(el('div', 'res-money', { textContent: `${row.amount.toLocaleString('ko-KR')}원` }));
+
+  // 저장된 금액은 주민 브라우저가 보낸 값이라 신뢰하지 않는다. 다시 계산해 대조한다.
+  const expected = calcAmount(
+    { checkIn: row.check_in, checkOut: row.check_out, people: row.people, holiday: false },
+    { pricing: config.pricing }
+  );
+  if (row.amount !== expected) {
+    box.appendChild(el('div', 'res-mismatch', {
+      textContent: `요금표로 계산하면 ${expected.toLocaleString('ko-KR')}원입니다. 확인이 필요합니다.`
+        + ' (공휴일 요금이 반영된 금액일 수 있습니다)',
+    }));
+  }
+
+  const actions = el('div', 'res-actions');
+  actions.appendChild(makeBtn('신청서', 'btn btn-secondary', () => openSheet(row)));
+  if (row.status === 'pending') {
+    actions.appendChild(makeBtn('확정', 'btn btn-primary', () => change(row, 'confirmed', '확정')));
+    actions.appendChild(makeBtn('취소', 'btn btn-danger', () => change(row, 'cancelled', '취소')));
+  } else {
+    actions.appendChild(makeBtn('예약 취소', 'btn btn-danger', () => change(row, 'cancelled', '취소')));
+  }
+  box.appendChild(actions);
+
+  host.appendChild(box);
+}
+
+function makeBtn(text, className, onClick) {
+  const btn = el('button', className, { type: 'button', textContent: text });
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function change(row, status, label) {
+  const who = `${row.name} (${row.unit_dong}동 ${row.unit_ho}호)`;
+  if (!confirm(`${who}\n${humanDate(row.check_in)} ~ ${humanDate(row.check_out)}\n\n이 예약을 ${label}할까요?`)) return;
+
+  setStatus(config.reservation, accessToken, row.id, status)
+    .then(() => { showToast(`${label}했습니다.`); return loadList(); })
+    .catch((err) => {
+      if (err.status === 401) { logout(); showLogin('다시 로그인해 주세요.'); return; }
+      showToast(`처리하지 못했습니다: ${err.message}`);
+    });
+}
+
+function loadList() {
+  return listReservations(config.reservation, accessToken)
+    .then((rows) => {
+      const pending = rows.filter((r) => r.status === 'pending');
+      const confirmed = rows.filter((r) => r.status === 'confirmed');
+
+      $('pendingTitle').textContent = `확인 필요 (${pending.length}건)`;
+
+      const p = $('pendingList');
+      p.textContent = '';
+      if (pending.length === 0) p.appendChild(el('div', 'empty', { textContent: '확인할 신청이 없습니다.' }));
+      pending.forEach((r) => renderRow(r, p));
+
+      const c = $('confirmedList');
+      c.textContent = '';
+      if (confirmed.length === 0) c.appendChild(el('div', 'empty', { textContent: '확정된 예약이 없습니다.' }));
+      confirmed.forEach((r) => renderRow(r, c));
+    })
+    .catch((err) => {
+      // 토큰이 만료되면 다시 로그인해야 한다.
+      if (err.status === 401 || err.status === 403) { logout(); showLogin('다시 로그인해 주세요.'); return; }
+      showToast(`목록을 불러오지 못했습니다: ${err.message}`);
+    });
+}
+
+// ---- 신청서 출력 ----
+// 좌표는 config.fields[].rect에서 나오므로 index.html과 같은 자리에 찍힌다.
+
+const sheetCanvas = $('sheetCanvas');
+const sheetCtx = sheetCanvas.getContext('2d');
+let formImage = null;
+let currentRow = null;
+
+function loadFormImage() {
+  if (formImage) return Promise.resolve(formImage);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { formImage = img; resolve(img); };
+    img.onerror = () => reject(new Error('서식 이미지를 불러오지 못했습니다.'));
+    img.src = config.form.image;
+  });
+}
+
+// 예약 한 건을 서식 칸에 들어갈 문자열로 바꾼다.
+function sheetValues(row) {
+  const nights = countNights(row.check_in, row.check_out);
+  const today = new Date();
+  const applyDate = `${today.getFullYear()}.${today.getMonth() + 1}.${today.getDate()}`;
+
+  const out = {};
+  for (const field of printedCells(config)) {
+    switch (field.id) {
+      case 'applyDate': out[field.id] = applyDate; break;
+      case 'name': out[field.id] = row.name; break;
+      case 'unit': out[field.id] = `${row.unit_dong}동 ${row.unit_ho}호`; break;
+      case 'phone': out[field.id] = row.phone; break;
+      case 'period': out[field.id] = shortDate(row.check_in, row.check_out); break;
+      case 'nights': out[field.id] = nights ? `${nights}일` : ''; break;
+      case 'amount': out[field.id] = `${row.amount.toLocaleString('ko-KR')}원`; break;
+      case 'people': out[field.id] = `${row.people}명`; break;
+      // 은행입금일은 입금 확인 후 관리사무소가 손으로 적는다.
+      default: out[field.id] = '';
+    }
+  }
+  return out;
+}
+
+function drawSheet(row) {
+  const { width, height } = config.form;
+  sheetCanvas.width = width;
+  sheetCanvas.height = height;
+
+  sheetCtx.clearRect(0, 0, width, height);
+  sheetCtx.drawImage(formImage, 0, 0, width, height);
+  sheetCtx.fillStyle = '#000';
+  sheetCtx.textAlign = 'center';
+  sheetCtx.textBaseline = 'middle';
+
+  const text = sheetValues(row);
+  for (const field of printedCells(config)) {
+    const value = text[field.id];
+    if (!value) continue;
+    const pos = rectToPoint(field.rect);
+
+    // 칸을 넘치면 들어갈 때까지 폰트를 줄인다.
+    let size = 14;
+    const font = (s) => `${s}px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`;
+    sheetCtx.font = font(size);
+    while (sheetCtx.measureText(value).width > pos.maxWidth && size > 8) {
+      size -= 1;
+      sheetCtx.font = font(size);
+    }
+    sheetCtx.fillText(value, pos.x, pos.y);
+  }
+}
+
+function openSheet(row) {
+  loadFormImage()
+    .then(() => {
+      currentRow = row;
+      drawSheet(row);
+      $('sheetOverlay').hidden = false;
+    })
+    .catch((err) => showToast(err.message));
+}
+
+function closeSheet() { $('sheetOverlay').hidden = true; }
+
+$('sheetBackdrop').addEventListener('click', closeSheet);
+$('sheetClose').addEventListener('click', closeSheet);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('sheetOverlay').hidden) closeSheet();
+});
+
+$('sheetSave').addEventListener('click', () => {
+  if (!currentRow) return;
+  const stamp = currentRow.check_in.replace(/-/g, '');
+  const name = `게스트하우스신청서_${currentRow.unit_dong}동${currentRow.unit_ho}호_${stamp}.jpg`;
+
+  sheetCanvas.toBlob((blob) => {
+    if (!blob) { showToast('이미지를 만들지 못했습니다.'); return; }
+    const file = new File([blob], name, { type: 'image/jpeg' });
+
+    // 폰에서는 <a download>로 사진함에 저장되지 않는다. 공유 시트를 연다.
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: '게스트하우스 신청서' }).catch((err) => {
+        if (err && err.name === 'AbortError') return;
+        showToast('저장하지 못했습니다. 다시 시도해 주세요.');
+      });
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    // 클릭 직후 해제하면 일부 브라우저가 비동기 다운로드 중에 실패한다.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('저장했습니다.');
+  }, 'image/jpeg', 0.92);
+});
+
+// ---- 부팅 ----
+
+loadConfig().then((loaded) => {
+  config = loaded;
+
+  if (!config.reservation.enabled) {
+    $('offText').innerHTML =
+      '예약 기능이 꺼져 있습니다.<br>관리자 설정 화면에서 켜 주세요.';
+    $('offCard').hidden = false;
+    return;
+  }
+
+  if (accessToken) showList(); else showLogin('');
+});
+</script>
+</body>
+</html>
