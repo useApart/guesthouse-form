@@ -146,7 +146,11 @@ alter table reservations add constraint no_overlap
 
 ```sql
 create or replace function check_pending_limit()
-returns trigger language plpgsql as $$
+returns trigger
+language plpgsql
+security definer            -- anon은 reservations를 읽을 수 없다. 없으면 신청이 전부 401
+set search_path = public
+as $$
 declare cnt int;
 begin
   if new.status <> 'pending' then return new; end if;

@@ -91,8 +91,15 @@ alter table reservations add constraint no_overlap
 
 -- 한 세대가 달력을 도배하지 못하게 대기 신청을 3건으로 제한한다.
 -- 개수 제한은 유니크 인덱스로 표현할 수 없어 트리거를 쓴다.
+-- security definer가 반드시 필요하다. anon에게는 INSERT만 주고 SELECT는 주지 않으므로
+-- 이 트리거의 count(*)가 호출자 권한으로 돌면 신청이 전부
+-- 401 "permission denied for table reservations"로 실패한다.
 create or replace function check_pending_limit()
-returns trigger language plpgsql as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = public   -- security definer 함수는 search_path를 고정한다
+as $$
 declare cnt int;
 begin
   -- 확정·취소로 바뀌는 것은 막지 않는다. 대기로 들어오는 건만 센다.
