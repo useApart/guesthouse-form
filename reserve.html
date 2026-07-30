@@ -175,7 +175,7 @@
       <div class="picked" id="formPicked"></div>
       <div class="field-list" id="fieldList"></div>
       <div class="amount-box">
-        <span class="label">사용금액</span>
+        <span class="label">예상 금액</span>
         <span class="value" id="amountText">0원</span>
       </div>
       <p class="hint">
@@ -194,14 +194,11 @@
       <div class="done-mark">✓</div>
       <div class="done-text">신청이 접수되었습니다<br>관리사무소 확인 후 확정됩니다</div>
       <div class="picked" id="donePicked"></div>
-      <div class="account">
-        <div>
-          <div class="num" id="accountNumber"></div>
-          <div class="name" id="accountHolder"></div>
-        </div>
-        <button type="button" class="copy-btn" id="copyBtn">계좌번호 복사</button>
-      </div>
-      <p class="hint">입금이 확인되면 확정됩니다. 이 화면을 다시 열면 진행 상태를 볼 수 있습니다.</p>
+      <p class="hint">
+        금액은 관리사무소 확인 후 확정됩니다.
+        확정되면 계좌를 알려드리니 <strong>그때 입금해 주세요.</strong>
+        이 화면을 다시 열면 '내 신청'에서 진행 상태를 볼 수 있습니다.
+      </p>
       <button type="button" class="btn btn-secondary" id="restartBtn">처음으로</button>
     </section>
   </div>
@@ -651,7 +648,8 @@ function tryHouses(candidates, base, secret) {
       // secret은 getSecret()이 이미 저장했다. 여기서 다시 쓰면 안 된다 —
       // 그것이 이전 신청을 잠기게 하던 원인이었다.
       // 완료 화면에서는 배정된 집을 알리지 않는다. 확정 뒤에 '내 신청'에서 본다.
-      $('donePicked').innerHTML = pickedSummary();
+      $('donePicked').innerHTML =
+        `${pickedSummary()}<br>예상 금액 <strong>${base.amount.toLocaleString('ko-KR')}원</strong>`;
       showStep(3);
       pickStart = ''; pickEnd = '';
       return refreshCalendar().then(() => { renderPicked(); return renderMine(); });

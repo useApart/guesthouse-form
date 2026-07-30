@@ -451,11 +451,7 @@ fix: 한 기기의 신청 여러 건을 모두 보고 취소할 수 있게 수�
         `${pickedSummary()}<br>예상 금액 <strong>${base.amount.toLocaleString('ko-KR')}원</strong>`;
 ```
 
-- [ ] **Step 4: `pickedSummary`의 닫는 태그를 고친다**
-
-`reserve.html:265`가 `<\strong>`으로 닫혀 있어 태그가 안 닫힌다. `</strong>`로 고친다.
-
-- [ ] **Step 5: 확인**
+- [ ] **Step 4: 확인**
 
 Run: `node --test` → 실패 0
 
@@ -466,7 +462,7 @@ Run: `node --test` → 실패 0
 3. `manage.html`에서 공휴일 토글 → 금액이 40,000원으로 바뀐다
 4. 확정 → 주민 '내 신청'에 확정 금액과 계좌가 나타난다
 
-- [ ] **Step 6: 커밋**
+- [ ] **Step 5: 커밋**
 
 ```
 feat: 계좌를 확정 뒤에 보여주고 신청 금액을 '예상 금액'으로 표기
