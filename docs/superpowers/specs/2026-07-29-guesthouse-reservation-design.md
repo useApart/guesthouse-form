@@ -165,7 +165,18 @@ create view public_calendar as
 
 grant select on public_calendar to anon, authenticated;
 revoke all on reservations from anon;
+grant insert on reservations to anon;
+grant all on reservations to authenticated;
 ```
+
+**RLS 정책만으로는 부족하다.** PostgreSQL에서 행 수준 보안은 일반 권한에 *더해서*
+적용된다. 정책이 "이 행은 넣어도 된다"고 해도 테이블에 `INSERT` 권한이 없으면
+`permission denied`가 난다. Supabase 예제에서 정책만 보이는 것은 프로젝트 기본값이
+`anon`·`authenticated`에게 권한을 미리 깔아두기 때문이다. 프로젝트 생성 시
+"Automatically expose new tables"를 끄면 직접 줘야 한다.
+
+`anon`에게 준 것은 `insert` 하나뿐이고 `select`가 없다. 그래서 신청은 넣을 수 있어도
+남의 예약을 읽을 수 없다.
 
 주민 페이지의 익명 키로는 `reservations` 테이블을 **아예 조회할 수 없고** 이 뷰만 읽힌다.
 이름·연락처는 나갈 경로가 없다.
