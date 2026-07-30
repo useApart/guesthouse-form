@@ -200,7 +200,7 @@ import { countNights, calcAmount } from './calc.js';
 import { DEFAULT_CONFIG, clone, loadConfig, formFields, domIds } from './config.js';
 import {
   fetchCalendar, bookedNights, nightStatus, availableHouses, toDateStr,
-  makeSecret, submitReservation, myReservation, cancelReservation,
+  makeSecret, submitReservation, myReservations, cancelReservation,
   CONFLICT_OVERLAP, CONFLICT_DUPLICATE,
 } from './reservations.js';
 
@@ -666,8 +666,9 @@ function renderMine() {
   const mine = loadMine();
   if (!mine || !mine.secret) { $('mineCard').hidden = true; return Promise.resolve(); }
 
-  return myReservation(config.reservation, mine.secret)
-    .then((row) => {
+  return myReservations(config.reservation, mine.secret)
+    .then((rows) => {
+      const row = rows[0];
       if (!row || row.status === 'cancelled') { $('mineCard').hidden = true; return; }
       const label = { pending: '확인 대기 중', confirmed: '확정되었습니다' }[row.status] || row.status;
       const nights = countNights(row.check_in, row.check_out);
@@ -689,8 +690,8 @@ $('cancelBtn').addEventListener('click', () => {
   const mine = loadMine();
   if (!mine || !confirm('신청을 취소할까요?')) return;
   $('cancelBtn').disabled = true;
-  myReservation(config.reservation, mine.secret)
-    .then((row) => (row ? cancelReservation(config.reservation, row.id, mine.secret) : false))
+  myReservations(config.reservation, mine.secret)
+    .then((rows) => (rows[0] ? cancelReservation(config.reservation, rows[0].id, mine.secret) : false))
     .then((ok) => {
       showToast(ok ? '취소했습니다.' : '취소하지 못했습니다. 확정된 예약은 관리사무소에 문의해 주세요.');
       return refreshCalendar();

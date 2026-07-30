@@ -216,14 +216,21 @@ export function submitReservation(reservation, row) {
   });
 }
 
+// PostgREST가 결과를 배열로 준다. 비어 있으면 null일 수도 있어 한 곳에서 정리한다.
+export function pickRows(body) {
+  return Array.isArray(body) ? body : [];
+}
+
 // 익명 키는 테이블을 못 읽으므로 함수로만 조회한다. 삽입 결과에서 id를 받을 수
 // 없어 secret만으로 찾는다(p_id는 null을 넘긴다).
-export function myReservation(reservation, secret) {
+// 한 기기의 신청은 모두 같은 secret을 쓰므로 여러 건이 돌아온다. 예전에는
+// rows[0]만 써서 두 번째 신청부터 주민 화면에서 사라졌다.
+export function myReservations(reservation, secret) {
   return request(reservation, {
     path: '/rest/v1/rpc/my_reservation',
     method: 'POST',
     body: { p_id: null, p_secret: secret },
-  }).then((rows) => (Array.isArray(rows) && rows.length ? rows[0] : null));
+  }).then(pickRows);
 }
 
 export function cancelReservation(reservation, id, secret) {
@@ -251,24 +258,23 @@ export function listReservations(reservation, accessToken) {
   }).then((rows) => rows || []);
 }
 
-export function setStatus(reservation, accessToken, id, status) {
+// 관리사무소가 예약의 일부 칸을 고친다. 배정을 옮길 때 옮기려는 집이 그 기간에
+// 이미 차 있으면 DB의 no_overlap 제약이 23P01로 거부한다 — 이중 배정을
+// 코드가 아니라 DB가 막는다.
+export function patchReservation(reservation, accessToken, id, patch) {
   return request(reservation, {
     path: `/rest/v1/reservations?id=eq.${encodeURIComponent(id)}`,
     method: 'PATCH',
-    body: { status },
+    body: patch,
     accessToken,
     minimal: true,
   });
 }
 
-// 관리사무소가 배정을 바꾼다. 옮기려는 집이 그 기간에 이미 차 있으면 DB의
-// no_overlap 제약이 23P01로 거부한다 — 이중 배정을 코드가 아니라 DB가 막는다.
+export function setStatus(reservation, accessToken, id, status) {
+  return patchReservation(reservation, accessToken, id, { status });
+}
+
 export function setHouse(reservation, accessToken, id, house) {
-  return request(reservation, {
-    path: `/rest/v1/reservations?id=eq.${encodeURIComponent(id)}`,
-    method: 'PATCH',
-    body: { house },
-    accessToken,
-    minimal: true,
-  });
+  return patchReservation(reservation, accessToken, id, { house });
 }

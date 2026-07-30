@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   occupiedNights, bookedNights, isHouseFree, availableHouses, nightStatus,
-  makeSecret, buildRequest,
+  makeSecret, buildRequest, pickRows,
   findByHousehold, findByName, summarize, monthGrid,
 } from './reservations.js';
 
@@ -139,6 +139,28 @@ test('로그인한 관리사무소는 자기 토큰으로 요청한다', () => {
   const { options } = buildRequest(REMOTE, { path: '/rest/v1/reservations', accessToken: 'staff-token' });
   assert.equal(options.headers.apikey, 'anon-key');        // apikey는 늘 익명 키
   assert.equal(options.headers.Authorization, 'Bearer staff-token');
+});
+
+test('부분 수정은 PATCH로 id를 지정해 보낸다', () => {
+  const { url, options } = buildRequest(REMOTE, {
+    path: '/rest/v1/reservations?id=eq.abc-123',
+    method: 'PATCH',
+    body: { status: 'confirmed', amount: 40000 },
+    accessToken: 'staff-token',
+    minimal: true,
+  });
+  assert.equal(url, 'https://demo.supabase.co/rest/v1/reservations?id=eq.abc-123');
+  assert.equal(options.method, 'PATCH');
+  assert.equal(options.headers.apikey, 'anon-key');
+  assert.equal(options.headers.Authorization, 'Bearer staff-token');
+  assert.equal(options.body, '{"status":"confirmed","amount":40000}');
+});
+
+test('빈 응답에서 내 신청 목록은 빈 배열이다', () => {
+  // rows[0]을 쓰다가 응답이 비면 undefined.status를 읽어 화면이 죽었다.
+  assert.deepEqual(pickRows(null), []);
+  assert.deepEqual(pickRows([]), []);
+  assert.deepEqual(pickRows([{ id: 'x' }, { id: 'y' }]), [{ id: 'x' }, { id: 'y' }]);
 });
 
 test('secret은 매번 다르고 충분히 길다', () => {
