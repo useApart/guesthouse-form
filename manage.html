@@ -47,6 +47,16 @@
   .res-actions .btn { flex: 1; height: 46px; }
   .empty { font-size: 14px; color: #9A9F92; text-align: center; padding: 20px 0; }
 
+  /* ---- 세대 이용 이력 ---- */
+  .res-history { margin-top: 12px; padding-top: 12px; border-top: 1px solid #F0EEE7; }
+  .res-history-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .res-history-sum { font-size: 14px; color: #3C443B; }
+  .res-history-sum strong { font-weight: 700; }
+  .res-history-toggle { border: none; background: none; color: #1F6D57; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 4px; }
+  .res-history-list { margin-top: 10px; font-size: 13px; color: #7A8177; line-height: 1.8; }
+  .res-history-list div { display: flex; justify-content: space-between; gap: 10px; }
+  .res-history-list .cancelled { text-decoration: line-through; color: #B9BDB4; }
+
   .toolbar { display: flex; gap: 8px; margin-bottom: 16px; }
   .toolbar .btn { flex: 1; height: 42px; font-size: 14px; }
 
@@ -133,11 +143,18 @@
 <script type="module">
 import { countNights, calcAmount } from './calc.js';
 import { DEFAULT_CONFIG, clone, loadConfig, printedCells, rectToPoint } from './config.js';
-import { signIn, listReservations, setStatus } from './reservations.js';
+import {
+  signIn, listReservations, setStatus,
+  findByHousehold, findByName, summarize, monthGrid,
+} from './reservations.js';
 
 const $ = (id) => document.getElementById(id);
 
 const TOKEN_KEY = 'guesthouse-staff-token';
+
+// 배지에 쓰는 기간. 이용 횟수 제한이 없어 판단 기준이 아니라 참고용이므로
+// 설정으로 빼지 않는다. 다른 기간을 보고 싶다는 요청이 오면 그때 옮긴다.
+const HISTORY_MONTHS = 6;
 
 let config = clone(DEFAULT_CONFIG);
 let accessToken = '';
@@ -266,6 +283,8 @@ function renderRow(row, host) {
     }));
   }
 
+  box.appendChild(buildHistory(row));
+
   const actions = el('div', 'res-actions');
   actions.appendChild(makeBtn('신청서', 'btn btn-secondary', () => openSheet(row)));
   if (row.status === 'pending') {
@@ -277,6 +296,47 @@ function renderRow(row, host) {
   box.appendChild(actions);
 
   host.appendChild(box);
+}
+
+// 이 세대가 전에 얼마나 썼는지. 승인 판단을 이 자리에서 끝내기 위한 것이라
+// 검색 탭으로 옮기지 않는다. 승인은 매번 하는 일이고 검색은 따로 찾아 들어가는 일이다.
+function buildHistory(row) {
+  const wrap = el('div', 'res-history');
+  const past = findByHousehold(allRows, row.unit_dong, row.unit_ho)
+    .filter((r) => r.id !== row.id); // 지금 보고 있는 건은 이력이 아니다
+  const sum = summarize(past, HISTORY_MONTHS);
+
+  const head = el('div', 'res-history-head');
+  const text = el('div', 'res-history-sum');
+  text.innerHTML = sum.count === 0
+    ? `이 세대 최근 ${HISTORY_MONTHS}개월 <strong>이용 없음</strong>`
+    : `이 세대 최근 ${HISTORY_MONTHS}개월 <strong>${sum.count}회 · ${sum.nights}박</strong>`;
+  head.appendChild(text);
+  wrap.appendChild(head);
+
+  if (past.length === 0) return wrap;
+
+  const toggle = el('button', 'res-history-toggle', { type: 'button', textContent: '이력 보기' });
+  const list = el('div', 'res-history-list');
+  list.hidden = true;
+
+  for (const r of past) {
+    const line = el('div', r.status === 'cancelled' ? 'cancelled' : null);
+    line.appendChild(el('span', null, { textContent: `${r.check_in} ~ ${r.check_out}` }));
+    line.appendChild(el('span', null, {
+      textContent: `${houseLabel(r.house)} · ${countNights(r.check_in, r.check_out)}박`
+        + (r.status === 'cancelled' ? ' · 취소' : ''),
+    }));
+    list.appendChild(line);
+  }
+
+  toggle.addEventListener('click', () => {
+    list.hidden = !list.hidden;
+    toggle.textContent = list.hidden ? '이력 보기' : '접기';
+  });
+  head.appendChild(toggle);
+  wrap.appendChild(list);
+  return wrap;
 }
 
 function makeBtn(text, className, onClick) {
