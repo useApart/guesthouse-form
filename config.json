@@ -233,7 +233,7 @@
     }
   ],
   "reservation": {
-    "enabled": false,
+    "enabled": true,
     "url": "https://lsigisvjyvogaxsibltw.supabase.co",
     "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWdpc3ZqeXZvZ2F4c2libHR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNDU2NTAsImV4cCI6MjEwMDkyMTY1MH0.cwZ9oFJ64mBDy1Fde8_bymhJybrAyECoj03fWmhaztQ"
   },
