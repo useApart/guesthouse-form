@@ -112,6 +112,9 @@
   .mine + .mine { margin-top: 10px; }
   .mine-cancel { width: 100%; height: 42px; margin-top: 10px; border-radius: 10px; border: 1px solid #D8D6CD; background: #fff; color: #3C443B; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; }
   #mineAccount { margin-top: 14px; }
+  .lookup-toggle { width: 100%; height: 46px; border-radius: 10px; border: 1px solid #D8D6CD; background: #fff; color: #3C443B; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; }
+  #lookupForm { margin-top: 14px; }
+  #lookupResult:not(:empty) { margin-top: 14px; }
 
   .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; text-align: center; z-index: 100; }
   .toast.show { opacity: 1; }
@@ -147,6 +150,34 @@
           </div>
           <button type="button" class="copy-btn" id="copyBtn">계좌번호 복사</button>
         </div>
+      </div>
+    </section>
+
+    <!-- 다른 기기에서 조회 -->
+    <section class="card" id="lookupCard" hidden>
+      <button type="button" class="lookup-toggle" id="lookupToggle">
+        다른 기기에서 신청하셨나요? 조회하기
+      </button>
+      <div id="lookupForm" hidden>
+        <div class="frow"><div class="frow-body">
+          <input type="text" id="lkName" placeholder=" " maxlength="20">
+          <label for="lkName">이름</label>
+        </div></div>
+        <div class="frow"><div class="frow-body frow-static">
+          <div class="frow-slabel">동·호수</div>
+          <div class="dong-ho">
+            <input type="text" id="lkDong" inputmode="numeric" placeholder="동" maxlength="4">
+            <span class="dh-dash">-</span>
+            <input type="text" id="lkHo" inputmode="numeric" placeholder="호" maxlength="3">
+          </div>
+        </div></div>
+        <div class="frow"><div class="frow-body">
+          <input type="text" id="lkPin" placeholder=" " inputmode="numeric" maxlength="6">
+          <label for="lkPin">확인용 비밀번호 (숫자 6자리)</label>
+        </div></div>
+        <p class="warning" id="lookupWarn" hidden></p>
+        <button type="button" class="btn btn-primary" id="lookupBtn">조회</button>
+        <div id="lookupResult"></div>
       </div>
     </section>
 
@@ -775,6 +806,89 @@ function buildMine(row, secret) {
   return box;
 }
 
+// ---- 다른 기기에서 조회 ----
+
+function readLookup() {
+  return {
+    name: ($('lkName') || {}).value || '',
+    dong: ($('lkDong') || {}).value || '',
+    ho: ($('lkHo') || {}).value || '',
+    pin: ($('lkPin') || {}).value || '',
+  };
+}
+
+$('lookupToggle').addEventListener('click', () => {
+  const form = $('lookupForm');
+  form.hidden = !form.hidden;
+  $('lookupToggle').textContent = form.hidden
+    ? '다른 기기에서 신청하셨나요? 조회하기'
+    : '접기';
+});
+
+$('lookupBtn').addEventListener('click', () => {
+  const who = readLookup();
+  const warn = $('lookupWarn');
+  $('lookupResult').textContent = '';
+
+  if (!who.name.trim() || !who.dong.trim() || !who.ho.trim() || !isValidPin(who.pin)) {
+    warn.textContent = '이름·동·호수와 숫자 6자리 비밀번호를 모두 입력해 주세요.';
+    warn.hidden = false;
+    return;
+  }
+
+  warn.hidden = true;
+  $('lookupBtn').disabled = true;
+  findMyReservations(config.reservation, who)
+    .then((rows) => {
+      if (rows.length === 0) {
+        // 어느 항목이 틀렸는지는 알려주지 않는다. 알려주면 이름·동·호수를 아는
+        // 사람이 비밀번호만 좁혀 가며 시도할 수 있다.
+        warn.textContent = '일치하는 신청이 없습니다. 입력하신 내용을 다시 확인해 주세요.';
+        warn.hidden = false;
+        return;
+      }
+      for (const row of rows) $('lookupResult').appendChild(buildLookupRow(row, who));
+    })
+    .catch(() => {
+      warn.textContent = '조회하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      warn.hidden = false;
+    })
+    .finally(() => { $('lookupBtn').disabled = false; });
+});
+
+function buildLookupRow(row, who) {
+  const confirmed = row.status === 'confirmed';
+  const box = el('div', `mine${confirmed ? ' confirmed' : ''}`);
+  const nights = countNights(row.check_in, row.check_out);
+  const where = confirmed ? `${houseLabel(row.house)} · ` : '';
+  const money = confirmed
+    ? `${row.amount.toLocaleString('ko-KR')}원`
+    : `예상 ${row.amount.toLocaleString('ko-KR')}원`;
+
+  box.innerHTML =
+    `<strong>${confirmed ? '확정되었습니다' : '확인 대기 중'}</strong><br>`
+    + `${where}${humanDate(row.check_in)} ~ ${humanDate(row.check_out)} · ${nights}박 · ${money}`;
+
+  // 확정된 예약은 이 경로로 취소하지 않는다. 관리사무소를 거친다.
+  if (row.status === 'pending') {
+    const btn = el('button', 'mine-cancel', { type: 'button', textContent: '신청 취소' });
+    btn.addEventListener('click', () => {
+      if (!confirm(`${humanDate(row.check_in)} ~ ${humanDate(row.check_out)} 신청을 취소할까요?`)) return;
+      btn.disabled = true;
+      cancelByLookup(config.reservation, row.id, who)
+        .then((ok) => {
+          showToast(ok ? '취소했습니다.' : '취소하지 못했습니다. 관리사무소에 문의해 주세요.');
+          if (!ok) { btn.disabled = false; return null; }
+          box.remove();
+          return refreshCalendar();
+        })
+        .catch(() => { showToast('취소하지 못했습니다.'); btn.disabled = false; });
+    });
+    box.appendChild(btn);
+  }
+  return box;
+}
+
 // ---- 계좌 복사 ----
 
 $('copyBtn').addEventListener('click', (e) => {
@@ -865,6 +979,8 @@ function boot(loaded) {
   renderCalendar();
   renderPicked();
   showStep(1);
+  // 기기가 바뀐 주민을 위한 보조 경로. 예약 기능이 켜져 있을 때만 뜬다.
+  $('lookupCard').hidden = false;
 
   refreshCalendar().then(renderMine);
 }
