@@ -217,6 +217,27 @@
         <div class="field"><label for="s-title">제목</label><input type="text" id="s-title"></div>
       </div>
 
+      <h2 style="margin-top:22px;">게스트하우스</h2>
+      <div id="houseList"></div>
+      <div class="btn-row" style="margin-top:10px;">
+        <button type="button" class="btn btn-secondary btn-sm" id="addHouse">+ 추가</button>
+      </div>
+      <p class="hint">예약 달력에서 날짜마다 이 순서대로 막대가 그려집니다.</p>
+
+      <h2 style="margin-top:22px;">예약 기능</h2>
+      <div class="checks" style="margin-bottom:14px;">
+        <label><input type="checkbox" id="rs-enabled">달력에서 예약 신청을 받는다</label>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="rs-url">Supabase Project URL</label><input type="text" id="rs-url" placeholder="https://xxxx.supabase.co"></div>
+        <div class="field"><label for="rs-key">anon public key</label><input type="text" id="rs-key" placeholder="eyJ..."></div>
+      </div>
+      <p class="hint">
+        꺼져 있으면 <code>reserve.html</code>과 <code>manage.html</code>이 "준비 중" 안내만 띄웁니다.
+        주소나 키가 비어 있으면 켜도 자동으로 꺼집니다.<br>
+        <strong>service_role key는 절대 넣지 마세요</strong> — 그 키는 권한 제한을 통째로 무시합니다.
+      </p>
+
       <h2 style="margin-top:22px;">GitHub 토큰</h2>
       <div id="tokenArea"></div>
     </section>
@@ -977,8 +998,84 @@ function renderValues() {
   bindValue('s-org', () => s.org, (v) => { s.org = v; });
   bindValue('s-title', () => s.title, (v) => { s.title = v; });
 
+  const rs = state.config.reservation;
+  bindChecked('rs-enabled', () => rs.enabled, (on) => { rs.enabled = on; });
+  bindValue('rs-url', () => rs.url, (v) => { rs.url = v; });
+  bindValue('rs-key', () => rs.anonKey, (v) => { rs.anonKey = v; });
+
+  renderHouseList();
   renderTokenArea();
 }
+
+function renderHouseList() {
+  const host = $('houseList');
+  host.textContent = '';
+
+  state.config.houses.forEach((house, index) => {
+    const row = document.createElement('div');
+    row.className = 'field-row';
+
+    // 순서 이동
+    const moves = document.createElement('div');
+    moves.className = 'move-btns';
+    for (const [dir, glyph] of [[-1, '↑'], [1, '↓']]) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = glyph;
+      btn.disabled = index + dir < 0 || index + dir >= state.config.houses.length;
+      btn.addEventListener('click', () => {
+        const hs = state.config.houses;
+        [hs[index], hs[index + dir]] = [hs[index + dir], hs[index]];
+        touch();
+      });
+      moves.appendChild(btn);
+    }
+    row.appendChild(moves);
+
+    const label = document.createElement('input');
+    label.type = 'text';
+    label.value = house.label;
+    label.addEventListener('change', () => { house.label = label.value; touch(); });
+    row.appendChild(label);
+
+    const actions = document.createElement('div');
+    actions.className = 'checks wide-only';
+    if (state.config.houses.length > 1) {
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'btn btn-danger btn-sm';
+      del.textContent = '삭제';
+      del.addEventListener('click', () => {
+        // 이미 들어온 예약은 house 값으로 이 집을 가리킨다. 지우면 그 예약이
+        // 어느 집인지 알 수 없게 되므로 되돌릴 수 없다고 알린다.
+        if (!confirm(`'${house.label}'을(를) 삭제할까요?\n\n이 집으로 들어온 기존 예약은 이름을 잃습니다.`)) return;
+        state.config.houses = state.config.houses.filter((h) => h.id !== house.id);
+        touch();
+      });
+      actions.appendChild(del);
+    } else {
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = '마지막';
+      actions.appendChild(tag);
+    }
+    row.appendChild(actions);
+
+    host.appendChild(row);
+  });
+}
+
+$('addHouse').addEventListener('click', () => {
+  const label = prompt('추가할 곳의 이름을 입력하세요 (예: C동)');
+  if (!label || !label.trim()) return;
+  // id는 예약 데이터가 가리키는 값이라 한 번 정하면 바꾸지 않는다.
+  // 쓰이지 않은 알파벳 한 글자를 고른다.
+  const used = new Set(state.config.houses.map((h) => h.id));
+  const id = 'abcdefghijklmnopqrstuvwxyz'.split('').find((c) => !used.has(c));
+  if (!id) { showToast('더 추가할 수 없습니다.'); return; }
+  state.config.houses.push({ id, label: label.trim() });
+  touch();
+});
 
 function renderTokenArea() {
   const host = $('tokenArea');
