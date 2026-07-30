@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>게스트하우스 예약</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; background: #F5F4F0; color: #1E251E; }
+  .wrap { min-height: 100vh; display: flex; justify-content: center; padding: 32px 16px 64px; }
+  .inner { width: 100%; max-width: 560px; }
+  .eyebrow { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: .02em; color: #7A8177; margin-bottom: 6px; }
+  h1 { text-align: center; margin: 0 0 20px; font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
+  .card { background: #fff; border-radius: 20px; border: 1px solid #E8E6DE; box-shadow: 0 1px 3px rgba(30,37,30,.04); padding: 22px; display: flex; flex-direction: column; gap: 16px; }
+  .card[hidden] { display: none; }
+  h2 { font-size: 15px; font-weight: 700; margin: 0; color: #3C443B; }
+  .hint { margin: 0; font-size: 12px; color: #7A8177; line-height: 1.6; }
+  .warning { margin: 0; font-size: 13px; color: #C0392B; font-weight: 700; line-height: 1.5; }
+
+  /* ---- 단계 표시 ---- */
+  .steps { display: flex; gap: 6px; margin-bottom: 16px; }
+  .step { flex: 1; height: 4px; border-radius: 2px; background: #E2E0D8; }
+  .step.done { background: #1F6D57; }
+
+  /* ---- 달력 ---- */
+  .cal-head { display: flex; align-items: center; justify-content: space-between; }
+  .cal-nav { width: 38px; height: 38px; border: none; background: #F5F4F0; border-radius: 10px; font-size: 18px; font-weight: 700; color: #3C443B; cursor: pointer; font-family: inherit; }
+  .cal-nav:hover { background: #EAE8E1; }
+  .cal-nav:disabled { color: #CFCDC4; cursor: default; }
+  .cal-nav:disabled:hover { background: #F5F4F0; }
+  .cal-label { font-size: 16px; font-weight: 700; }
+  .cal-week { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 12px; color: #7A8177; }
+  .cal-week span:first-child { color: #C0392B; }
+  .cal-week span:last-child { color: #2E5AA8; }
+  .res-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .res-blank { min-height: 54px; }
+  .res-day {
+    min-height: 54px; border: none; background: none; border-radius: 10px; padding: 5px 0 6px;
+    font-family: inherit; font-size: 14px; color: #1E251E; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+  }
+  .res-day:hover { background: #F5F4F0; }
+  .res-day.res-sun { color: #C0392B; }
+  .res-day.res-sat { color: #2E5AA8; }
+  .res-day.res-disabled { color: #CFCDC4; cursor: default; }
+  .res-day.res-disabled:hover { background: none; }
+  .res-day.res-selected { background: #1F6D57; color: #fff; font-weight: 700; }
+  .res-day.res-inrange { background: #EAF3EF; }
+  /* 집별 막대. 위에서부터 config.houses 순서다. */
+  .res-bars { display: flex; flex-direction: column; gap: 2px; width: 58%; }
+  .res-bar { height: 3px; border-radius: 2px; background: #7FB3A0; }
+  .res-bar.taken { background: #DCD9CE; }
+  .res-day.res-selected .res-bar { background: rgba(255,255,255,.85); }
+  .res-day.res-selected .res-bar.taken { background: rgba(255,255,255,.3); }
+  .legend { display: flex; justify-content: center; gap: 16px; font-size: 12px; color: #7A8177; }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .swatch { display: inline-block; width: 14px; height: 4px; border-radius: 2px; background: #7FB3A0; }
+  .swatch.taken { background: #DCD9CE; }
+
+  /* ---- 선택 요약 ---- */
+  .picked { padding: 14px 16px; border-radius: 12px; background: #EAF3EF; border: 1px solid #C5DDD4; font-size: 14px; line-height: 1.6; }
+  .picked strong { font-weight: 700; }
+
+  /* ---- 입력 ---- */
+  .field-list { border: 1px solid #E2E0D8; border-radius: 16px; }
+  .frow { position: relative; display: flex; align-items: center; padding: 10px 18px; min-height: 66px; }
+  .frow + .frow { border-top: 1px solid #ECEAE3; }
+  .frow-body { position: relative; flex: 1; min-width: 0; padding-top: 14px; }
+  .frow-body > label {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%); margin: 0;
+    font-size: 16px; font-weight: 400; color: #9A9F92; pointer-events: none;
+    transition: top .15s, font-size .15s, transform .15s; white-space: nowrap;
+  }
+  .frow-body input {
+    width: 100%; border: none; background: transparent; padding: 0;
+    font-size: 16px; font-weight: 500; color: #1E251E; height: 28px; line-height: 28px; font-family: inherit;
+  }
+  .frow-body input:focus { outline: none; }
+  .frow-body input:focus ~ label,
+  .frow-body input:not(:placeholder-shown) ~ label { top: 0; transform: none; font-size: 12px; }
+  .frow:focus-within { background: #FAFAF8; }
+  .frow-static { padding-top: 0; }
+  .frow-slabel { font-size: 12px; color: #9A9F92; margin-bottom: 8px; }
+  .dong-ho { display: flex; align-items: center; gap: 8px; }
+  .dong-ho input { flex: 1; min-width: 0; height: 42px; border: 1px solid #DDDBD2; border-radius: 9px; padding: 0 12px; font-size: 16px; font-family: inherit; color: #1E251E; background: #fff; }
+  .dong-ho input:focus { outline: none; border-color: #B7B5AC; }
+  .dh-dash { color: #9A9F92; font-weight: 600; }
+  .choice-row { display: flex; gap: 8px; }
+  .choice-btn { flex: 1; height: 44px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; border: 1px solid #DDDBD2; background: #fff; color: #3C443B; }
+  .choice-btn.active { border: 1.5px solid #1F6D57; background: #EAF3EF; color: #1F6D57; }
+
+  /* ---- 금액 ---- */
+  .amount-box { display: flex; align-items: baseline; justify-content: space-between; padding: 16px; border-radius: 12px; background: #F5F4F0; }
+  .amount-box .label { font-size: 13px; color: #7A8177; }
+  .amount-box .value { font-size: 22px; font-weight: 700; }
+
+  .account { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 12px; padding: 16px; border-radius: 12px; background: #F5F4F0; }
+  .account .num { font-size: 15px; font-weight: 700; word-break: break-word; }
+  .account .name { font-size: 13px; color: #7A8177; margin-top: 2px; }
+  .copy-btn { flex-shrink: 0; height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid #D8D6CD; background: #fff; color: #3C443B; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+
+  .btn-row { display: flex; gap: 10px; }
+  .btn { flex: 1; height: 52px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; border: none; }
+  .btn-primary { background: #1F6D57; color: #fff; }
+  .btn-primary:hover { background: #195C49; }
+  .btn-secondary { background: #fff; color: #3C443B; border: 1px solid #D8D6CD; }
+  .btn-secondary:hover { background: #F5F4F0; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .done-mark { text-align: center; font-size: 44px; line-height: 1; }
+  .done-text { text-align: center; font-size: 16px; font-weight: 700; line-height: 1.6; }
+
+  .mine { padding: 14px 16px; border-radius: 12px; background: #FDF3E7; border: 1px solid #EBD3AE; font-size: 14px; line-height: 1.6; }
+  .mine.confirmed { background: #EAF3EF; border-color: #C5DDD4; }
+
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; text-align: center; z-index: 100; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="inner">
+    <div class="eyebrow" id="siteOrg">원흥LH13단지주거복지지원센터</div>
+    <h1 id="siteTitle">게스트하우스 예약</h1>
+
+    <div class="steps" id="steps" hidden>
+      <div class="step" id="step1"></div>
+      <div class="step" id="step2"></div>
+      <div class="step" id="step3"></div>
+    </div>
+
+    <!-- 준비 전 안내 -->
+    <section class="card" id="offCard" hidden>
+      <p class="hint" id="offText"></p>
+    </section>
+
+    <!-- 내 신청 (있을 때만) -->
+    <section class="card" id="mineCard" hidden>
+      <div class="mine" id="mineBox"></div>
+      <button type="button" class="btn btn-secondary" id="cancelBtn" hidden>신청 취소</button>
+    </section>
+
+    <!-- 1단계: 달력 -->
+    <section class="card" id="calCard" hidden>
+      <h2>날짜를 선택하세요</h2>
+      <div class="cal-head">
+        <button type="button" class="cal-nav" id="prevBtn" aria-label="이전 달">‹</button>
+        <div class="cal-label" id="calLabel"></div>
+        <button type="button" class="cal-nav" id="nextBtn" aria-label="다음 달">›</button>
+      </div>
+      <div class="cal-week">
+        <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+      </div>
+      <div class="res-grid" id="grid"></div>
+      <div class="legend" id="legend"></div>
+      <p class="hint" id="calHint"></p>
+      <div class="picked" id="pickedBox" hidden></div>
+      <div id="houseWrap" hidden>
+        <div class="frow-slabel">사용할 곳</div>
+        <div class="choice-row" id="houseRow"></div>
+      </div>
+      <p class="warning" id="calWarn" hidden></p>
+      <button type="button" class="btn btn-primary" id="toFormBtn" disabled>다음</button>
+    </section>
+
+    <!-- 2단계: 신청서 -->
+    <section class="card" id="formCard" hidden>
+      <h2>신청 내용</h2>
+      <div class="picked" id="formPicked"></div>
+      <div class="field-list" id="fieldList"></div>
+      <div class="amount-box">
+        <span class="label">사용금액</span>
+        <span class="value" id="amountText">0원</span>
+      </div>
+      <p class="hint">
+        입력하신 정보는 관리사무소 확인을 위해 저장되며 관리사무소만 열람합니다.
+        달력에는 예약 여부만 표시되고 다른 주민의 이름·연락처는 보이지 않습니다.
+      </p>
+      <p class="warning" id="formWarn" hidden></p>
+      <div class="btn-row">
+        <button type="button" class="btn btn-secondary" id="backBtn">이전</button>
+        <button type="button" class="btn btn-primary" id="submitBtn">예약 신청</button>
+      </div>
+    </section>
+
+    <!-- 3단계: 완료 -->
+    <section class="card" id="doneCard" hidden>
+      <div class="done-mark">✓</div>
+      <div class="done-text">신청이 접수되었습니다<br>관리사무소 확인 후 확정됩니다</div>
+      <div class="picked" id="donePicked"></div>
+      <div class="account">
+        <div>
+          <div class="num" id="accountNumber"></div>
+          <div class="name" id="accountHolder"></div>
+        </div>
+        <button type="button" class="copy-btn" id="copyBtn">계좌번호 복사</button>
+      </div>
+      <p class="hint">입금이 확인되면 확정됩니다. 이 화면을 다시 열면 진행 상태를 볼 수 있습니다.</p>
+      <button type="button" class="btn btn-secondary" id="restartBtn">처음으로</button>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { countNights, calcAmount } from './calc.js';
+import { DEFAULT_CONFIG, clone, loadConfig, formFields, domIds } from './config.js';
+import {
+  fetchCalendar, bookedNights, nightStatus, availableHouses, toDateStr,
+  makeSecret, submitReservation, myReservation, cancelReservation,
+  CONFLICT_OVERLAP, CONFLICT_DUPLICATE,
+} from './reservations.js';
+
+const $ = (id) => document.getElementById(id);
+
+let config = clone(DEFAULT_CONFIG);
+let bookedMap = new Map();   // Map<houseId, Set<'YYYY-MM-DD'>>
+let calYear = 0;
+let calMonth = 0;            // 0-11
+let pickStart = '';
+let pickEnd = '';
+let pickHouse = '';
+
+const MY_KEY = 'guesthouse-my-reservation';
+const SAVE_KEY = 'guesthouse-form'; // 기존 화면과 같은 키를 써서 저장값을 공유한다
+
+// ---- 공통 ----
+
+function el(tag, className, props) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  Object.assign(node, props || {});
+  return node;
+}
+
+let toastTimer;
+function showToast(msg) {
+  const toast = $('toast');
+  clearTimeout(toastTimer);
+  toast.textContent = msg;
+  toast.classList.add('show');
+  const ms = Math.min(8000, Math.max(2600, msg.length * 110));
+  toastTimer = setTimeout(() => toast.classList.remove('show'), ms);
+}
+
+function todayMidnight() {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  return t;
+}
+
+function lastSelectable() {
+  const t = todayMidnight();
+  return new Date(t.getFullYear(), t.getMonth() + config.stay.maxAheadMonths, t.getDate());
+}
+
+// 'YYYY-MM-DD' -> 'M월 D일'
+function humanDate(s) {
+  if (!s) return '';
+  const [, m, d] = s.split('-').map(Number);
+  return `${m}월 ${d}일`;
+}
+
+function houseLabel(id) {
+  const h = config.houses.find((x) => x.id === id);
+  return h ? h.label : id;
+}
+
+function pickedSummary() {
+  const nights = countNights(pickStart, pickEnd);
+  return `<strong>${houseLabel(pickHouse)}</strong> · ${humanDate(pickStart)} ~ ${humanDate(pickEnd)} · ${nights}박`;
+}
+
+// ---- 화면 전환 ----
+
+function showStep(n) {
+  $('steps').hidden = false;
+  $('step1').classList.toggle('done', n >= 1);
+  $('step2').classList.toggle('done', n >= 2);
+  $('step3').classList.toggle('done', n >= 3);
+  $('calCard').hidden = n !== 1;
+  $('formCard').hidden = n !== 2;
+  $('doneCard').hidden = n !== 3;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---- 1단계: 달력 ----
+
+function renderCalendar() {
+  const grid = $('grid');
+  $('calLabel').textContent = `${calYear}년 ${calMonth + 1}월`;
+  grid.textContent = '';
+
+  const firstWeekday = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const min = config.stay.limitDates ? todayMidnight() : null;
+  const max = config.stay.limitDates ? lastSelectable() : null;
+
+  // 선택 가능한 범위 밖의 달로는 넘어가지 못하게 막는다.
+  if (min) $('prevBtn').disabled = new Date(calYear, calMonth, 1) <= new Date(min.getFullYear(), min.getMonth(), 1);
+  if (max) $('nextBtn').disabled = new Date(calYear, calMonth, 1) >= new Date(max.getFullYear(), max.getMonth(), 1);
+
+  for (let i = 0; i < firstWeekday; i++) {
+    grid.appendChild(el('span', 'res-blank'));
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(calYear, calMonth, d);
+    const key = toDateStr(date);
+    const dow = date.getDay();
+
+    const btn = el('button', 'res-day', { type: 'button' });
+    if (dow === 0) btn.classList.add('res-sun');
+    if (dow === 6) btn.classList.add('res-sat');
+    btn.appendChild(el('span', null, { textContent: String(d) }));
+
+    const bars = el('div', 'res-bars');
+    const status = nightStatus(config.houses, bookedMap, key);
+    for (const s of status) {
+      const bar = el('div', `res-bar${s.free ? '' : ' taken'}`);
+      bar.title = `${s.label} ${s.free ? '빈자리' : '예약됨'}`;
+      bars.appendChild(bar);
+    }
+    btn.appendChild(bars);
+
+    const outOfRange = (min && date < min) || (max && date > max);
+    const allTaken = status.every((s) => !s.free);
+    if (outOfRange || allTaken) {
+      btn.classList.add('res-disabled');
+      btn.disabled = true;
+    } else {
+      btn.addEventListener('click', () => pickDate(key));
+    }
+
+    if (key === pickStart || key === pickEnd) btn.classList.add('res-selected');
+    else if (pickStart && pickEnd && key > pickStart && key < pickEnd) btn.classList.add('res-inrange');
+
+    grid.appendChild(btn);
+  }
+}
+
+function pickDate(key) {
+  $('calWarn').hidden = true;
+
+  // 첫 번째 클릭은 입실일, 두 번째는 퇴실일. 둘 다 있으면 다시 시작한다.
+  if (!pickStart || pickEnd || key <= pickStart) {
+    pickStart = key;
+    pickEnd = '';
+  } else {
+    const nights = countNights(pickStart, key);
+    if (nights < config.stay.minNights || nights > config.stay.maxNights) {
+      $('calWarn').textContent =
+        `${config.stay.minNights}박에서 ${config.stay.maxNights}박까지 예약할 수 있습니다.`;
+      $('calWarn').hidden = false;
+      return;
+    }
+    pickEnd = key;
+  }
+
+  renderCalendar();
+  renderHousePick();
+}
+
+function renderHousePick() {
+  const wrap = $('houseWrap');
+  const row = $('houseRow');
+  const box = $('pickedBox');
+
+  if (!pickStart) {
+    box.hidden = true;
+    wrap.hidden = true;
+    pickHouse = '';
+    $('toFormBtn').disabled = true;
+    $('calHint').textContent = '입실일을 누르고, 이어서 퇴실일을 누르세요.';
+    return;
+  }
+
+  if (!pickEnd) {
+    box.hidden = false;
+    box.innerHTML = `입실 <strong>${humanDate(pickStart)}</strong> · 퇴실일을 선택하세요`;
+    wrap.hidden = true;
+    pickHouse = '';
+    $('toFormBtn').disabled = true;
+    $('calHint').textContent = `퇴실일을 누르세요. ${config.stay.minNights}~${config.stay.maxNights}박까지 됩니다.`;
+    return;
+  }
+
+  const nights = countNights(pickStart, pickEnd);
+  box.hidden = false;
+  box.innerHTML = `${humanDate(pickStart)} ~ ${humanDate(pickEnd)} · <strong>${nights}박</strong>`;
+  $('calHint').textContent = '';
+
+  const options = availableHouses(config.houses, bookedMap, pickStart, pickEnd);
+  row.textContent = '';
+
+  if (options.length === 0) {
+    wrap.hidden = true;
+    pickHouse = '';
+    $('toFormBtn').disabled = true;
+    $('calWarn').textContent = '고르신 기간에 빈 곳이 없습니다. 다른 날짜를 선택해 주세요.';
+    $('calWarn').hidden = false;
+    return;
+  }
+
+  // 한 곳만 비었으면 자동으로 고른다. 단계를 하나 줄인다.
+  if (!options.some((h) => h.id === pickHouse)) pickHouse = options[0].id;
+
+  for (const house of options) {
+    const btn = el('button', `choice-btn${house.id === pickHouse ? ' active' : ''}`, {
+      type: 'button', textContent: house.label,
+    });
+    btn.addEventListener('click', () => { pickHouse = house.id; renderHousePick(); });
+    row.appendChild(btn);
+  }
+  wrap.hidden = false;
+  $('toFormBtn').disabled = false;
+}
+
+function refreshCalendar() {
+  return fetchCalendar(config.reservation)
+    .then((rows) => {
+      bookedMap = bookedNights(rows);
+      renderCalendar();
+      renderHousePick();
+    })
+    .catch(() => {
+      showToast('예약 현황을 불러오지 못했습니다. 새로고침해 주세요.');
+    });
+}
+
+// ---- 2단계: 신청서 ----
+
+// 예약 화면에서 받을 항목. 날짜는 달력에서 이미 골랐고, 계산 결과는 보여주기만 한다.
+function reserveFields() {
+  return formFields(config).filter((f) => f.input === 'text' || f.input === 'phone'
+    || f.input === 'unit' || f.input === 'choice');
+}
+
+const CHARSET_PATTERNS = {
+  korean: /[^가-힣ㄱ-ㅎㅏ-ㅣ\s]/g,
+  digits: /[^0-9]/g,
+};
+
+function formatPhone(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length < 4) return digits;
+  const a = digits.startsWith('02') ? 2 : 3;
+  const rest = digits.slice(a);
+  if (rest.length <= 4) return `${digits.slice(0, a)}-${rest}`;
+  return `${digits.slice(0, a)}-${rest.slice(0, -4)}-${rest.slice(-4)}`;
+}
+
+function buildForm() {
+  const host = $('fieldList');
+  host.textContent = '';
+
+  for (const field of reserveFields()) {
+    const row = el('div', 'frow');
+
+    if (field.input === 'unit') {
+      const body = el('div', 'frow-body frow-static');
+      body.appendChild(el('div', 'frow-slabel', { textContent: field.label }));
+      const wrap = el('div', 'dong-ho');
+      wrap.appendChild(el('input', null, {
+        type: 'text', id: `${field.id}Dong`, inputMode: 'numeric',
+        placeholder: `동 (${field.dongLength}자리)`, maxLength: field.dongLength,
+      }));
+      wrap.appendChild(el('span', 'dh-dash', { textContent: '-' }));
+      wrap.appendChild(el('input', null, {
+        type: 'text', id: `${field.id}Ho`, inputMode: 'numeric',
+        placeholder: `호 (${field.hoLength}자리)`, maxLength: field.hoLength,
+      }));
+      body.appendChild(wrap);
+      row.appendChild(body);
+    } else if (field.input === 'choice') {
+      const body = el('div', 'frow-body frow-static');
+      body.appendChild(el('div', 'frow-slabel', { textContent: field.label }));
+      const choice = el('div', 'choice-row', { id: 'peopleRow' });
+      config.pricing.peopleOptions.forEach((n, i) => {
+        const btn = el('button', `choice-btn${i === 0 ? ' active' : ''}`, {
+          type: 'button', textContent: `${n}명`,
+        });
+        btn.dataset.n = String(n);
+        choice.appendChild(btn);
+      });
+      body.appendChild(choice);
+      body.appendChild(el('input', null, {
+        type: 'hidden', id: field.id, value: String(config.pricing.peopleOptions[0]),
+      }));
+      row.appendChild(body);
+    } else {
+      const body = el('div', 'frow-body');
+      body.appendChild(el('input', null, {
+        type: field.input === 'phone' ? 'tel' : 'text',
+        id: field.id,
+        placeholder: ' ',
+        maxLength: field.maxlength || 20,
+      }));
+      body.appendChild(el('label', null, { htmlFor: field.id, textContent: field.label }));
+      row.appendChild(body);
+    }
+
+    host.appendChild(row);
+  }
+
+  attachFormListeners();
+  restoreSaved();
+  renderAmount();
+}
+
+function attachFormListeners() {
+  for (const field of reserveFields()) {
+    if (field.input === 'unit') {
+      for (const id of domIds(field)) {
+        const node = $(id);
+        if (node) filterInput(node, CHARSET_PATTERNS.digits);
+      }
+    } else if (field.input === 'phone') {
+      const node = $(field.id);
+      if (node) {
+        node.addEventListener('input', (e) => {
+          const formatted = formatPhone(e.target.value);
+          if (formatted !== e.target.value) e.target.value = formatted;
+        });
+      }
+    } else if (field.input === 'text' && CHARSET_PATTERNS[field.charset]) {
+      const node = $(field.id);
+      if (node) filterInput(node, CHARSET_PATTERNS[field.charset]);
+    }
+
+    for (const id of domIds(field)) {
+      const node = $(id);
+      if (node && field.remember) node.addEventListener('input', saveFields);
+    }
+  }
+
+  const peopleRow = $('peopleRow');
+  if (peopleRow) {
+    peopleRow.addEventListener('click', (e) => {
+      const btn = e.target.closest('.choice-btn');
+      if (!btn) return;
+      const hidden = peopleRow.parentNode.querySelector('input[type="hidden"]');
+      if (hidden) hidden.value = btn.dataset.n;
+      peopleRow.querySelectorAll('.choice-btn').forEach((b) => b.classList.toggle('active', b === btn));
+      renderAmount();
+    });
+  }
+}
+
+function filterInput(node, re) {
+  node.addEventListener('input', () => {
+    const cleaned = node.value.replace(re, '');
+    if (cleaned !== node.value) node.value = cleaned;
+  });
+}
+
+function readForm() {
+  const values = { holiday: false, checkIn: pickStart, checkOut: pickEnd };
+  for (const field of reserveFields()) {
+    if (field.input === 'unit') {
+      const dong = ($(`${field.id}Dong`) || {}).value || '';
+      const ho = ($(`${field.id}Ho`) || {}).value || '';
+      values[field.id] = (dong.trim() && ho.trim()) ? `${dong.trim()}동 ${ho.trim()}호` : '';
+      values[`${field.id}Dong`] = dong.trim();
+      values[`${field.id}Ho`] = ho.trim();
+    } else if (field.input === 'choice') {
+      values[field.id] = Number(($(field.id) || {}).value || 0);
+    } else {
+      values[field.id] = (($(field.id) || {}).value || '').trim();
+    }
+  }
+  return values;
+}
+
+// 공휴일 자동 판정은 이 화면에서 하지 않는다. 관리사무소가 확정 전에 금액을
+// 다시 계산해 대조하므로, 여기서 보여주는 값은 안내용이다.
+function renderAmount() {
+  const v = readForm();
+  const amount = calcAmount(v, { pricing: config.pricing });
+  $('amountText').textContent = `${amount.toLocaleString('ko-KR')}원`;
+  return amount;
+}
+
+function missingLabels() {
+  return reserveFields()
+    .filter((f) => f.required && !readForm()[f.id])
+    .map((f) => f.label);
+}
+
+// ---- 저장값 (기존 화면과 같은 키를 공유한다) ----
+
+function rememberedIds() {
+  return reserveFields().filter((f) => f.remember).flatMap(domIds);
+}
+
+function restoreSaved() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
+    for (const id of rememberedIds()) {
+      if (saved[id] && $(id)) $(id).value = saved[id];
+    }
+  } catch { /* 저장값이 깨졌으면 빈 폼으로 시작한다 */ }
+}
+
+function saveFields() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
+    for (const id of rememberedIds()) if ($(id)) saved[id] = $(id).value;
+    localStorage.setItem(SAVE_KEY, JSON.stringify(saved));
+  } catch { /* 사파리 프라이빗 모드 등 저장이 막힌 환경 */ }
+}
+
+// ---- 신청 ----
+
+function submit() {
+  const missing = missingLabels();
+  if (missing.length > 0) {
+    $('formWarn').textContent = `입력이 필요합니다: ${missing.join(', ')}`;
+    $('formWarn').hidden = false;
+    return;
+  }
+  $('formWarn').hidden = true;
+
+  const v = readForm();
+  const secret = makeSecret();
+  const unitField = reserveFields().find((f) => f.input === 'unit');
+  const peopleField = reserveFields().find((f) => f.input === 'choice');
+
+  const row = {
+    house: pickHouse,
+    check_in: pickStart,
+    check_out: pickEnd,
+    name: v.name || '',
+    unit_dong: unitField ? v[`${unitField.id}Dong`] : '',
+    unit_ho: unitField ? v[`${unitField.id}Ho`] : '',
+    phone: v.phone || '',
+    people: peopleField ? v[peopleField.id] : 0,
+    amount: renderAmount(),
+    secret,
+    status: 'pending',
+  };
+
+  $('submitBtn').disabled = true;
+  submitReservation(config.reservation, row)
+    .then(() => {
+      try { localStorage.setItem(MY_KEY, JSON.stringify({ secret })); } catch { /* 저장 막힌 환경 */ }
+      $('donePicked').innerHTML = pickedSummary();
+      showStep(3);
+      pickStart = ''; pickEnd = ''; pickHouse = '';
+      return refreshCalendar().then(renderMine);
+    })
+    .catch((err) => {
+      if (err.code === CONFLICT_OVERLAP) {
+        $('formWarn').textContent = '방금 다른 분이 예약했습니다. 날짜를 다시 골라 주세요.';
+        $('formWarn').hidden = false;
+        refreshCalendar();
+      } else if (err.code === CONFLICT_DUPLICATE) {
+        $('formWarn').textContent = '이미 확인 대기 중인 신청이 있습니다. 위에서 확인하실 수 있습니다.';
+        $('formWarn').hidden = false;
+        renderMine();
+      } else {
+        $('formWarn').textContent = `신청하지 못했습니다: ${err.message}`;
+        $('formWarn').hidden = false;
+      }
+    })
+    .finally(() => { $('submitBtn').disabled = false; });
+}
+
+// ---- 내 신청 ----
+
+function loadMine() {
+  try { return JSON.parse(localStorage.getItem(MY_KEY) || 'null'); } catch { return null; }
+}
+
+function renderMine() {
+  const mine = loadMine();
+  if (!mine || !mine.secret) { $('mineCard').hidden = true; return Promise.resolve(); }
+
+  return myReservation(config.reservation, mine.secret)
+    .then((row) => {
+      if (!row || row.status === 'cancelled') { $('mineCard').hidden = true; return; }
+      const label = { pending: '확인 대기 중', confirmed: '확정되었습니다' }[row.status] || row.status;
+      const nights = countNights(row.check_in, row.check_out);
+      $('mineBox').className = `mine${row.status === 'confirmed' ? ' confirmed' : ''}`;
+      $('mineBox').innerHTML =
+        `<strong>내 신청 · ${label}</strong><br>`
+        + `${houseLabel(row.house)} · ${humanDate(row.check_in)} ~ ${humanDate(row.check_out)} · ${nights}박 · `
+        + `${row.amount.toLocaleString('ko-KR')}원`;
+      $('cancelBtn').hidden = row.status !== 'pending';
+      $('mineCard').hidden = false;
+    })
+    .catch(() => { $('mineCard').hidden = true; });
+}
+
+$('cancelBtn').addEventListener('click', () => {
+  const mine = loadMine();
+  if (!mine || !confirm('신청을 취소할까요?')) return;
+  $('cancelBtn').disabled = true;
+  myReservation(config.reservation, mine.secret)
+    .then((row) => (row ? cancelReservation(config.reservation, row.id, mine.secret) : false))
+    .then((ok) => {
+      showToast(ok ? '취소했습니다.' : '취소하지 못했습니다. 확정된 예약은 관리사무소에 문의해 주세요.');
+      return refreshCalendar();
+    })
+    .then(renderMine)
+    .finally(() => { $('cancelBtn').disabled = false; });
+});
+
+// ---- 계좌 복사 ----
+
+$('copyBtn').addEventListener('click', (e) => {
+  const text = `${config.account.bank} ${config.account.number}`;
+  const button = e.currentTarget;
+  const original = button.dataset.label || button.textContent;
+  button.dataset.label = original;
+
+  const done = (ok) => {
+    button.textContent = ok ? '복사됨' : '복사 실패';
+    if (ok) showToast('계좌번호가 복사되었습니다.');
+    setTimeout(() => { button.textContent = original; }, 1500);
+  };
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => done(true), () => done(false));
+    return;
+  }
+  // http나 구형 브라우저용 폴백.
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  let ok = false;
+  try { ta.select(); ok = document.execCommand('copy'); } catch { ok = false; }
+  ta.remove();
+  done(ok);
+});
+
+// ---- 단계 이동 ----
+
+$('toFormBtn').addEventListener('click', () => {
+  $('formPicked').innerHTML = pickedSummary();
+  buildForm();
+  showStep(2);
+});
+
+$('backBtn').addEventListener('click', () => showStep(1));
+
+$('restartBtn').addEventListener('click', () => {
+  $('formWarn').hidden = true;
+  renderHousePick();
+  showStep(1);
+});
+
+$('prevBtn').addEventListener('click', () => {
+  calMonth -= 1;
+  if (calMonth < 0) { calMonth = 11; calYear -= 1; }
+  renderCalendar();
+});
+$('nextBtn').addEventListener('click', () => {
+  calMonth += 1;
+  if (calMonth > 11) { calMonth = 0; calYear += 1; }
+  renderCalendar();
+});
+
+// ---- 부팅 ----
+
+function renderLegend() {
+  const host = $('legend');
+  host.textContent = '';
+  host.appendChild(el('span', null, { innerHTML: '<i class="swatch"></i> 빈자리' }));
+  host.appendChild(el('span', null, { innerHTML: '<i class="swatch taken"></i> 예약됨' }));
+  const names = config.houses.map((h) => h.label).join(' / ');
+  host.appendChild(el('span', null, { textContent: `위에서부터 ${names}` }));
+}
+
+function boot(loaded) {
+  config = loaded;
+  $('siteOrg').textContent = config.site.org;
+  $('accountNumber').textContent = `${config.account.bank} ${config.account.number}`;
+  $('accountHolder').textContent = config.account.holder;
+
+  if (!config.reservation.enabled) {
+    // 설정이 안 됐거나 아직 공개 전이다. 기존 신청 방법을 안내한다.
+    $('offText').innerHTML =
+      '예약 기능을 준비하고 있습니다.<br>지금은 <a href="index.html">신청서 작성</a> 화면에서 '
+      + '신청서를 만들어 관리사무소에 보내 주세요.';
+    $('offCard').hidden = false;
+    return;
+  }
+
+  const t = todayMidnight();
+  calYear = t.getFullYear();
+  calMonth = t.getMonth();
+
+  renderLegend();
+  renderCalendar();
+  renderHousePick();
+  showStep(1);
+
+  refreshCalendar().then(renderMine);
+}
+
+// 최상위 await를 쓰지 않는다 — 구형 사파리에서 모듈 전체가 파싱 실패한다.
+loadConfig().then(boot);
+</script>
+</body>
+</html>
