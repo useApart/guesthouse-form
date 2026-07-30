@@ -154,6 +154,14 @@ export function makeSecret() {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// 확인용 비밀번호. 숫자 6자리로 고정한다 — 자릿수가 제각각이면 주민이 몇 자리를
+// 넣었는지 헷갈리고, 짧으면 무차별 대입이 쉬워진다.
+const PIN_RE = /^[0-9]{6}$/;
+
+export function isValidPin(value) {
+  return PIN_RE.test(String(value == null ? '' : value));
+}
+
 // 네트워크를 타지 않는 순수 함수다. 헤더 조립이 틀리면 전부 실패하므로
 // 여기까지는 테스트로 고정한다.
 export function buildRequest(reservation, spec) {
@@ -238,6 +246,40 @@ export function cancelReservation(reservation, id, secret) {
     path: '/rest/v1/rpc/cancel_reservation',
     method: 'POST',
     body: { p_id: id, p_secret: secret },
+  }).then((ok) => ok === true);
+}
+
+// ---- 다른 기기에서 조회 ----
+// secret은 localStorage에만 있어 기기가 바뀌면 쓸 수 없다. 주민이 신청할 때
+// 정한 비밀번호로 자기 신청을 찾는 보조 경로다.
+//
+// 조회에 성공해도 이 기기를 소유자로 만들지 않는다 — secret을 저장하지 않고
+// 결과만 보여준다. 공용 PC가 조용히 주인이 되면 안 되고, 폰과 PC의 secret이
+// 다를 때 어느 쪽을 남길지 정할 방법도 마땅치 않다.
+
+function lookupBody(who, extra) {
+  return {
+    p_name: String(who.name || '').trim(),
+    p_dong: String(who.dong || '').trim(),
+    p_ho: String(who.ho || '').trim(),
+    p_pin: String(who.pin || ''),
+    ...(extra || {}),
+  };
+}
+
+export function findMyReservations(reservation, who) {
+  return request(reservation, {
+    path: '/rest/v1/rpc/find_my_reservations',
+    method: 'POST',
+    body: lookupBody(who),
+  }).then(pickRows);
+}
+
+export function cancelByLookup(reservation, id, who) {
+  return request(reservation, {
+    path: '/rest/v1/rpc/cancel_by_lookup',
+    method: 'POST',
+    body: lookupBody(who, { p_id: id }),
   }).then((ok) => ok === true);
 }
 

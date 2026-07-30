@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   occupiedNights, bookedNights, isHouseFree, availableHouses, nightStatus,
-  makeSecret, buildRequest, pickRows,
+  makeSecret, buildRequest, pickRows, isValidPin,
   findByHousehold, findByName, summarize, monthGrid,
 } from './reservations.js';
 
@@ -161,6 +161,33 @@ test('빈 응답에서 내 신청 목록은 빈 배열이다', () => {
   assert.deepEqual(pickRows(null), []);
   assert.deepEqual(pickRows([]), []);
   assert.deepEqual(pickRows([{ id: 'x' }, { id: 'y' }]), [{ id: 'x' }, { id: 'y' }]);
+});
+
+test('확인용 비밀번호는 숫자 6자리만 통과한다', () => {
+  assert.equal(isValidPin('250731'), true);
+  assert.equal(isValidPin('12345'), false);    // 짧다
+  assert.equal(isValidPin('1234567'), false);  // 길다
+  assert.equal(isValidPin('12 345'), false);   // 공백
+  assert.equal(isValidPin('abcdef'), false);   // 문자
+  assert.equal(isValidPin(''), false);
+  assert.equal(isValidPin(null), false);
+  assert.equal(isValidPin(undefined), false);
+});
+
+test('조회 요청은 이름·동·호수·비밀번호를 함께 보낸다', () => {
+  const { url, options } = buildRequest(REMOTE, {
+    path: '/rest/v1/rpc/find_my_reservations',
+    method: 'POST',
+    body: { p_name: '홍길동', p_dong: '1304', p_ho: '324', p_pin: '250731' },
+  });
+  assert.equal(url, 'https://demo.supabase.co/rest/v1/rpc/find_my_reservations');
+  assert.equal(options.method, 'POST');
+  // 익명 키로 부른다. 테이블 조회 권한은 없고 함수에만 실행 권한이 있다.
+  assert.equal(options.headers.Authorization, 'Bearer anon-key');
+  assert.equal(
+    options.body,
+    '{"p_name":"홍길동","p_dong":"1304","p_ho":"324","p_pin":"250731"}'
+  );
 });
 
 test('secret은 매번 다르고 충분히 길다', () => {
