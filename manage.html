@@ -43,8 +43,9 @@
   .res-phone a { color: #1F6D57; }
   .res-money { font-size: 20px; font-weight: 700; margin: 10px 0 0; }
   .res-mismatch { color: #C0392B; font-size: 13px; font-weight: 700; margin-top: 4px; line-height: 1.5; }
-  .res-actions { display: flex; gap: 8px; margin-top: 14px; }
+  .res-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   .res-actions .btn { flex: 1; height: 46px; }
+  .res-move { flex: 1; height: 46px; padding: 0 10px; border-radius: 10px; border: 1px solid #DDDBD2; background: #fff; color: #3C443B; font-size: 14px; font-family: inherit; cursor: pointer; }
   .empty { font-size: 14px; color: #9A9F92; text-align: center; padding: 20px 0; }
 
   /* ---- 세대 이용 이력 ---- */
@@ -233,8 +234,9 @@
 import { countNights, calcAmount } from './calc.js';
 import { DEFAULT_CONFIG, clone, loadConfig, printedCells, rectToPoint } from './config.js';
 import {
-  signIn, listReservations, setStatus,
+  signIn, listReservations, setStatus, setHouse,
   findByHousehold, findByName, summarize, monthGrid,
+  CONFLICT_OVERLAP,
 } from './reservations.js';
 
 const $ = (id) => document.getElementById(id);
@@ -376,6 +378,7 @@ function renderRow(row, host) {
 
   const actions = el('div', 'res-actions');
   actions.appendChild(makeBtn('신청서', 'btn btn-secondary', () => openSheet(row)));
+  actions.appendChild(buildMove(row));
   if (row.status === 'pending') {
     actions.appendChild(makeBtn('확정', 'btn btn-primary', () => change(row, 'confirmed', '확정')));
     actions.appendChild(makeBtn('취소', 'btn btn-danger', () => change(row, 'cancelled', '취소')));
@@ -432,6 +435,50 @@ function makeBtn(text, className, onClick) {
   const btn = el('button', className, { type: 'button', textContent: text });
   btn.addEventListener('click', onClick);
   return btn;
+}
+
+// 배정 변경. 대기·확정 모두 바꿀 수 있다 — 확정한 뒤에도 사정이 생겨 옮겨야 할
+// 때가 있다. 옮기려는 집이 그 기간에 차 있으면 DB가 거부한다.
+function buildMove(row) {
+  const houses = config.houses;
+
+  // 집이 둘이면 다음 집으로 바로 넘기는 버튼 하나로 충분하다.
+  if (houses.length === 2) {
+    const other = houses.find((h) => h.id !== row.house) || houses[0];
+    return makeBtn(`${houseLabel(row.house)} → ${other.label}`, 'btn btn-secondary',
+      () => move(row, other.id, other.label));
+  }
+
+  const select = el('select', 'res-move');
+  for (const h of houses) {
+    const opt = document.createElement('option');
+    opt.value = h.id;
+    opt.textContent = h.label;
+    opt.selected = h.id === row.house;
+    select.appendChild(opt);
+  }
+  select.addEventListener('change', () => {
+    const picked = houses.find((h) => h.id === select.value);
+    move(row, select.value, picked ? picked.label : select.value);
+  });
+  return select;
+}
+
+function move(row, house, label) {
+  const who = `${row.name} (${row.unit_dong}동 ${row.unit_ho}호)`;
+  if (!confirm(`${who}\n${humanDate(row.check_in)} ~ ${humanDate(row.check_out)}\n\n${label}으로 옮길까요?`)) {
+    loadList(); // 선택 목록에서 취소했으면 원래 값으로 되돌린다
+    return;
+  }
+
+  setHouse(config.reservation, accessToken, row.id, house)
+    .then(() => { showToast(`${label}으로 옮겼습니다.`); return loadList(); })
+    .catch((err) => {
+      if (err.status === 401 || err.status === 403) { logout(); showLogin('다시 로그인해 주세요.'); return; }
+      if (err.code === CONFLICT_OVERLAP) showToast(`그 기간에 ${label}은 이미 예약이 있습니다.`);
+      else showToast(`옮기지 못했습니다: ${err.message}`);
+      loadList();
+    });
 }
 
 function change(row, status, label) {
