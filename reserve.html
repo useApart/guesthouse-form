@@ -211,6 +211,7 @@ import { DEFAULT_CONFIG, clone, loadConfig, formFields, domIds } from './config.
 import {
   fetchCalendar, bookedNights, nightStatus, availableHouses, toDateStr,
   makeSecret, submitReservation, myReservations, cancelReservation,
+  isValidPin, findMyReservations, cancelByLookup,
   CONFLICT_OVERLAP, CONFLICT_DUPLICATE,
 } from './reservations.js';
 
@@ -482,6 +483,23 @@ function buildForm() {
     host.appendChild(row);
   }
 
+  // 다른 기기에서 조회할 때 쓰는 값. 종이 서식과 무관하므로 config의 항목으로
+  // 만들지 않는다 — 설정 필드로 넣으면 index.html의 서식에도 나타난다.
+  const pinRow = el('div', 'frow');
+  const pinBody = el('div', 'frow-body');
+  pinBody.appendChild(el('input', null, {
+    type: 'text', id: 'lookupPin', inputMode: 'numeric', placeholder: ' ', maxLength: 6,
+  }));
+  pinBody.appendChild(el('label', null, {
+    htmlFor: 'lookupPin', textContent: '확인용 비밀번호 (숫자 6자리)',
+  }));
+  pinRow.appendChild(pinBody);
+  host.appendChild(pinRow);
+  host.appendChild(el('p', 'hint', {
+    textContent: '다른 기기에서 신청 내역을 확인하실 때 씁니다. 잊지 마세요.',
+  }));
+  filterInput($('lookupPin'), CHARSET_PATTERNS.digits);
+
   attachFormListeners();
   restoreSaved();
   renderAmount();
@@ -598,6 +616,12 @@ function submit() {
     $('formWarn').hidden = false;
     return;
   }
+  const pin = ($('lookupPin') || {}).value || '';
+  if (!isValidPin(pin)) {
+    $('formWarn').textContent = '확인용 비밀번호를 숫자 6자리로 입력해 주세요.';
+    $('formWarn').hidden = false;
+    return;
+  }
   $('formWarn').hidden = true;
 
   // 클라이언트가 아는 빈 집 목록은 마지막으로 달력을 읽은 시점의 것이라
@@ -625,6 +649,9 @@ function submit() {
     people: peopleField ? v[peopleField.id] : 0,
     amount: renderAmount(),
     secret,
+    // 평문으로 보내지만 저장되지는 않는다. DB 트리거가 bcrypt 해시로 바꾸고
+    // 이 칸을 비운다.
+    lookup_pin: pin,
     status: 'pending',
   };
 
