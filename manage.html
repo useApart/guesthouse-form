@@ -42,7 +42,12 @@
   .res-phone { font-size: 15px; color: #3C443B; }
   .res-phone a { color: #1F6D57; }
   .res-money { font-size: 20px; font-weight: 700; margin: 10px 0 0; }
-  .res-mismatch { color: #C0392B; font-size: 13px; font-weight: 700; margin-top: 4px; line-height: 1.5; }
+  .res-mismatch { color: #C0392B; font-size: 13px; font-weight: 700; margin-top: 6px; line-height: 1.5; }
+  .res-amount { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; }
+  .res-amount input { width: 130px; height: 42px; padding: 0 10px; border-radius: 10px; border: 1px solid #DDDBD2; background: #fff; color: #3C443B; font-size: 19px; font-weight: 700; font-family: inherit; text-align: right; }
+  .res-amount .won { font-size: 17px; font-weight: 700; }
+  .res-holiday { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: #3C443B; margin-top: 8px; cursor: pointer; }
+  .res-holiday input { width: 18px; height: 18px; margin: 0; }
   .res-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   .res-actions .btn { flex: 1; height: 46px; }
   .res-move { flex: 1; height: 46px; padding: 0 10px; border-radius: 10px; border: 1px solid #DDDBD2; background: #fff; color: #3C443B; font-size: 14px; font-family: inherit; cursor: pointer; }
@@ -234,7 +239,7 @@
 import { countNights, calcAmount } from './calc.js';
 import { DEFAULT_CONFIG, clone, loadConfig, printedCells, rectToPoint } from './config.js';
 import {
-  signIn, listReservations, setStatus, setHouse,
+  signIn, listReservations, patchReservation, setHouse,
   findByHousehold, findByName, summarize, monthGrid,
   bookedNights, isHouseFree, CONFLICT_OVERLAP,
 } from './reservations.js';
@@ -365,19 +370,8 @@ function renderRow(row, host) {
   phone.appendChild(el('a', null, { href: `tel:${row.phone}`, textContent: row.phone }));
   box.appendChild(phone);
 
-  box.appendChild(el('div', 'res-money', { textContent: `${row.amount.toLocaleString('ko-KR')}원` }));
-
-  // 저장된 금액은 주민 브라우저가 보낸 값이라 신뢰하지 않는다. 다시 계산해 대조한다.
-  const expected = calcAmount(
-    { checkIn: row.check_in, checkOut: row.check_out, people: row.people, holiday: false },
-    { pricing: config.pricing }
-  );
-  if (row.amount !== expected) {
-    box.appendChild(el('div', 'res-mismatch', {
-      textContent: `요금표로 계산하면 ${expected.toLocaleString('ko-KR')}원입니다. 확인이 필요합니다.`
-        + ' (공휴일 요금이 반영된 금액일 수 있습니다)',
-    }));
-  }
+  const amount = buildAmount(row);
+  box.appendChild(amount.node);
 
   box.appendChild(buildHistory(row));
 
@@ -385,14 +379,70 @@ function renderRow(row, host) {
   actions.appendChild(makeBtn('신청서', 'btn btn-secondary', () => openSheet(row)));
   actions.appendChild(buildMove(row));
   if (row.status === 'pending') {
-    actions.appendChild(makeBtn('확정', 'btn btn-primary', () => change(row, 'confirmed', '확정')));
+    // 확정과 금액 저장을 한 번에 한다. 두 번 누르게 하면 금액만 고치고 확정을
+    // 잊거나 그 반대가 생긴다. 주민은 확정된 뒤에야 계좌를 보므로 이 순간의
+    // 금액이 실제로 청구되는 금액이다.
+    actions.appendChild(makeBtn('확정', 'btn btn-primary',
+      () => change(row, 'confirmed', '확정', amount.read())));
     actions.appendChild(makeBtn('취소', 'btn btn-danger', () => change(row, 'cancelled', '취소')));
   } else {
+    // 확정한 뒤에 금액이 틀린 것을 발견해도 고칠 수 있어야 한다. 예약을 취소했다
+    // 다시 만들게 하면 그 사이에 날짜를 뺏긴다.
+    actions.appendChild(makeBtn('금액 저장', 'btn btn-secondary',
+      () => saveAmount(row, amount.read())));
     actions.appendChild(makeBtn('예약 취소', 'btn btn-danger', () => change(row, 'cancelled', '취소')));
   }
   box.appendChild(actions);
 
   host.appendChild(box);
+}
+
+// 저장된 금액은 주민 브라우저가 보낸 값이라 신뢰하지 않는다. RLS 정책은
+// status만 검사하므로 익명 키로 amount에 0을 넣어도 DB가 받는다. 확정하는
+// 사람이 금액을 정한다.
+//
+// 공휴일은 외부 API로 판정하지 않고 사람이 켠다. 관리사무소는 어차피 달력을
+// 보고 판단하는 자리이고, API가 죽어도 동작해야 하며, 잘 돌아가는 index.html을
+// 건드리지 않아도 된다.
+function buildAmount(row) {
+  const wrap = el('div');
+
+  const input = el('input', null, {
+    type: 'number', inputMode: 'numeric', step: '1000', min: '0', value: String(row.amount),
+  });
+  const line = el('div', 'res-amount');
+  line.appendChild(input);
+  line.appendChild(el('span', 'won', { textContent: '원' }));
+  wrap.appendChild(line);
+
+  const label = el('label', 'res-holiday');
+  const holidayBox = el('input', null, { type: 'checkbox' });
+  label.appendChild(holidayBox);
+  label.appendChild(el('span', null, { textContent: '공휴일 요금으로 계산' }));
+  wrap.appendChild(label);
+
+  const note = el('div', 'res-mismatch');
+  wrap.appendChild(note);
+
+  const recalc = (holiday) => calcAmount(
+    { checkIn: row.check_in, checkOut: row.check_out, people: row.people, holiday },
+    { pricing: config.pricing }
+  );
+
+  const refreshNote = () => {
+    const expected = recalc(holidayBox.checked);
+    note.hidden = Number(input.value) === expected;
+    note.textContent = `요금표로 계산하면 ${expected.toLocaleString('ko-KR')}원입니다.`;
+  };
+
+  holidayBox.addEventListener('change', () => {
+    input.value = String(recalc(holidayBox.checked));
+    refreshNote();
+  });
+  input.addEventListener('input', refreshNote);
+  refreshNote();
+
+  return { node: wrap, read: () => Number(input.value) };
 }
 
 // 이 세대가 전에 얼마나 썼는지. 승인 판단을 이 자리에서 끝내기 위한 것이라
@@ -498,15 +548,28 @@ function move(row, house, label) {
     });
 }
 
-function change(row, status, label) {
+// amount를 넘기면 상태와 함께 저장한다. 확정이 곧 금액 확정이다.
+function change(row, status, label, amount) {
   const who = `${row.name} (${row.unit_dong}동 ${row.unit_ho}호)`;
-  if (!confirm(`${who}\n${humanDate(row.check_in)} ~ ${humanDate(row.check_out)}\n\n이 예약을 ${label}할까요?`)) return;
+  const money = amount === undefined ? '' : `\n금액 ${amount.toLocaleString('ko-KR')}원`;
+  if (!confirm(`${who}\n${humanDate(row.check_in)} ~ ${humanDate(row.check_out)}${money}\n\n이 예약을 ${label}할까요?`)) return;
 
-  setStatus(config.reservation, accessToken, row.id, status)
+  const patch = amount === undefined ? { status } : { status, amount };
+  patchReservation(config.reservation, accessToken, row.id, patch)
     .then(() => { showToast(`${label}했습니다.`); return loadList(); })
     .catch((err) => {
       if (err.status === 401) { logout(); showLogin('다시 로그인해 주세요.'); return; }
       showToast(`처리하지 못했습니다: ${err.message}`);
+    });
+}
+
+function saveAmount(row, amount) {
+  if (amount === row.amount) { showToast('금액이 그대로입니다.'); return; }
+  patchReservation(config.reservation, accessToken, row.id, { amount })
+    .then(() => { showToast(`${amount.toLocaleString('ko-KR')}원으로 저장했습니다.`); return loadList(); })
+    .catch((err) => {
+      if (err.status === 401) { logout(); showLogin('다시 로그인해 주세요.'); return; }
+      showToast(`저장하지 못했습니다: ${err.message}`);
     });
 }
 

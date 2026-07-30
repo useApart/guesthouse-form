@@ -271,10 +271,6 @@ export function patchReservation(reservation, accessToken, id, patch) {
   });
 }
 
-export function setStatus(reservation, accessToken, id, status) {
-  return patchReservation(reservation, accessToken, id, { status });
-}
-
 export function setHouse(reservation, accessToken, id, house) {
   return patchReservation(reservation, accessToken, id, { house });
 }
