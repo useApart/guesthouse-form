@@ -236,7 +236,7 @@ import { DEFAULT_CONFIG, clone, loadConfig, printedCells, rectToPoint } from './
 import {
   signIn, listReservations, setStatus, setHouse,
   findByHousehold, findByName, summarize, monthGrid,
-  CONFLICT_OVERLAP,
+  bookedNights, isHouseFree, CONFLICT_OVERLAP,
 } from './reservations.js';
 
 const $ = (id) => document.getElementById(id);
@@ -349,8 +349,13 @@ function renderRow(row, host) {
   const box = el('div', `res${row.status === 'pending' ? ' pending' : ''}`);
   const nights = countNights(row.check_in, row.check_out);
 
+  // 대기 신청도 자리는 잡아두지만 최종 배정은 아니다. 그냥 'B동'이라고 쓰면
+  // 확정된 것처럼 보인다.
+  const where = row.status === 'pending'
+    ? `${houseLabel(row.house)}(배정 예정)`
+    : houseLabel(row.house);
   box.appendChild(el('div', 'res-when', {
-    textContent: `${houseLabel(row.house)} · ${humanDate(row.check_in)} ~ ${humanDate(row.check_out)} · ${nights}박 · ${row.people}명`,
+    textContent: `${where} · ${humanDate(row.check_in)} ~ ${humanDate(row.check_out)} · ${nights}박 · ${row.people}명`,
   }));
   box.appendChild(el('div', 'res-who', {
     textContent: `${row.name} · ${row.unit_dong}동 ${row.unit_ho}호`,
@@ -442,18 +447,30 @@ function makeBtn(text, className, onClick) {
 function buildMove(row) {
   const houses = config.houses;
 
-  // 집이 둘이면 다음 집으로 바로 넘기는 버튼 하나로 충분하다.
+  // 자기 자신은 빼고 자리 상황을 본다. 취소된 예약은 bookedNights가 걸러 준다.
+  // 미리 판단해 못 옮기는 버튼을 잠근다 — DB가 최종 판정을 하지만, 눌러보고
+  // 실패하는 것보다 왜 안 되는지 먼저 보이는 편이 낫다.
+  const booked = bookedNights(allRows.filter((r) => r.id !== row.id));
+  const free = (id) => isHouseFree(booked, id, row.check_in, row.check_out);
+
   if (houses.length === 2) {
     const other = houses.find((h) => h.id !== row.house) || houses[0];
-    return makeBtn(`${houseLabel(row.house)} → ${other.label}`, 'btn btn-secondary',
+    const btn = makeBtn(`${houseLabel(row.house)} → ${other.label}`, 'btn btn-secondary',
       () => move(row, other.id, other.label));
+    if (!free(other.id)) {
+      btn.disabled = true;
+      btn.title = `그 기간에 ${other.label}은 이미 차 있습니다`;
+    }
+    return btn;
   }
 
   const select = el('select', 'res-move');
   for (const h of houses) {
     const opt = document.createElement('option');
     opt.value = h.id;
-    opt.textContent = h.label;
+    const blocked = h.id !== row.house && !free(h.id);
+    opt.textContent = blocked ? `${h.label} (찼음)` : h.label;
+    opt.disabled = blocked;
     opt.selected = h.id === row.house;
     select.appendChild(opt);
   }

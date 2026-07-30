@@ -47,6 +47,16 @@ test('bookedNights는 집별로 밤을 모은다', () => {
   assert.deepEqual([...booked.get('b')].sort(), ['2026-01-11']);
 });
 
+test('bookedNights는 취소된 예약을 넣지 않는다', () => {
+  // 주민 화면은 public_calendar 뷰가 취소를 걸러 주지만, 관리사무소 화면은
+  // 취소까지 포함된 전체 목록을 다룬다. 여기서 안 거르면 취소된 예약이 자리를 막는다.
+  const booked = bookedNights([
+    { house: 'a', check_in: '2026-01-10', check_out: '2026-01-12', status: 'cancelled' },
+  ]);
+  assert.equal(booked.size, 0);
+  assert.equal(isHouseFree(booked, 'a', '2026-01-10', '2026-01-12'), true);
+});
+
 test('퇴실일에 바로 이어지는 예약은 겹치지 않는다', () => {
   const booked = bookedNights([{ house: 'a', check_in: '2026-01-10', check_out: '2026-01-12' }]);
   assert.equal(isHouseFree(booked, 'a', '2026-01-12', '2026-01-13'), true);

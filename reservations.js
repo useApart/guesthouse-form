@@ -40,10 +40,13 @@ export function occupiedNights(row) {
 }
 
 // 집별로 예약된 밤을 모은다. Map<houseId, Set<'YYYY-MM-DD'>>
+// 취소된 예약은 자리를 비운다. 주민 화면은 public_calendar 뷰가 이미 걸러 주지만,
+// 관리사무소 화면은 취소까지 포함된 전체 목록을 넘긴다 — monthGrid와 같은 규칙으로 맞춘다.
 export function bookedNights(rows) {
   const map = new Map();
   for (const row of rows || []) {
     if (!row || !row.house) continue;
+    if (row.status === 'cancelled') continue;
     if (!map.has(row.house)) map.set(row.house, new Set());
     const set = map.get(row.house);
     for (const night of occupiedNights(row)) set.add(night);
