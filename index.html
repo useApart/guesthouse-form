@@ -117,6 +117,31 @@
   .top-actions { display: flex; justify-content: flex-end; margin: -12px 0 14px; }
   .toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: 90vw; text-align: center; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---- 예약 달력 ---- */
+  .res-cal { border: 1px solid #E2E0D8; border-radius: 16px; padding: 14px; }
+  .res-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .res-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .res-blank { min-height: 52px; }
+  .res-day {
+    min-height: 52px; border: none; background: none; border-radius: 10px; padding: 4px 0 5px;
+    font-family: inherit; font-size: 13px; color: #1E251E; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .res-day:hover { background: #F5F4F0; }
+  .res-day.res-sun { color: #C0392B; }
+  .res-day.res-sat { color: #2E5AA8; }
+  .res-day.res-disabled { color: #CFCDC4; cursor: default; }
+  .res-day.res-disabled:hover { background: none; }
+  .res-day.res-selected { background: #1F6D57; color: #fff; }
+  .res-day.res-inrange { background: #EAF3EF; }
+  /* 집별 막대. 위에서부터 config.houses 순서다. */
+  .res-bars { display: flex; flex-direction: column; gap: 2px; width: 60%; }
+  .res-bar { height: 3px; border-radius: 2px; background: #7FB3A0; }
+  .res-bar.taken { background: #DCD9CE; }
+  .res-day.res-selected .res-bar { background: rgba(255,255,255,.85); }
+  .res-day.res-selected .res-bar.taken { background: rgba(255,255,255,.3); }
+  .res-legend { margin: 10px 0 0; font-size: 12px; color: #7A8177; text-align: center; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -137,6 +162,20 @@
     </div>
 
     <div class="card">
+      <!-- 예약이 켜져 있을 때만 보인다. initReservationCalendar() 참조. -->
+      <section class="res-cal" id="resCal" hidden>
+        <div class="res-head">
+          <button type="button" class="cal-nav" id="resPrev" aria-label="이전 달">‹</button>
+          <div class="cal-label" id="resLabel"></div>
+          <button type="button" class="cal-nav" id="resNext" aria-label="다음 달">›</button>
+        </div>
+        <div class="cal-week">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+        </div>
+        <div class="res-grid" id="resGrid"></div>
+        <p class="res-legend" id="resLegend"></p>
+      </section>
+
       <form id="form" autocomplete="on">
         <!-- 입력 행은 config.fields에서 생성된다. buildForm() 참조. -->
         <div class="field-list" id="fieldList"></div>
@@ -170,6 +209,9 @@ import {
   DEFAULT_CONFIG, clone, loadConfig, normalizeConfig,
   formFields, printedCells, derive, domIds,
 } from './config.js';
+// toDateStr은 가져오지 않는다 — 이 파일의 달력 팝오버가 쓰는 동명 함수가 이미 있고
+// 하는 일이 같다(인자만 (y, m, d) 형태).
+import { fetchCalendar, bookedNights, nightStatus } from './reservations.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -197,6 +239,127 @@ function buildDerived() {
   CLEARABLE = new Set(d.clearableIds);
   DATE_FIELDS = d.dateIds;
   ACCOUNT_TEXT = d.accountText;
+}
+
+// ---- 예약 달력 상태 ----
+// 스위치가 꺼져 있으면 아무것도 쓰지 않는다.
+let bookedMap = new Map();  // Map<houseId, Set<'YYYY-MM-DD'>>
+let resYear = 0;
+let resMonth = 0;           // 0-11
+let pickStart = '';         // 'YYYY-MM-DD'
+let pickEnd = '';
+
+// 오늘 자정. 과거는 고를 수 없다.
+function todayMidnight() {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  return t;
+}
+
+// 선택 가능한 마지막 날. config.stay.maxAheadMonths개월 뒤 같은 날.
+function lastSelectable() {
+  const t = todayMidnight();
+  return new Date(t.getFullYear(), t.getMonth() + config.stay.maxAheadMonths, t.getDate());
+}
+
+function renderResCalendar() {
+  const grid = $('resGrid');
+  $('resLabel').textContent = `${resYear}년 ${resMonth + 1}월`;
+  grid.textContent = '';
+
+  const firstWeekday = new Date(resYear, resMonth, 1).getDay();
+  const daysInMonth = new Date(resYear, resMonth + 1, 0).getDate();
+  const min = config.stay.limitDates ? todayMidnight() : null;
+  const max = config.stay.limitDates ? lastSelectable() : null;
+
+  for (let i = 0; i < firstWeekday; i++) {
+    const blank = document.createElement('span');
+    blank.className = 'res-blank';
+    grid.appendChild(blank);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(resYear, resMonth, d);
+    const key = toDateStr(resYear, resMonth, d);
+    const dow = date.getDay();
+
+    const btn = el('button', 'res-day', { type: 'button' });
+    if (dow === 0) btn.classList.add('res-sun');
+    if (dow === 6) btn.classList.add('res-sat');
+    btn.appendChild(el('span', null, { textContent: String(d) }));
+
+    // 집별 막대. 그 날 '밤'이 찼는지를 본다.
+    const bars = el('div', 'res-bars');
+    const status = nightStatus(config.houses, bookedMap, key);
+    for (const s of status) {
+      const bar = el('div', `res-bar${s.free ? '' : ' taken'}`);
+      bar.title = `${s.label} ${s.free ? '빈자리' : '예약됨'}`;
+      bars.appendChild(bar);
+    }
+    btn.appendChild(bars);
+
+    const outOfRange = (min && date < min) || (max && date > max);
+    const allTaken = status.every((s) => !s.free);
+    if (outOfRange || allTaken) {
+      btn.classList.add('res-disabled');
+      btn.disabled = true;
+    } else {
+      btn.addEventListener('click', () => pickDate(key));
+    }
+
+    if (key === pickStart || key === pickEnd) btn.classList.add('res-selected');
+    else if (pickStart && pickEnd && key > pickStart && key < pickEnd) btn.classList.add('res-inrange');
+
+    grid.appendChild(btn);
+  }
+
+  const names = config.houses.map((h) => h.label).join(' / ');
+  $('resLegend').textContent =
+    `막대는 위에서부터 ${names} 입니다. 진한 색이 빈자리, 연한 색이 예약됨입니다.`;
+}
+
+// Task 7에서 신청 흐름과 연결한다. 지금은 선택 표시만 한다.
+function pickDate(key) {
+  if (!pickStart || pickEnd || key <= pickStart) {
+    pickStart = key;
+    pickEnd = '';
+  } else {
+    pickEnd = key;
+  }
+  renderResCalendar();
+}
+
+function refreshCalendar() {
+  return fetchCalendar(config.reservation)
+    .then((rows) => {
+      bookedMap = bookedNights(rows);
+      renderResCalendar();
+    })
+    .catch(() => {
+      // 예약 현황을 못 읽어도 신청서 작성 자체는 계속 되게 둔다.
+      showToast('예약 현황을 불러오지 못했습니다. 새로고침해 주세요.');
+    });
+}
+
+function initReservationCalendar() {
+  const t = todayMidnight();
+  resYear = t.getFullYear();
+  resMonth = t.getMonth();
+
+  $('resPrev').addEventListener('click', () => {
+    resMonth -= 1;
+    if (resMonth < 0) { resMonth = 11; resYear -= 1; }
+    renderResCalendar();
+  });
+  $('resNext').addEventListener('click', () => {
+    resMonth += 1;
+    if (resMonth > 11) { resMonth = 0; resYear += 1; }
+    renderResCalendar();
+  });
+
+  $('resCal').hidden = false;
+  renderResCalendar();   // 먼저 빈 달력을 그려두고
+  return refreshCalendar(); // 예약 현황이 오면 다시 그린다
 }
 
 // ---- 폼 생성 ----
@@ -1013,6 +1176,9 @@ function boot(loaded) {
   if (isPreview) fillPreviewSamples();
 
   formImage.src = config.form.image;
+
+  // 스위치가 꺼져 있으면 달력을 만들지 않는다. 화면이 지금과 완전히 같다.
+  if (config.reservation.enabled) initReservationCalendar();
 
   render(); // 이미지가 아직 로딩 중이어도 경고 텍스트와 버튼 잠금 상태를 즉시 반영한다.
   imageReady.then(render).catch(() => { syncButtons(); });
