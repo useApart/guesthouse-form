@@ -50,6 +50,11 @@
   .toolbar { display: flex; gap: 8px; margin-bottom: 16px; }
   .toolbar .btn { flex: 1; height: 42px; font-size: 14px; }
 
+  /* 탭. admin.html과 같은 값을 쓴다 — 새 디자인을 만들지 않는다. */
+  .tabs { display: flex; background: #EAE8E1; border-radius: 14px; padding: 4px; margin-bottom: 16px; gap: 4px; }
+  .tab { flex: 1; height: 44px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; background: transparent; color: #7A8177; }
+  .tab.active { background: #fff; color: #1F6D57; box-shadow: 0 1px 2px rgba(30,37,30,.08); }
+
   /* ---- 신청서 미리보기 ---- */
   .sheet-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
   .sheet-overlay[hidden] { display: none; }
@@ -87,15 +92,27 @@
         <button type="button" class="btn btn-secondary" id="logoutBtn">로그아웃</button>
       </div>
 
-      <div class="card">
-        <h2 id="pendingTitle">확인 필요</h2>
-        <div id="pendingList"></div>
+      <div class="tabs">
+        <button class="tab active" data-tab="pending" type="button" id="tabPendingBtn">확인 필요</button>
+        <button class="tab" data-tab="calendar" type="button" id="tabCalendarBtn">달력</button>
+        <button class="tab" data-tab="history" type="button" id="tabHistoryBtn">지난 예약</button>
       </div>
 
-      <div class="card">
-        <h2>확정된 예약</h2>
-        <div id="confirmedList"></div>
+      <div id="tabPending">
+        <div class="card">
+          <h2 id="pendingTitle">확인 필요</h2>
+          <div id="pendingList"></div>
+        </div>
+
+        <div class="card">
+          <h2>확정된 예약</h2>
+          <div id="confirmedList"></div>
+        </div>
       </div>
+
+      <div id="tabCalendar" hidden></div>
+
+      <div id="tabHistory" hidden></div>
     </section>
   </div>
 </div>
@@ -125,6 +142,10 @@ const TOKEN_KEY = 'guesthouse-staff-token';
 let config = clone(DEFAULT_CONFIG);
 let accessToken = '';
 try { accessToken = localStorage.getItem(TOKEN_KEY) || ''; } catch { accessToken = ''; }
+
+// 마지막으로 받은 전체 예약(취소 포함). 달력과 검색이 같은 데이터를 쓴다.
+let allRows = [];
+let activeTab = 'pending';
 
 let toastTimer;
 function showToast(msg) {
@@ -276,9 +297,26 @@ function change(row, status, label) {
     });
 }
 
+// ---- 탭 ----
+
+function showTab(name) {
+  activeTab = name;
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+  $('tabPending').hidden = name !== 'pending';
+  $('tabCalendar').hidden = name !== 'calendar';
+  $('tabHistory').hidden = name !== 'history';
+  if (name === 'calendar') renderCalendar();
+  if (name === 'history') renderHistory();
+}
+
+$('tabPendingBtn').addEventListener('click', () => showTab('pending'));
+$('tabCalendarBtn').addEventListener('click', () => showTab('calendar'));
+$('tabHistoryBtn').addEventListener('click', () => showTab('history'));
+
 function loadList() {
   return listReservations(config.reservation, accessToken)
     .then((rows) => {
+      allRows = rows;
       const pending = rows.filter((r) => r.status === 'pending');
       const confirmed = rows.filter((r) => r.status === 'confirmed');
 
@@ -293,6 +331,11 @@ function loadList() {
       c.textContent = '';
       if (confirmed.length === 0) c.appendChild(el('div', 'empty', { textContent: '확정된 예약이 없습니다.' }));
       confirmed.forEach((r) => renderRow(r, c));
+
+      // 목록을 새로 받으면 보고 있던 탭도 갱신한다. 확정·취소 후에도
+      // 달력과 검색 결과가 최신 상태를 보여준다.
+      if (activeTab === 'calendar') renderCalendar();
+      if (activeTab === 'history') renderHistory();
     })
     .catch((err) => {
       // 토큰이 만료되면 다시 로그인해야 한다.
@@ -300,6 +343,14 @@ function loadList() {
       showToast(`목록을 불러오지 못했습니다: ${err.message}`);
     });
 }
+
+// ---- 달력 탭 ----
+
+function renderCalendar() { /* Task 5에서 채운다 */ }
+
+// ---- 지난 예약 탭 ----
+
+function renderHistory() { /* Task 6에서 채운다 */ }
 
 // ---- 신청서 출력 ----
 // 좌표는 config.fields[].rect에서 나오므로 index.html과 같은 자리에 찍힌다.
