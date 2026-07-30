@@ -257,3 +257,15 @@ export function setStatus(reservation, accessToken, id, status) {
     minimal: true,
   });
 }
+
+// 관리사무소가 배정을 바꾼다. 옮기려는 집이 그 기간에 이미 차 있으면 DB의
+// no_overlap 제약이 23P01로 거부한다 — 이중 배정을 코드가 아니라 DB가 막는다.
+export function setHouse(reservation, accessToken, id, house) {
+  return request(reservation, {
+    path: `/rest/v1/reservations?id=eq.${encodeURIComponent(id)}`,
+    method: 'PATCH',
+    body: { house },
+    accessToken,
+    minimal: true,
+  });
+}
