@@ -43,8 +43,8 @@
       "required": true,
       "placeholder": "",
       "maxlength": 20,
-      "remember": true,
-      "charset": "korean"
+      "charset": "korean",
+      "remember": true
     },
     {
       "id": "unit",
@@ -81,9 +81,9 @@
       "required": true,
       "placeholder": "",
       "maxlength": 20,
+      "charset": "any",
       "remember": true,
-      "tallBox": true,
-      "charset": "any"
+      "tallBox": true
     },
     {
       "id": "checkIn",
@@ -221,6 +221,21 @@
   "holiday": {
     "enabled": true,
     "eveOfHoliday": true
+  },
+  "houses": [
+    {
+      "id": "a",
+      "label": "A동"
+    },
+    {
+      "id": "b",
+      "label": "B동"
+    }
+  ],
+  "reservation": {
+    "enabled": false,
+    "url": "https://lsigisvjyvogaxsibltw.supabase.co",
+    "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWdpc3ZqeXZvZ2F4c2libHR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNDU2NTAsImV4cCI6MjEwMDkyMTY1MH0.cwZ9oFJ64mBDy1Fde8_bymhJybrAyECoj03fWmhaztQ"
   },
   "account": {
     "bank": "국민은행",

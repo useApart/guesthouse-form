@@ -89,8 +89,8 @@ export const DEFAULT_CONFIG = {
   // 게스트하우스 두 곳. 요금·인원·규정이 같으므로 pricing은 하나를 공유한다.
   // 집마다 조건이 달라지면 그때 houses[].pricing으로 덮어쓰는 구조를 더한다.
   houses: [
-    { id: 'a', label: '1호실' },
-    { id: 'b', label: '2호실' },
+    { id: 'a', label: 'A동' },
+    { id: 'b', label: 'B동' },
   ],
 
   // 예약 저장소(Supabase). anonKey는 공개되어도 되는 키다 — 이 키로 할 수 있는
