@@ -145,7 +145,7 @@ export function monthGrid(rows, year, month) {
 
 // Postgres 오류 코드. 클라이언트가 상황을 구분해 안내하려면 필요하다.
 export const CONFLICT_OVERLAP = '23P01';   // 같은 집 날짜 겹침 (no_overlap 제약)
-export const CONFLICT_DUPLICATE = '23505'; // 세대당 대기 신청 중복 (one_pending_per_unit)
+export const CONFLICT_DUPLICATE = '23505'; // 세대당 대기 신청 한도 초과 (pending_limit 트리거)
 
 // 주민이 자기 신청을 확인·취소할 때 쓰는 값. 브라우저에만 보관한다.
 export function makeSecret() {

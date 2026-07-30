@@ -89,10 +89,34 @@ alter table reservations add constraint no_overlap
     daterange(check_in, check_out) with &&
   ) where (status <> 'cancelled');
 
--- 한 세대가 대기 신청을 겹쳐 넣지 못하게 한다.
-create unique index one_pending_per_unit
-  on reservations (unit_dong, unit_ho)
-  where status = 'pending';
+-- 한 세대가 달력을 도배하지 못하게 대기 신청을 3건으로 제한한다.
+-- 개수 제한은 유니크 인덱스로 표현할 수 없어 트리거를 쓴다.
+create or replace function check_pending_limit()
+returns trigger language plpgsql as $$
+declare cnt int;
+begin
+  -- 확정·취소로 바뀌는 것은 막지 않는다. 대기로 들어오는 건만 센다.
+  if new.status <> 'pending' then return new; end if;
+
+  select count(*) into cnt
+    from reservations
+   where unit_dong = new.unit_dong
+     and unit_ho   = new.unit_ho
+     and status    = 'pending'
+     and id <> new.id;          -- 자기 자신은 빼야 배정 변경이 막히지 않는다
+
+  if cnt >= 3 then
+    -- PostgREST가 23505를 409로 내보낸다. 클라이언트가 이 코드를 구분한다.
+    raise exception '세대당 대기 신청은 3건까지입니다' using errcode = '23505';
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists pending_limit on reservations;
+create trigger pending_limit
+  before insert or update on reservations
+  for each row execute function check_pending_limit();
 
 -- 주민에게는 날짜·집·상태만 보인다. 이름·연락처는 나갈 경로가 없다.
 create view public_calendar as
@@ -664,7 +688,7 @@ Expected: FAIL — `buildRequest is not a function`
 
 // Postgres 오류 코드. 클라이언트가 상황을 구분해 안내하려면 필요하다.
 export const CONFLICT_OVERLAP = '23P01';   // 같은 집 날짜 겹침 (no_overlap)
-export const CONFLICT_DUPLICATE = '23505'; // 세대당 대기 신청 중복 (one_pending_per_unit)
+export const CONFLICT_DUPLICATE = '23505'; // 세대당 대기 신청 한도 초과 (pending_limit 트리거)
 
 export function makeSecret() {
   const bytes = new Uint8Array(16);

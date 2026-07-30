@@ -142,18 +142,43 @@ alter table reservations add constraint no_overlap
 
 집이 세 개로 늘어나도 이 제약은 그대로 동작한다.
 
-### 한 세대가 대기 신청을 겹쳐 넣지 못하게
+### 한 세대가 달력을 도배하지 못하게
 
 ```sql
-create unique index one_pending_per_unit
-  on reservations (unit_dong, unit_ho)
-  where status = 'pending';
+create or replace function check_pending_limit()
+returns trigger language plpgsql as $$
+declare cnt int;
+begin
+  if new.status <> 'pending' then return new; end if;
+  select count(*) into cnt
+    from reservations
+   where unit_dong = new.unit_dong and unit_ho = new.unit_ho
+     and status = 'pending' and id <> new.id;
+  if cnt >= 3 then
+    raise exception '세대당 대기 신청은 3건까지입니다' using errcode = '23505';
+  end if;
+  return new;
+end $$;
+
+create trigger pending_limit
+  before insert or update on reservations
+  for each row execute function check_pending_limit();
 ```
 
-**"대기 중인 신청은 세대당 하나"**라는 뜻이다. 확정되면 `pending`이 아니므로 다음 신청을
-넣을 수 있다. 다만 **한 세대가 두 집을 동시에 신청할 수는 없다.** 대가족이 두 집을 함께
-쓰려는 경우는 관리사무소에 연락해야 한다. 드문 경우를 위해 제약을 푸는 것보다, 장난 신청이
-달력을 막는 것을 확실히 차단하는 편이 낫다고 본다.
+**세대당 대기 신청 3건까지**다. 확정되면 `pending`이 아니므로 한도에서 빠진다.
+
+처음에는 유니크 인덱스로 1건만 허용했다. 그런데 그러면 **날짜가 달라도 대기 건이 하나
+있으면 추가 신청이 막힌다.** 주민이 다음 주를 신청했는데 관리사무소가 며칠 뒤에 확정하면
+그동안 3주 뒤 날짜도 못 잡는다. 잘못한 것이 없는데 기다려야 한다. 개수 제한은 유니크
+인덱스로 표현할 수 없어 트리거로 바꿨다.
+
+`id <> new.id` 조건이 필요하다. 없으면 관리사무소가 대기 건의 배정을 바꿀 때 자기 자신이
+한도에 잡혀 막힌다.
+
+**경쟁 조건이 남는다.** 두 신청이 동시에 들어오면 둘 다 `cnt = 2`를 읽어 4건이 될 수 있다.
+이 규모에서는 받아들인다 — 결과는 대기 한 건이 더 생기는 것뿐이고 관리사무소가 취소하면
+된다. 막으려면 직렬화나 자문 잠금이 필요한데 과하다. 겹침 방지와 달리 여기는 틀려도
+데이터가 깨지지 않는다.
 
 장난 신청 대응은 여기까지만 한다. 같은 단지 주민 대상이고 하루 한 팀 규모다. 나머지는
 관리사무소가 취소로 처리한다.

@@ -645,7 +645,8 @@ function tryHouses(candidates, base, secret) {
     .catch((err) => {
       if (err.code === CONFLICT_OVERLAP) return tryHouses(rest, base, secret);
       if (err.code === CONFLICT_DUPLICATE) {
-        $('formWarn').textContent = '이미 확인 대기 중인 신청이 있습니다. 위에서 확인하실 수 있습니다.';
+        $('formWarn').textContent =
+          '확인 대기 중인 신청이 이미 여러 건 있습니다. 확정된 뒤에 다시 신청해 주세요.';
         $('formWarn').hidden = false;
         return renderMine();
       }
