@@ -190,6 +190,18 @@ test('조회 요청은 이름·동·호수·비밀번호를 함께 보낸다', (
   );
 });
 
+test('내 신청 취소는 secret과 비밀번호를 함께 보낸다', () => {
+  // secret만으로 취소되면 공용 기기에서 localStorage를 읽은 사람이
+  // 비밀번호 확인을 우회한다. 두 값을 모두 요구한다.
+  const { url, options } = buildRequest(REMOTE, {
+    path: '/rest/v1/rpc/cancel_reservation_with_pin',
+    method: 'POST',
+    body: { p_id: 'abc-123', p_secret: 'device-secret', p_pin: '250731' },
+  });
+  assert.equal(url, 'https://demo.supabase.co/rest/v1/rpc/cancel_reservation_with_pin');
+  assert.equal(options.body, '{"p_id":"abc-123","p_secret":"device-secret","p_pin":"250731"}');
+});
+
 test('secret은 매번 다르고 충분히 길다', () => {
   const a = makeSecret();
   const b = makeSecret();

@@ -241,11 +241,17 @@ export function myReservations(reservation, secret) {
   }).then(pickRows);
 }
 
-export function cancelReservation(reservation, id, secret) {
+// 취소에는 secret과 확인용 비밀번호를 모두 요구한다. secret은 이 기기가
+// 신청했다는 증거이고, 비밀번호는 신청한 본인이라는 증거다.
+//
+// secret만으로 취소되게 두면 공용 PC에서 다음 사람이 localStorage를 읽어
+// 앞사람의 신청을 취소할 수 있다. '내 신청'을 자동으로 보여주는 대신
+// 파괴적인 동작에만 확인을 건다.
+export function cancelWithPin(reservation, id, secret, pin) {
   return request(reservation, {
-    path: '/rest/v1/rpc/cancel_reservation',
+    path: '/rest/v1/rpc/cancel_reservation_with_pin',
     method: 'POST',
-    body: { p_id: id, p_secret: secret },
+    body: { p_id: id, p_secret: secret, p_pin: String(pin || '') },
   }).then((ok) => ok === true);
 }
 
