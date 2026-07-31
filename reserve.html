@@ -114,6 +114,9 @@
   #mineAccount { margin-top: 14px; }
   .lookup-toggle { width: 100%; height: 46px; border-radius: 10px; border: 1px solid #D8D6CD; background: #fff; color: #3C443B; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; }
   #lookupForm { margin-top: 14px; }
+  /* .btn은 flex:1로 폭을 얻는데 이 버튼만 flex 컨테이너 밖에 있어 내용 크기로
+     줄어든다. 위의 .lookup-toggle과 폭을 맞춘다. */
+  #lookupBtn { width: 100%; margin-top: 14px; }
   #lookupResult:not(:empty) { margin-top: 14px; }
 
   .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; text-align: center; z-index: 100; }
