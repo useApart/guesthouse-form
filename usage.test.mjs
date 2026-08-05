@@ -38,3 +38,23 @@ test('모르는 source는 보내지 않는다', () => {
   assert.equal(buildBumpRequest(RES, ''), null);
   assert.equal(buildBumpRequest(RES, undefined), null);
 });
+
+import { readFileSync } from 'node:fs';
+
+// 집계 호출은 실패해도 화면에 아무 표시가 안 난다. 연결을 빠뜨리면 조용히
+// 숫자만 0으로 남으므로 wiring.test.mjs와 같은 방식으로 정적으로 잡는다.
+const WIRED = [
+  ['index.html', 'typed'],
+  ['draw.html', 'hand'],
+];
+
+for (const [page, source] of WIRED) {
+  test(`${page}: 이미지를 만드는 두 버튼 모두 집계를 부른다`, () => {
+    const html = readFileSync(new URL(`./${page}`, import.meta.url), 'utf8');
+    assert.match(html, /import \{ bumpUsage \} from '\.\/usage\.js';/);
+
+    const re = new RegExp(`bumpUsage\\(config\\.reservation, '${source}'\\)`, 'g');
+    const calls = html.match(re) || [];
+    assert.equal(calls.length, 2, '"보내기"와 "저장" 두 곳에서 불러야 한다');
+  });
+}

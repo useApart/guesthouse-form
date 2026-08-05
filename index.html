@@ -170,6 +170,7 @@ import {
   DEFAULT_CONFIG, clone, loadConfig, normalizeConfig,
   formFields, printedCells, derive, domIds,
 } from './config.js';
+import { bumpUsage } from './usage.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -567,6 +568,9 @@ function syncButtons() {
 $('share').addEventListener('click', async () => {
   try {
     const file = await toJpegFile();
+    // 이미지가 실제로 만들어진 건만 센다. await 하지 않는다 — 집계가 늦거나
+    // 실패해도 주민은 아무 차이를 느끼면 안 된다.
+    bumpUsage(config.reservation, 'typed');
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({ files: [file], title: config.site.title });
       return;
@@ -584,6 +588,7 @@ $('share').addEventListener('click', async () => {
 $('download').addEventListener('click', async () => {
   try {
     const file = await toJpegFile();
+    bumpUsage(config.reservation, 'typed');
     // 폰(iOS/안드로이드)에서는 <a download>로는 사진함에 저장되지 않는다.
     // 공유 시트를 열면 사용자가 '이미지 저장'을 눌러 사진함에 바로 저장할 수 있다.
     if (navigator.canShare && navigator.canShare({ files: [file] })) {

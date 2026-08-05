@@ -133,6 +133,7 @@
 
 <script type="module">
 import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packRows } from './config.js';
+import { bumpUsage } from './usage.js';
 
 (function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -567,6 +568,8 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
   $('sendBtn').addEventListener('click', function () {
     if (imageState !== 'ready') return;
     toJpegFile().then(function (file) {
+      // 이미지가 실제로 만들어진 건만 센다. 실패해도 화면은 그대로 간다.
+      bumpUsage(config.reservation, 'hand');
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         navigator.share({ files: [file], title: '게스트하우스 신청서' }).then(function () {
           setStatus('');
@@ -585,6 +588,7 @@ import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packR
   $('saveBtn').addEventListener('click', function () {
     if (imageState !== 'ready') return;
     toJpegFile().then(function (file) {
+      bumpUsage(config.reservation, 'hand');
       // 폰에서는 <a download>로 사진함에 저장되지 않는다. 공유 시트를 열면
       // 사용자가 '이미지 저장'을 눌러 사진함에 바로 저장할 수 있다.
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
