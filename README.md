@@ -138,6 +138,42 @@
 무료 프로젝트는 한 주 동안 접속이 전혀 없으면 일시정지됩니다. 그러면 Supabase
 대시보드에서 Restore를 눌러 살려야 합니다.
 
+## 사용량 알림 (텔레그램)
+
+주민이 신청서 이미지를 만들 때마다 숫자가 1 오르고, 매일 아침 7시에 어제 건수가
+텔레그램으로 옵니다.
+
+```
+📋 8월 4일 신청서 3건
+   타이핑 2 · 손글씨 1
+```
+
+**세는 것은 이미지가 만들어진 횟수입니다. 신청 세대 수가 아닙니다.** "보내기"가
+실패해서 "저장"을 다시 누르면 2로 셉니다. 세대별로 합치려면 이름·동호수를 서버로
+보내야 하는데, 그러면 개인정보가 텔레그램까지 흘러갑니다. 숫자가 조금 부풀더라도
+아무것도 안 보내는 쪽을 택했습니다.
+
+**서버에 저장되는 것은 날짜와 숫자 두 개뿐입니다.** 누가 언제 무엇을 신청했는지는
+저장되지 않습니다.
+
+### 준비
+
+1. `docs/superpowers/plans/2026-08-05-usage-telegram.md`의 Task 1 SQL을 Supabase
+   SQL Editor에서 실행합니다.
+2. 텔레그램 **@BotFather** 에게 `/newbot` 으로 봇을 만들고 토큰을 받습니다.
+3. 알림 받을 방에 봇을 초대하고 아무 메시지나 보낸 뒤,
+   `https://api.telegram.org/bot<토큰>/getUpdates` 에서 `chat.id`를 확인합니다.
+   그룹이면 음수입니다.
+4. 저장소 Settings → Secrets and variables → Actions 에 `TELEGRAM_BOT_TOKEN`,
+   `TELEGRAM_CHAT_ID`를 등록합니다.
+5. Actions 탭 → "일일 사용량 알림" → **Run workflow** 로 한 번 눌러 확인합니다.
+
+알림이 며칠째 안 오면 Actions 탭에서 빨간불을 확인하세요. 0건인 날도 메시지가
+오도록 만들었으므로 **아무것도 안 오는 것은 고장입니다.**
+
+봇 토큰은 저장소 Secrets에만 있습니다. 주민 브라우저에는 들어가지 않습니다 —
+들어가면 누구나 그 토큰으로 채팅방에 아무 메시지나 보낼 수 있습니다.
+
 ## 설정 구조
 
 | 파일 | 역할 |
@@ -146,6 +182,7 @@
 | `config.js` | 내장 기본값 · 검증/정규화 · 좌표 변환 · 배치 규칙 · `derive()` |
 | `github.js` | GitHub Contents API 래퍼 |
 | `reservations.js` | 달력 가용성 계산 · Supabase 호출 |
+| `usage.js` | 신청서 생성 건수 집계 호출 |
 
 서식 칸의 좌표는 사각형(`rect`) 하나로 저장하고, `index.html`은 중심점으로
 변환해 쓰고 `draw.html`은 사각형 그대로 씁니다. 관리자는 칸을 한 번만 잡으면 됩니다.
@@ -167,7 +204,7 @@
 ## 개발
 
 ```bash
-node --test calc.test.mjs config.test.mjs github.test.mjs reservations.test.mjs wiring.test.mjs
+node --test calc.test.mjs config.test.mjs github.test.mjs reservations.test.mjs wiring.test.mjs usage.test.mjs notify.test.mjs
 python -m http.server 8000  # 로컬 확인 (file://로 열면 이미지 저장이 실패합니다)
 ```
 

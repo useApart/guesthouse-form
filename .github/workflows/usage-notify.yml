@@ -1,0 +1,21 @@
+name: 일일 사용량 알림
+
+on:
+  schedule:
+    # UTC 22:00 = KST 07:00. GitHub은 정시 실행을 보장하지 않지만
+    # 일일 집계라 수십 분 밀려도 상관없다.
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/notify-usage.mjs
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
