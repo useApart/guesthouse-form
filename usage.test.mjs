@@ -53,8 +53,9 @@ for (const [page, source] of WIRED) {
     const html = readFileSync(new URL(`./${page}`, import.meta.url), 'utf8');
     assert.match(html, /import \{ bumpUsage \} from '\.\/usage\.js';/);
 
-    const re = new RegExp(`bumpUsage\\(config\\.reservation, '${source}'\\)`, 'g');
+    // 관리자 미리보기(admin.html의 iframe)에서는 운영 카운터가 아니라 null을 보내야 한다.
+    const re = new RegExp(`bumpUsage\\(isPreview \\? null : config\\.reservation, '${source}'\\)`, 'g');
     const calls = html.match(re) || [];
-    assert.equal(calls.length, 2, '"보내기"와 "저장" 두 곳에서 불러야 한다');
+    assert.equal(calls.length, 2, '"보내기"와 "저장" 두 곳에서 불러야 하고, 두 곳 다 미리보기를 가드해야 한다');
   });
 }

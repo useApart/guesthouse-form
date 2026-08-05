@@ -25,5 +25,7 @@ export function buildBumpRequest(reservation, source) {
 export function bumpUsage(reservation, source) {
   const req = buildBumpRequest(reservation, source);
   if (!req) return Promise.resolve();
-  return fetch(req.url, req.options).then(() => {}, () => {});
+  // keepalive: 공유 시트로 바로 넘어가거나 탭을 닫아도 이 요청(30바이트)은 살아남는다.
+  // 없으면 브라우저가 in-flight 요청을 취소해 저집계된다.
+  return fetch(req.url, { ...req.options, keepalive: true }).then(() => {}, () => {});
 }
