@@ -1,0 +1,49 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { seoulYesterday, formatMessage } from './scripts/notify-usage.mjs';
+
+test('한국 시간 아침 7시에 돌면 어제는 하루 전이다', () => {
+  // UTC 22:00 = KST 다음날 07:00. 워크플로가 실제로 도는 시각이다.
+  assert.equal(seoulYesterday(new Date('2026-08-05T22:00:00Z')), '2026-08-05');
+});
+
+test('UTC 자정을 넘어도 한국 날짜가 밀리지 않는다', () => {
+  // UTC 08-06 00:30 = KST 08-06 09:30 → 어제는 08-05
+  assert.equal(seoulYesterday(new Date('2026-08-06T00:30:00Z')), '2026-08-05');
+});
+
+test('한국 시간 자정 직전과 직후에서 날짜가 정확히 갈린다', () => {
+  // KST 08-05 23:59
+  assert.equal(seoulYesterday(new Date('2026-08-05T14:59:00Z')), '2026-08-04');
+  // KST 08-06 00:00
+  assert.equal(seoulYesterday(new Date('2026-08-05T15:00:00Z')), '2026-08-05');
+});
+
+test('월초에는 지난달 말일로 넘어간다', () => {
+  // KST 09-01 07:00
+  assert.equal(seoulYesterday(new Date('2026-08-31T22:00:00Z')), '2026-08-31');
+});
+
+test('건수가 있으면 두 줄로 보낸다', () => {
+  assert.equal(
+    formatMessage('2026-08-04', { typed: 2, hand: 1 }),
+    '📋 8월 4일 신청서 3건\n   타이핑 2 · 손글씨 1'
+  );
+});
+
+test('한쪽이 0이어도 내역에 둘 다 표시한다', () => {
+  // 0을 숨기면 어느 화면이 안 쓰이는지 보이지 않는다.
+  assert.equal(
+    formatMessage('2026-08-04', { typed: 3, hand: 0 }),
+    '📋 8월 4일 신청서 3건\n   타이핑 3 · 손글씨 0'
+  );
+});
+
+test('그날 기록이 없으면 0건 한 줄만 보낸다', () => {
+  // get_usage는 기록이 없으면 0행을 준다 → rows[0]이 undefined다.
+  assert.equal(formatMessage('2026-08-04', undefined), '📋 8월 4일 신청서 0건');
+});
+
+test('0건인 날도 보낸다 — 침묵이 고장인지 조용한 날인지 구분되지 않으면 더 나쁘다', () => {
+  assert.equal(formatMessage('2026-08-04', { typed: 0, hand: 0 }), '📋 8월 4일 신청서 0건');
+});
