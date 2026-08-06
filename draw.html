@@ -72,6 +72,7 @@
   .preview-overlay-content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 92vw; max-height: 92vh; }
   .preview-overlay-content canvas { max-width: 92vw; max-height: 78vh; width: auto; height: auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.35); background: #fff; }
   .preview-close-btn { height: 44px; padding: 0 24px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; border: none; background: #fff; color: #3C443B; }
+  .build { margin: 20px 0 16px; text-align: center; font-size: 11px; color: #9A9F92; }
 </style>
 </head>
 <body>
@@ -128,6 +129,8 @@
   </div>
 </div>
 
+<p class="build" id="build"></p>
+
 <script type="module">
 import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packRows } from './config.js';
 import { bumpUsage } from './usage.js';
@@ -135,6 +138,13 @@ import { detectMobile } from './device.js';
 
 (function () {
   var $ = function (id) { return document.getElementById(id); };
+
+  // 배포 시각을 화면 아래에 작게 표시한다. document.lastModified는 서버가 준
+  // Last-Modified 헤더라 브라우저가 실제로 들고 있는 파일의 시각이다 — 캐시된 옛
+  // 파일이면 옛 시각이 뜬다. GitHub Pages는 배포마다 모든 파일에 같은 시각을 단다.
+  $('build').textContent = new Date(document.lastModified).toLocaleString('ko-KR', {
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+  }) + ' 배포';
 
   // 설정을 읽기 전에도 화면이 동작해야 하므로 내장 기본값에서 시작한다.
   var config = clone(DEFAULT_CONFIG);

@@ -129,6 +129,7 @@
 
   .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; text-align: center; z-index: 200; }
   .toast.show { opacity: 1; }
+  .build { margin: 20px 0 16px; text-align: center; font-size: 11px; color: #9A9F92; }
 </style>
 </head>
 <body>
@@ -234,6 +235,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<p class="build" id="build"></p>
 
 <script type="module">
 import { countNights, calcAmount } from './calc.js';
@@ -246,6 +248,13 @@ import {
 import { detectMobile } from './device.js';
 
 const $ = (id) => document.getElementById(id);
+
+// 배포 시각을 화면 아래에 작게 표시한다. document.lastModified는 서버가 준
+// Last-Modified 헤더라 브라우저가 실제로 들고 있는 파일의 시각이다 — 캐시된 옛
+// 파일이면 옛 시각이 뜬다. GitHub Pages는 배포마다 모든 파일에 같은 시각을 단다.
+$('build').textContent = new Date(document.lastModified).toLocaleString('ko-KR', {
+  year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+}) + ' 배포';
 
 // 폰이면 저장에 공유 시트를 쓴다(사진함). PC면 파일로 내려받는다.
 // 관리사무소는 거의 항상 PC라 이 화면에서는 사실상 다운로드 경로만 쓰인다.
