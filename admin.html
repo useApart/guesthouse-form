@@ -1300,6 +1300,21 @@ $('save').addEventListener('click', () => {
   state.saving = true;
   updateSaveState();
 
+  // 예약 설정을 바꿨다면 그 주소·키로 실제 호출을 해 본다. 잘못된 값이 저장되면
+  // 다음 새로고침부터 Supabase에 못 붙어 스스로를 잠근다.
+  const current = state.config.reservation;
+  const saved = state.savedText ? JSON.parse(state.savedText).reservation : null;
+  const reservationChanged = !saved
+    || saved.url !== current.url
+    || saved.anonKey !== current.anonKey
+    || saved.enabled !== current.enabled;
+
+  const verify = (reservationChanged && current.enabled)
+    ? loadStoredConfig(current).then((row) => {
+        if (!row) throw new Error('그 주소·키로 설정을 읽지 못했습니다. 값을 다시 확인해 주세요.');
+      })
+    : Promise.resolve();
+
   // 서식 이미지는 아직 저장소에 커밋한다. 그래서 이때만 GitHub 토큰이 필요하다.
   // 이미지를 먼저 올린다 — 설정이 먼저 저장되면 아직 없는 파일을 가리킨다.
   const uploadImage = state.imageFile
@@ -1314,7 +1329,8 @@ $('save').addEventListener('click', () => {
         : Promise.reject(new Error('서식 이미지를 올리려면 GitHub 토큰이 필요합니다.')))
     : Promise.resolve(null);
 
-  uploadImage
+  verify
+    .then(() => uploadImage)
     .then((imagePath) => {
       const config = clone(state.config);
       if (imagePath) config.form.image = imagePath;
@@ -1358,7 +1374,8 @@ $('save').addEventListener('click', () => {
 // ---- 되돌리기 ----
 
 $('loadHistory').addEventListener('click', () => {
-  if (!state.token) { showToast('이력을 보려면 토큰이 필요합니다.'); return; }
+  // 공개 저장소라 이력은 익명으로 읽힌다. 토큰이 필요 없다.
+  // 익명 호출은 IP당 시간당 60회 제한이 있으나 이력을 여는 일은 드물다.
   createClient({ repo: REPO, token: state.token })
     .listCommits('config.json', 10)
     .then(renderHistory)
@@ -1392,23 +1409,25 @@ function renderHistory(commits) {
   }
 }
 
+// 옛 커밋에서 설정을 읽어 Supabase에 되돌린다.
+// 저장소에 직접 되돌리면 다음 동기화가 도로 덮어쓴다 — Supabase가 원본이다.
 function restore(sha) {
+  if (!state.staffToken) { showToast('되돌리려면 먼저 로그인해 주세요.'); return; }
   createClient({ repo: REPO, token: state.token })
     .getCommitContent('config.json', sha)
     .then((text) => {
-      if (!text) { showToast('그 시점의 설정을 불러오지 못했습니다.'); return; }
-      // 이력을 되감지 않고 옛 값을 편집기로 불러온다. 확인 후 새 커밋으로
-      // 저장하므로 되돌리기를 되돌리는 것도 똑같이 동작한다.
-      state.config = normalizeConfig(JSON.parse(text));
-      if (state.imageUrl) { URL.revokeObjectURL(state.imageUrl); state.imageUrl = null; }
-      state.imageFile = null;
-      state.selected = null;
-      state.dirty = true;
-      renderAll();
-      refreshPreview();
-      showToast('불러왔습니다. 미리보기로 확인한 뒤 저장하세요.');
+      if (!text) throw new Error('그 시점의 설정을 찾지 못했습니다.');
+      const restored = normalizeConfig(JSON.parse(text));
+      return saveStoredConfig(state.config.reservation, state.staffToken, restored).then(() => {
+        state.config = restored;
+        state.savedText = `${JSON.stringify(restored, null, 2)}\n`;
+        state.dirty = false;
+        state.selected = null;
+        showToast('되돌렸습니다. 약 10분 안에 모두에게 반영됩니다.');
+        renderAll();
+      });
     })
-    .catch((err) => showToast(`불러오지 못했습니다: ${err.message}`));
+    .catch((err) => showToast(`되돌리지 못했습니다: ${err.message}`));
 }
 
 // ---- 불러오기 · 초기화 ----
