@@ -44,15 +44,24 @@ export function imageFileName(now = new Date(), ext = 'jpg') {
 
 const API = 'https://api.github.com';
 
+// 헤더 조립만 순수 함수로 뺀다. 토큰 유무로 갈리는 부분이 여기라 테스트로 고정한다.
+// 토큰이 없으면 Authorization을 통째로 빼야 한다 — 'Bearer '만 보내면 GitHub이
+// 401로 막는다. 공개 저장소의 읽기(이력 조회)는 익명으로도 된다.
+export function buildHeaders({ token, hasBody = false } = {}) {
+  return {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+  };
+}
+
 export function createClient({ repo, token, branch = 'main' }) {
   function request(path, options = {}) {
     return fetch(`${API}${path}`, {
       ...options,
       headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${token}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...buildHeaders({ token, hasBody: Boolean(options.body) }),
         ...options.headers,
       },
     }).then((res) => {

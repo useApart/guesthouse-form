@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toBase64, fromBase64, commitMessage, imageFileName } from './github.js';
+import { toBase64, fromBase64, commitMessage, imageFileName, buildHeaders } from './github.js';
 
 test('한글이 든 문자열을 base64로 왕복해도 깨지지 않는다', () => {
   // btoa()는 비ASCII에서 InvalidCharacterError를 던진다. 계좌 예금주와
@@ -31,4 +31,23 @@ test('이미지 파일명은 시각을 붙여 매번 달라진다', () => {
 
 test('이미지 파일명의 확장자를 바꿀 수 있다', () => {
   assert.equal(imageFileName(new Date(2026, 6, 28, 15, 30), 'png'), 'form-20260728-1530.png');
+});
+
+test('토큰이 있으면 Authorization을 붙인다', () => {
+  const h = buildHeaders({ token: 'ghp_x' });
+  assert.equal(h.Authorization, 'Bearer ghp_x');
+  assert.equal(h.Accept, 'application/vnd.github+json');
+  assert.equal(h['X-GitHub-Api-Version'], '2022-11-28');
+});
+
+test('토큰이 없으면 Authorization 키 자체가 없다', () => {
+  // 'Bearer '만 보내면 GitHub이 401로 막는다. 공개 저장소는 익명으로 읽힌다.
+  const h = buildHeaders({ token: '' });
+  assert.equal('Authorization' in h, false);
+  assert.equal('Authorization' in buildHeaders({}), false);
+});
+
+test('본문이 있을 때만 Content-Type을 붙인다', () => {
+  assert.equal(buildHeaders({ token: 't', hasBody: true })['Content-Type'], 'application/json');
+  assert.equal('Content-Type' in buildHeaders({ token: 't' }), false);
 });
