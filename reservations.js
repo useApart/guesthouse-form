@@ -186,9 +186,11 @@ export function buildRequest(reservation, spec) {
 }
 
 // 아래는 fetch를 쓰므로 자동 테스트하지 않는다. 조립과 오류 해석은 위의
-// buildRequest와 여기의 request가 전부 맡는다.
-export function request(reservation, spec) {
-  const { url, options } = buildRequest(reservation, spec);
+// buildRequest와 여기의 send가 전부 맡는다.
+
+// { url, options }를 받아 fetch하고, 응답을 해석한다. 오류 시 status·code를
+// 붙인다. configstore·usage 같은 다른 모듈이 직접 쓸 수 있도록 export한다.
+export function send({ url, options }) {
   return fetch(url, options).then((res) => {
     if (res.status === 204) return null;
     return res.json().catch(() => null).then((body) => {
@@ -205,6 +207,10 @@ export function request(reservation, spec) {
       return body;
     });
   });
+}
+
+export function request(reservation, spec) {
+  return send(buildRequest(reservation, spec));
 }
 
 // ---- 주민용 (익명 키) ----

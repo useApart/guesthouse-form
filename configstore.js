@@ -2,8 +2,9 @@
 // 방법만 안다 — 설정의 '의미'(기본값·검증·정규화)는 config.js가 맡는다.
 //
 // reservations.js와 같은 구조를 쓴다: 조립은 순수 함수로 빼서 테스트로 고정하고,
-// 네트워크를 타는 부분은 request에 맡긴다.
-import { buildRequest, request } from './reservations.js';
+// 네트워크를 타는 부분은 send에 맡긴다. 명세는 한 곳에만 있으므로 나중에 한쪽만
+// 고쳐져도 검증과 요청이 따라간다.
+import { buildRequest, send } from './reservations.js';
 
 const ROW = '/rest/v1/app_config?id=eq.1';
 
@@ -34,22 +35,17 @@ export function buildSaveConfigRequest(reservation, accessToken, config) {
 
 // 없으면 null. 부르는 쪽이 정적 config.json으로 물러선다.
 export function loadStoredConfig(reservation) {
-  if (!usable(reservation)) return Promise.resolve(null);
-  return request(reservation, { path: `${ROW}&select=config` })
-    .then((rows) => (rows && rows[0] ? rows[0].config : null));
+  const req = buildLoadConfigRequest(reservation);
+  if (!req) return Promise.resolve(null);
+  return send(req).then((rows) => (rows && rows[0] ? rows[0].config : null));
 }
 
-// 실패하면 error.status가 붙은 Error로 reject한다. 401이면 부르는 쪽이 다시
-// 로그인시켜야 한다.
+// 실패하면 error.status가 붙은 Error로 reject한다. 네트워크·HTTP 실패(401, 500
+// 등)만 status를 갖는다. 401이면 부르는 쪽이 다시 로그인시켜야 한다.
 export function saveStoredConfig(reservation, accessToken, config) {
-  if (!buildSaveConfigRequest(reservation, accessToken, config)) {
+  const req = buildSaveConfigRequest(reservation, accessToken, config);
+  if (!req) {
     return Promise.reject(new Error('저장할 수 없는 상태입니다.'));
   }
-  return request(reservation, {
-    path: ROW,
-    method: 'PATCH',
-    body: { config },
-    accessToken,
-    minimal: true,
-  });
+  return send(req);
 }
