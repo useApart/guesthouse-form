@@ -614,9 +614,13 @@ $('download').addEventListener('click', async () => {
     a.download = file.name;
     a.click();
     // 클릭 직후 바로 해제하면 일부 브라우저(특히 데스크톱 사파리)는 비동기로 다운로드를
-    // 시작하다가 이미 해제된 URL을 만나 실패한다. 클릭 처리가 끝난 뒤에 해제한다.
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showToast('저장했습니다.');
+    // 시작하다가 이미 해제된 URL을 만나 실패한다. 게다가 크롬의 "다운로드 전에 각 파일의
+    // 저장 위치 확인"을 켜두면 사용자가 폴더를 고르는 동안 다운로드가 시작되지 않는다.
+    // 폴더를 뒤적이는 시간까지 넉넉히 기다린다.
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    // "저장했습니다" 토스트는 두지 않는다. <a download>는 사용자가 실제로 저장했는지
+    // 취소했는지 알려주지 않아, 취소한 사람에게도 성공했다고 거짓말을 하게 된다.
+    // 브라우저가 자기 다운로드 UI로 이미 알려준다.
   } catch (err) {
     if (err.name === 'AbortError') { return; }
     showToast(`이미지를 만들지 못했습니다: ${err.message}`);

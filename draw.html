@@ -61,8 +61,6 @@
   .btn-secondary:disabled:hover { background: #fff; }
   .btn-primary:disabled:hover { background: #1F6D57; }
   .status-msg { margin: 0; font-size: 13px; color: #7A8177; min-height: 1.2em; }
-  .toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: 90vw; text-align: center; }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .mini-preview { position: fixed; right: 16px; bottom: 16px; z-index: 50; display: flex; flex-direction: column; align-items: center; gap: 4px; background: #fff; border: 1px solid #E8E6DE; border-radius: 12px; box-shadow: 0 2px 8px rgba(30,37,30,.18); padding: 6px 8px; cursor: pointer; }
   .mini-preview[hidden] { display: none; }
   /* 높이는 서식 비율에서 계산해 applySizes()가 넣는다. 아래는 계산 전 기본값. */
@@ -116,7 +114,6 @@
     </div>
   </div>
 </div>
-<div class="toast" id="toast"></div>
 
 <div class="mini-preview" id="miniPreview" hidden>
   <canvas id="miniCanvas" width="84" height="119"></canvas>
@@ -211,15 +208,6 @@ import { detectMobile } from './device.js';
   }
 
   function setStatus(msg) { $('status').textContent = msg; }
-
-  var toastTimer;
-  function showToast(msg) {
-    var toast = $('toast');
-    clearTimeout(toastTimer);
-    toast.textContent = msg;
-    toast.classList.add('show');
-    toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 1800);
-  }
 
   function syncButtons() {
     var blocked = imageState !== 'ready';
@@ -563,7 +551,10 @@ import { detectMobile } from './device.js';
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    // 클릭 직후 바로 해제하면 비동기로 다운로드를 시작하던 브라우저가 이미 사라진
+    // URL을 만나 실패한다. 게다가 크롬의 "다운로드 전에 각 파일의 저장 위치 확인"을
+    // 켜두면 사용자가 폴더를 고르는 동안 다운로드가 시작되지 않는다. 넉넉히 기다린다.
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
   }
 
   // 관리자 미리보기(admin.html의 iframe)에서 누른 것은 실제 신청이 아니다.
@@ -613,9 +604,11 @@ import { detectMobile } from './device.js';
         return;
       }
       // 공유 파일이 지원되지 않는 환경(주로 PC)에서는 파일로 내려받는다.
+      // "저장했습니다" 토스트는 두지 않는다. <a download>는 사용자가 실제로 저장했는지
+      // 취소했는지 알려주지 않아, 취소한 사람에게도 성공했다고 거짓말을 하게 된다.
+      // 브라우저가 자기 다운로드 UI로 이미 알려준다.
       downloadFile(file);
       setStatus('');
-      showToast('저장했습니다.');
     }).catch(function (err) {
       setStatus('이미지를 만들지 못했습니다: ' + err.message);
     });
