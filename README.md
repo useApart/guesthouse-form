@@ -81,6 +81,7 @@
 
 이렇게 나눈 이유는 주민 화면이 Supabase를 몰라도 되게 하기 위해서입니다.
 Supabase가 멈춰도 신청서·예약 화면은 정적 `config.json`으로 정상 동작합니다.
+`config.json`이 없거나 깨져도 신청서는 `config.js`의 내장 기본값으로 동작합니다.
 
 ### 서식 이미지 교체 (관리자 전용)
 
@@ -201,7 +202,7 @@ GitHub은 60일 동안 커밋이 없는 저장소의 예약(`schedule`) 워크�
 
 | 파일 | 역할 |
 |---|---|
-| `config.json` | 실제 설정값. 관리자 페이지가 쓰는 유일한 데이터 |
+| `config.json` | Supabase `app_config`의 자동 생성 사본 · 주민 화면(`index`·`draw`·`reserve`·`manage`)이 실제로 읽는 데이터 |
 | `config.js` | 내장 기본값 · 검증/정규화 · 좌표 변환 · 배치 규칙 · `derive()` |
 | `github.js` | GitHub Contents API 래퍼 |
 | `reservations.js` | 달력 가용성 계산 · Supabase 호출 |
