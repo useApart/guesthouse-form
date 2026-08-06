@@ -1294,6 +1294,22 @@ function updateSaveState() {
   $('save').textContent = state.saving ? '저장 중...' : '저장';
 }
 
+// 잘못된 주소·키를 저장하면 admin.html이 Supabase에 못 붙어 스스로를 잠근다.
+// 바뀐 경우에만 실제 호출로 확인한다 — 매번 하면 저장이 느려진다.
+// 저장(save)과 되돌리기(restore) 둘 다 이 함수를 쓴다 — 로직을 두 곳에 두면
+// 한쪽만 고치는 사고가 난다.
+function verifyReservation(next) {
+  const saved = state.savedText ? JSON.parse(state.savedText).reservation : null;
+  const changed = !saved
+    || saved.url !== next.url
+    || saved.anonKey !== next.anonKey
+    || saved.enabled !== next.enabled;
+  if (!changed || !next.enabled) return Promise.resolve();
+  return loadStoredConfig(next).then((row) => {
+    if (!row) throw new Error('그 주소·키로 설정을 읽지 못했습니다. 값을 다시 확인해 주세요.');
+  });
+}
+
 $('save').addEventListener('click', () => {
   if (!state.staffToken) { showToast('먼저 로그인해 주세요.'); return; }
   const now = new Date();
@@ -1302,35 +1318,26 @@ $('save').addEventListener('click', () => {
 
   // 예약 설정을 바꿨다면 그 주소·키로 실제 호출을 해 본다. 잘못된 값이 저장되면
   // 다음 새로고침부터 Supabase에 못 붙어 스스로를 잠근다.
-  const current = state.config.reservation;
-  const saved = state.savedText ? JSON.parse(state.savedText).reservation : null;
-  const reservationChanged = !saved
-    || saved.url !== current.url
-    || saved.anonKey !== current.anonKey
-    || saved.enabled !== current.enabled;
-
-  const verify = (reservationChanged && current.enabled)
-    ? loadStoredConfig(current).then((row) => {
-        if (!row) throw new Error('그 주소·키로 설정을 읽지 못했습니다. 값을 다시 확인해 주세요.');
-      })
-    : Promise.resolve();
+  const verify = verifyReservation(state.config.reservation);
 
   // 서식 이미지는 아직 저장소에 커밋한다. 그래서 이때만 GitHub 토큰이 필요하다.
   // 이미지를 먼저 올린다 — 설정이 먼저 저장되면 아직 없는 파일을 가리킨다.
-  const uploadImage = state.imageFile
-    ? (state.token
-        ? readFileAsBase64(state.imageFile).then((content) => {
-            const ext = (state.imageFile.name.split('.').pop() || 'jpg').toLowerCase();
-            const path = imageFileName(now, ext);
-            return createClient({ repo: REPO, token: state.token })
-              .putFile({ path, content, message: `chore: 서식 이미지 교체 (${path})` })
-              .then(() => path);
-          })
-        : Promise.reject(new Error('서식 이미지를 올리려면 GitHub 토큰이 필요합니다.')))
-    : Promise.resolve(null);
+  // 함수로 감싸 verify 다음에 호출한다 — 여기서 바로 프라미스를 만들면 검증이
+  // 끝나기 전에 업로드가 이미 시작돼 버린다.
+  function uploadImage() {
+    if (!state.imageFile) return Promise.resolve(null);
+    if (!state.token) return Promise.reject(new Error('서식 이미지를 올리려면 GitHub 토큰이 필요합니다.'));
+    return readFileAsBase64(state.imageFile).then((content) => {
+      const ext = (state.imageFile.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = imageFileName(now, ext);
+      return createClient({ repo: REPO, token: state.token })
+        .putFile({ path, content, message: `chore: 서식 이미지 교체 (${path})` })
+        .then(() => path);
+    });
+  }
 
   verify
-    .then(() => uploadImage)
+    .then(() => uploadImage())
     .then((imagePath) => {
       const config = clone(state.config);
       if (imagePath) config.form.image = imagePath;
@@ -1418,14 +1425,18 @@ function restore(sha) {
     .then((text) => {
       if (!text) throw new Error('그 시점의 설정을 찾지 못했습니다.');
       const restored = normalizeConfig(JSON.parse(text));
-      return saveStoredConfig(state.config.reservation, state.staffToken, restored).then(() => {
-        state.config = restored;
-        state.savedText = `${JSON.stringify(restored, null, 2)}\n`;
-        state.dirty = false;
-        state.selected = null;
-        showToast('되돌렸습니다. 약 10분 안에 모두에게 반영됩니다.');
-        renderAll();
-      });
+      // 이 커밋은 검증 기능이 생기기 전 것일 수 있다 — 되돌리기도 저장과 같은
+      // 방식으로 확인해야 스스로를 잠그지 않는다.
+      return verifyReservation(restored.reservation)
+        .then(() => saveStoredConfig(state.config.reservation, state.staffToken, restored))
+        .then(() => {
+          state.config = restored;
+          state.savedText = `${JSON.stringify(restored, null, 2)}\n`;
+          state.dirty = false;
+          state.selected = null;
+          showToast('되돌렸습니다. 약 10분 안에 모두에게 반영됩니다.');
+          renderAll();
+        });
     })
     .catch((err) => showToast(`되돌리지 못했습니다: ${err.message}`));
 }
