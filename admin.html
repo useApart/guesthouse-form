@@ -238,8 +238,17 @@
         <strong>service_role key는 절대 넣지 마세요</strong> — 그 키는 권한 제한을 통째로 무시합니다.
       </p>
 
-      <h2 style="margin-top:22px;">GitHub 토큰</h2>
-      <div id="tokenArea"></div>
+      <h2 style="margin-top:22px;">로그인</h2>
+      <div id="authArea"></div>
+
+      <details style="margin-top:22px;">
+        <summary style="cursor:pointer; font-size:14px; color:#7A8177;">서식 이미지 교체 (관리자 전용)</summary>
+        <p class="hint" style="margin-top:10px;">
+          서식 이미지를 바꿀 때만 GitHub 토큰이 필요합니다. 요금·계좌·항목만 고칠 때는
+          로그인만으로 충분합니다.
+        </p>
+        <div id="tokenArea"></div>
+      </details>
     </section>
 
     <section class="card" id="panel-save" hidden>
@@ -274,9 +283,13 @@ import {
   printedCells, rectToPoint, CREATABLE_INPUTS, CHARSETS,
 } from './config.js';
 import { createClient, commitMessage, imageFileName, toBase64 } from './github.js';
+import { loadStoredConfig, saveStoredConfig } from './configstore.js';
+import { signIn } from './reservations.js';
 
 const REPO = 'useApart/guesthouse-form';
 const TOKEN_KEY = 'guesthouse-admin-token';
+// manage.html과 같은 키를 쓴다. 한쪽에서 로그인하면 다른 쪽도 로그인 상태가 된다.
+const STAFF_KEY = 'guesthouse-staff-token';
 const PREVIEW_KEY = 'guesthouse-config-preview';
 
 const $ = (id) => document.getElementById(id);
@@ -284,6 +297,9 @@ const $ = (id) => document.getElementById(id);
 const state = {
   config: clone(DEFAULT_CONFIG),
   token: localStorage.getItem(TOKEN_KEY) || '',
+  // GitHub 토큰(state.token)은 이제 서식 이미지 교체에만 쓴다.
+  // 설정 저장은 아래 로그인 토큰으로 한다.
+  staffToken: (() => { try { return localStorage.getItem(STAFF_KEY) || ''; } catch { return ''; } })(),
   sha: null,        // config.json의 현재 sha. 충돌 감지에 쓴다.
   savedText: '',    // 저장소에 들어 있는 내용. 바뀐 게 없으면 커밋하지 않으려고 들고 있다.
   imageFile: null,  // 교체할 이미지 File. 저장할 때만 커밋한다.
@@ -1077,6 +1093,84 @@ $('addHouse').addEventListener('click', () => {
   touch();
 });
 
+function renderAuthArea() {
+  const host = $('authArea');
+  host.textContent = '';
+
+  if (state.staffToken) {
+    const banner = document.createElement('div');
+    banner.className = 'banner banner-info';
+    banner.textContent = '로그인되어 있습니다. 저장할 수 있습니다.';
+    host.appendChild(banner);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-danger btn-sm';
+    btn.textContent = '로그아웃';
+    btn.addEventListener('click', () => {
+      state.staffToken = '';
+      try { localStorage.removeItem(STAFF_KEY); } catch { /* 저장 막힌 환경 */ }
+      renderAll();
+      renderAuthArea();
+      showToast('로그아웃했습니다.');
+    });
+    host.appendChild(btn);
+    return;
+  }
+
+  const banner = document.createElement('div');
+  banner.className = 'banner banner-warn';
+  banner.innerHTML = `
+    로그인하지 않으면 편집과 미리보기는 되지만 <strong>저장할 수 없습니다.</strong><br>
+    관리사무소 계정(예약 확인 화면과 같은 계정)으로 로그인해 주세요.
+  `;
+  host.appendChild(banner);
+
+  const emailField = document.createElement('div');
+  emailField.className = 'field';
+  const email = document.createElement('input');
+  email.type = 'email';
+  email.placeholder = '이메일';
+  email.autocomplete = 'username';
+  emailField.appendChild(email);
+  host.appendChild(emailField);
+
+  const pwField = document.createElement('div');
+  pwField.className = 'field';
+  const password = document.createElement('input');
+  password.type = 'password';
+  password.placeholder = '비밀번호';
+  password.autocomplete = 'current-password';
+  pwField.appendChild(password);
+  host.appendChild(pwField);
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-primary btn-sm';
+  btn.textContent = '로그인';
+
+  function submit() {
+    if (!email.value || !password.value) return;
+    btn.disabled = true;
+    signIn(state.config.reservation, email.value.trim(), password.value)
+      .then((session) => {
+        state.staffToken = session.access_token;
+        try { localStorage.setItem(STAFF_KEY, state.staffToken); } catch { /* 저장 막힌 환경 */ }
+        showToast('로그인했습니다.');
+        renderAuthArea();
+        renderAll();
+      })
+      .catch(() => {
+        btn.disabled = false;
+        showToast('로그인하지 못했습니다. 이메일과 비밀번호를 확인해 주세요.');
+      });
+  }
+
+  btn.addEventListener('click', submit);
+  password.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  host.appendChild(btn);
+}
+
 function renderTokenArea() {
   const host = $('tokenArea');
   host.textContent = '';
@@ -1192,31 +1286,32 @@ function updateSaveState() {
   const parts = [];
   if (state.dirty) parts.push('<span class="dirty-dot"></span>저장하지 않은 변경이 있습니다.');
   else parts.push('변경 사항 없음');
-  if (!state.token) parts.push('토큰이 없어 저장할 수 없습니다.');
-  if (state.imageFile) parts.push('새 서식 이미지가 함께 올라갑니다.');
+  if (!state.staffToken) parts.push('로그인해야 저장할 수 있습니다.');
+  if (state.imageFile && !state.token) parts.push('서식 이미지를 올리려면 GitHub 토큰이 필요합니다.');
+  else if (state.imageFile) parts.push('새 서식 이미지가 함께 올라갑니다.');
   $('saveState').innerHTML = parts.join(' · ');
-  $('save').disabled = state.saving || !state.dirty || !state.token;
+  $('save').disabled = state.saving || !state.dirty || !state.staffToken;
   $('save').textContent = state.saving ? '저장 중...' : '저장';
 }
 
 $('save').addEventListener('click', () => {
-  if (!state.token) { showToast('먼저 GitHub 토큰을 등록해 주세요.'); return; }
-  const client = createClient({ repo: REPO, token: state.token });
+  if (!state.staffToken) { showToast('먼저 로그인해 주세요.'); return; }
   const now = new Date();
   state.saving = true;
   updateSaveState();
 
-  // 이미지를 먼저 커밋한다. 이미지만 올라가고 설정이 실패해도 옛 설정이 옛
-  // 이미지를 계속 가리키므로 주민 화면은 정상이다. 순서를 반대로 하면 설정이
-  // 아직 없는 파일을 가리켜 화면이 깨진다.
+  // 서식 이미지는 아직 저장소에 커밋한다. 그래서 이때만 GitHub 토큰이 필요하다.
+  // 이미지를 먼저 올린다 — 설정이 먼저 저장되면 아직 없는 파일을 가리킨다.
   const uploadImage = state.imageFile
-    ? readFileAsBase64(state.imageFile).then((content) => {
-        const ext = (state.imageFile.name.split('.').pop() || 'jpg').toLowerCase();
-        const path = imageFileName(now, ext);
-        return client
-          .putFile({ path, content, message: `chore: 서식 이미지 교체 (${path})` })
-          .then(() => path);
-      })
+    ? (state.token
+        ? readFileAsBase64(state.imageFile).then((content) => {
+            const ext = (state.imageFile.name.split('.').pop() || 'jpg').toLowerCase();
+            const path = imageFileName(now, ext);
+            return createClient({ repo: REPO, token: state.token })
+              .putFile({ path, content, message: `chore: 서식 이미지 교체 (${path})` })
+              .then(() => path);
+          })
+        : Promise.reject(new Error('서식 이미지를 올리려면 GitHub 토큰이 필요합니다.')))
     : Promise.resolve(null);
 
   uploadImage
@@ -1225,8 +1320,6 @@ $('save').addEventListener('click', () => {
       if (imagePath) config.form.image = imagePath;
       const text = `${JSON.stringify(config, null, 2)}\n`;
 
-      // 저장소 내용과 같으면 커밋하지 않는다. 값을 바꿨다가 되돌린 뒤 저장을
-      // 누르면 내용이 같은 빈 커밋이 쌓이고 배포도 괜히 한 번 더 돈다.
       if (!imagePath && text === state.savedText) {
         state.dirty = false;
         showToast('바뀐 내용이 없습니다.');
@@ -1234,27 +1327,24 @@ $('save').addEventListener('click', () => {
         return null;
       }
 
-      return client.putFile({
-        path: 'config.json',
-        content: toBase64(text),
-        sha: state.sha, // null이면 새로 만든다
-        message: commitMessage(now),
-      }).then((result) => {
+      return saveStoredConfig(state.config.reservation, state.staffToken, config).then(() => {
         state.config = config;
-        state.sha = result.content.sha;
         state.savedText = text;
         if (state.imageUrl) { URL.revokeObjectURL(state.imageUrl); state.imageUrl = null; }
         state.imageFile = null;
         state.dirty = false;
-        showToast(savedMessage());
+        showToast('저장했습니다. 약 10분 안에 모두에게 반영됩니다.');
         renderAll();
       });
     })
     .catch((err) => {
-      if (err.status === 409 || err.status === 422) {
-        showToast('다른 곳에서 설정이 변경되었습니다. "저장소에서 다시 불러오기" 후 다시 시도해 주세요.');
-      } else if (err.status === 401 || err.status === 403) {
-        showToast('토큰이 유효하지 않거나 권한이 없습니다. 토큰을 다시 등록해 주세요.');
+      // 세션이 만료되면 편집 내용을 남긴 채 다시 로그인시킨다. 편집을 날려버리면
+      // 직원은 무엇을 고치고 있었는지 기억해서 다시 입력해야 한다.
+      if (err.status === 401) {
+        state.staffToken = '';
+        try { localStorage.removeItem(STAFF_KEY); } catch { /* 저장 막힌 환경 */ }
+        renderAuthArea();
+        showToast('로그인이 만료되었습니다. 다시 로그인하면 편집 내용 그대로 저장됩니다.');
       } else {
         showToast(`저장하지 못했습니다: ${err.message}`);
       }
@@ -1329,33 +1419,24 @@ function snapshotSaved() {
 }
 
 function loadFromRepo() {
-  if (!state.token) {
-    return loadConfig().then((config) => {
-      state.config = config;
-      state.dirty = false;
-      snapshotSaved();
-      renderAll();
-    });
-  }
-  return createClient({ repo: REPO, token: state.token })
-    .getFile('config.json')
-    .then((file) => {
-      if (file) {
-        state.config = normalizeConfig(JSON.parse(file.text));
-        state.sha = file.sha;
+  // 원본은 Supabase다. 로그인 여부와 무관하게 익명으로 읽을 수 있다.
+  // Supabase에 닿지 못하면 정적 config.json으로 물러서서 편집·미리보기는 되게 한다.
+  return loadConfig()
+    .then((fallback) => {
+      state.config = fallback;
+      return loadStoredConfig(fallback.reservation).catch(() => null);
+    })
+    .then((stored) => {
+      if (stored) {
+        state.config = normalizeConfig(stored);
       } else {
-        // 저장소에 아직 config.json이 없다. 기본값에서 시작하고 sha는 비워 둔다.
-        state.config = clone(DEFAULT_CONFIG);
-        state.sha = null;
+        showToast('저장된 설정을 불러오지 못했습니다. 파일 값으로 편집합니다.');
       }
       state.dirty = false;
       state.selected = null;
       snapshotSaved();
+      renderAuthArea();
       renderAll();
-    })
-    .catch((err) => {
-      showToast(`설정을 불러오지 못했습니다: ${err.message}`);
-      return loadConfig().then((config) => { state.config = config; renderAll(); });
     });
 }
 
