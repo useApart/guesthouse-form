@@ -1,0 +1,33 @@
+name: 설정 동기화
+
+on:
+  schedule:
+    # 5분마다. GitHub은 정시 실행을 보장하지 않아 실제로는 더 늦을 수 있다.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/sync-config.mjs
+      # 내용이 같으면 스크립트가 파일을 건드리지 않으므로 여기서 커밋도 일어나지 않는다.
+      # 5분마다 빈 커밋이 쌓이면 이력이 쓰레기로 차고 되돌리기가 쓸모없어진다.
+      - name: 바뀌었으면 커밋
+        run: |
+          if [ -n "$(git status --porcelain config.json)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add config.json
+            git commit -m "chore: 관리자 설정 동기화"
+            git push
+          else
+            echo "바뀐 내용이 없습니다."
+          fi
