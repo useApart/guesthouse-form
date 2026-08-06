@@ -23,6 +23,12 @@
 
 입력한 정보는 서버로 전송되지 않고 본인 브라우저에만 저장됩니다.
 
+**"이미지 저장"은 기기에 따라 다르게 동작합니다.** 폰에서는 공유 시트를 열어
+'이미지 저장'으로 사진함에 담습니다 — `<a download>`로는 사진함에 들어가지
+않기 때문입니다. PC에서는 다운로드 폴더로 바로 내려받습니다. PC에서 저장
+위치를 매번 고르고 싶으면 Chrome 설정 → 다운로드 → **"다운로드 전에 각 파일의
+저장 위치 확인"**을 켜세요.
+
 ## 예약 (`reserve.html`)
 
 1. 달력에서 입실일과 퇴실일을 차례로 누릅니다. 날짜마다 예약할 수 있는
@@ -191,6 +197,7 @@ GitHub은 60일 동안 커밋이 없는 저장소의 예약(`schedule`) 워크�
 | `github.js` | GitHub Contents API 래퍼 |
 | `reservations.js` | 달력 가용성 계산 · Supabase 호출 |
 | `usage.js` | 신청서 생성 건수 집계 호출 |
+| `device.js` | 폰·PC 판별 (저장을 공유 시트로 할지 다운로드로 할지) |
 
 서식 칸의 좌표는 사각형(`rect`) 하나로 저장하고, `index.html`은 중심점으로
 변환해 쓰고 `draw.html`은 사각형 그대로 씁니다. 관리자는 칸을 한 번만 잡으면 됩니다.
@@ -212,7 +219,7 @@ GitHub은 60일 동안 커밋이 없는 저장소의 예약(`schedule`) 워크�
 ## 개발
 
 ```bash
-node --test calc.test.mjs config.test.mjs github.test.mjs reservations.test.mjs wiring.test.mjs usage.test.mjs notify.test.mjs
+node --test calc.test.mjs config.test.mjs github.test.mjs reservations.test.mjs wiring.test.mjs usage.test.mjs notify.test.mjs device.test.mjs
 python -m http.server 8000  # 로컬 확인 (file://로 열면 이미지 저장이 실패합니다)
 ```
 

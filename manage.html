@@ -243,8 +243,13 @@ import {
   findByHousehold, findByName, summarize, monthGrid,
   bookedNights, isHouseFree, CONFLICT_OVERLAP,
 } from './reservations.js';
+import { detectMobile } from './device.js';
 
 const $ = (id) => document.getElementById(id);
+
+// 폰이면 저장에 공유 시트를 쓴다(사진함). PC면 파일로 내려받는다.
+// 관리사무소는 거의 항상 PC라 이 화면에서는 사실상 다운로드 경로만 쓰인다.
+const isMobile = detectMobile();
 
 const TOKEN_KEY = 'guesthouse-staff-token';
 
@@ -872,7 +877,9 @@ $('sheetSave').addEventListener('click', () => {
     const file = new File([blob], name, { type: 'image/jpeg' });
 
     // 폰에서는 <a download>로 사진함에 저장되지 않는다. 공유 시트를 연다.
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    // canShare만 보면 Windows의 Chrome·Edge도 참이라 PC가 이 분기를 타 버린다.
+    // 그러면 신청서를 파일로 받을 방법이 사라진다 — 이 화면에서는 치명적이다.
+    if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file], title: '게스트하우스 신청서' }).catch((err) => {
         if (err && err.name === 'AbortError') return;
         showToast('저장하지 못했습니다. 다시 시도해 주세요.');
