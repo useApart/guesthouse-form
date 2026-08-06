@@ -61,40 +61,49 @@
 
 ## 관리자
 
-`admin.html`에서 서식 이미지·칸 위치·입력 항목·요금·계좌를 바꿀 수 있습니다.
-저장하면 `config.json`이 저장소에 커밋되고 약 1분 뒤 모두에게 반영됩니다.
+`admin.html`에서 요금·계좌·입력 항목·칸 위치를 바꿉니다.
 
-1. GitHub 파인그레인드 토큰을 만듭니다.
-   Settings → Developer settings → Personal access tokens → Fine-grained tokens
-   → 이 저장소만 선택 → **Contents: Read and write** → 만료일은 짧게(예: 90일)
-2. `admin.html`을 열고 토큰을 한 번 등록합니다. 토큰은 이 브라우저에만 저장되며
-   `api.github.com` 외 어디로도 전송되지 않습니다.
-3. 편집한 뒤 "미리보기 & 저장" 탭에서 실제 화면을 확인하고 저장합니다.
-4. 잘못 저장했다면 같은 탭의 "되돌리기"에서 이전 설정을 불러옵니다.
+1. `manage.html`과 **같은 계정**으로 로그인합니다. 예약 확인 화면에서 이미
+   로그인했다면 그대로 넘어가면 됩니다.
+2. 값을 고치고 "미리보기 & 저장" 탭에서 실제 화면을 확인한 뒤 저장합니다.
+3. **반영까지 최대 10분쯤 걸립니다.** 저장은 즉시 되지만, 주민 화면에 쓰이는
+   `config.json`은 5분마다 도는 동기화 작업이 갱신합니다.
+4. 잘못 저장했다면 "되돌리기"에서 이전 설정을 불러옵니다.
 
-### 왜 공개 URL이어도 안전한가
+직원 계정은 Supabase Authentication → Users에서 추가합니다(아래 예약 시스템
+설정 절과 같습니다). **예약 확인과 설정 변경은 같은 권한입니다** — 로그인할 수
+있는 사람은 요금과 계좌도 바꿀 수 있습니다.
 
-`admin.html`은 공개 URL이라 누구나 **열 수는** 있습니다. 하지만 **바꿀 수는 없습니다.**
+### 설정의 원본은 Supabase입니다
 
-- 토큰이 없으면 저장 버튼이 잠깁니다. 편집과 미리보기만 됩니다.
-- 남이 자기 GitHub 토큰을 만들어 넣어도 통하지 않습니다. 파인그레인드 토큰은
-  발급한 계정의 권한을 넘지 못하는데, 이 저장소에 쓰기 권한이 있는 계정은
-  소유자뿐입니다. 남의 토큰으로 저장하면 GitHub이 403을 돌려줍니다.
+`config.json`은 자동으로 만들어지는 **사본**입니다. 저장소에서 직접 고치면
+다음 동기화가 덮어씁니다. 값을 바꾸려면 `admin.html`을 쓰세요.
 
-정적 사이트에서 비밀번호 게이트는 소스코드에 그대로 노출되므로 두지 않았습니다.
-보안이 아니라 보안처럼 보이는 것이고, 그편이 더 위험합니다.
+이렇게 나눈 이유는 주민 화면이 Supabase를 몰라도 되게 하기 위해서입니다.
+Supabase가 멈춰도 신청서·예약 화면은 정적 `config.json`으로 정상 동작합니다.
 
-### 토큰 관리
+### 서식 이미지 교체 (관리자 전용)
 
-진짜 위험은 남이 토큰을 만드는 것이 아니라 **내 토큰이 새는 것**입니다.
-토큰은 `localStorage`에 평문으로 저장되므로 그 기기에서 개발자도구를 열면 보입니다.
+서식 이미지를 바꿀 때만 GitHub 토큰이 필요합니다. `admin.html`의 "서식 이미지
+교체" 항목을 펼치면 나옵니다. 요금·계좌·항목만 고칠 때는 로그인만으로 충분합니다.
 
-- 공용 PC에서 썼다면 반드시 **"토큰 삭제"**를 누르세요.
-- 권한은 이 저장소 하나, `Contents: Read and write`만 주세요.
-- 샜다 싶으면 GitHub → Settings → Developer settings에서 **즉시 폐기**하고
-  새로 발급하면 됩니다. 폐기 즉시 그 토큰은 무효가 됩니다.
+토큰은 Settings → Developer settings → Personal access tokens → Fine-grained
+tokens 에서 이 저장소 하나만 선택하고 **Contents: Read and write** 권한만 주어
+만듭니다. 공용 PC에서 썼다면 반드시 "토큰 삭제"를 누르세요.
 
-`config.json`이 없거나 깨져도 신청서는 `config.js`의 내장 기본값으로 동작합니다.
+### 잠겼을 때 복구하기
+
+`admin.html`에서 예약 기능의 주소·키를 잘못 저장하면 Supabase에 못 붙어 다시
+고칠 수 없게 됩니다. 저장 전에 검증하므로 웬만해선 막히지만, 그래도 막혔다면:
+
+1. Supabase SQL Editor에서 `app_config`를 직접 고칩니다. **이것이 정석입니다.**
+
+   ```sql
+   update app_config set config = jsonb_set(config, '{reservation,url}', '"https://올바른주소"') where id = 1;
+   ```
+
+2. 그것도 막혔으면 저장소의 `config.json`을 직접 고칩니다. 주민 화면은 즉시
+   복구되지만 다음 동기화가 다시 덮어쓰므로 **1번을 반드시 해야 합니다.**
 
 ## 관리사무소 (`manage.html`)
 
@@ -198,6 +207,7 @@ GitHub은 60일 동안 커밋이 없는 저장소의 예약(`schedule`) 워크�
 | `reservations.js` | 달력 가용성 계산 · Supabase 호출 |
 | `usage.js` | 신청서 생성 건수 집계 호출 |
 | `device.js` | 폰·PC 판별 (저장을 공유 시트로 할지 다운로드로 할지) |
+| `configstore.js` | Supabase에 저장된 설정 원본을 읽고 쓰기 |
 
 서식 칸의 좌표는 사각형(`rect`) 하나로 저장하고, `index.html`은 중심점으로
 변환해 쓰고 `draw.html`은 사각형 그대로 씁니다. 관리자는 칸을 한 번만 잡으면 됩니다.
@@ -219,7 +229,7 @@ GitHub은 60일 동안 커밋이 없는 저장소의 예약(`schedule`) 워크�
 ## 개발
 
 ```bash
-node --test calc.test.mjs config.test.mjs github.test.mjs reservations.test.mjs wiring.test.mjs usage.test.mjs notify.test.mjs device.test.mjs
+node --test calc.test.mjs config.test.mjs github.test.mjs reservations.test.mjs wiring.test.mjs usage.test.mjs notify.test.mjs device.test.mjs configstore.test.mjs syncconfig.test.mjs
 python -m http.server 8000  # 로컬 확인 (file://로 열면 이미지 저장이 실패합니다)
 ```
 
