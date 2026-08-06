@@ -187,7 +187,7 @@ export function buildRequest(reservation, spec) {
 
 // 아래는 fetch를 쓰므로 자동 테스트하지 않는다. 조립과 오류 해석은 위의
 // buildRequest와 여기의 request가 전부 맡는다.
-function request(reservation, spec) {
+export function request(reservation, spec) {
   const { url, options } = buildRequest(reservation, spec);
   return fetch(url, options).then((res) => {
     if (res.status === 204) return null;
