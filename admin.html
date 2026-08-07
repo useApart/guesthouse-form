@@ -21,7 +21,9 @@
   .eyebrow { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: .02em; color: #7A8177; margin-bottom: 6px; }
   h1 { text-align: center; margin: 0 0 20px; font-size: 24px; font-weight: 700; letter-spacing: -.01em; }
   h2 { font-size: 15px; font-weight: 700; margin: 0 0 12px; color: #3C443B; }
-  .tabs { display: flex; background: #EAE8E1; border-radius: 14px; padding: 4px; margin-bottom: 18px; gap: 4px; }
+  /* 폭을 넓힌 뒤로 탭이 화면 끝까지 늘어져 누르는 자리가 흩어졌다. 읽기 좋은
+     크기에서 멈춘다. */
+  .tabs { display: flex; background: #EAE8E1; border-radius: 14px; padding: 4px; margin-bottom: 18px; gap: 4px; max-width: 620px; }
   .tab { flex: 1; height: 42px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; background: transparent; color: #7A8177; }
   .tab.active { background: #fff; color: #1F6D57; box-shadow: 0 1px 2px rgba(30,37,30,.08); }
   .card { background: #fff; border-radius: 20px; border: 1px solid #E8E6DE; box-shadow: 0 1px 3px rgba(30,37,30,.04); padding: 22px; margin-bottom: 16px; }
@@ -33,7 +35,9 @@
     font-size: 14px; font-family: inherit; color: #1E251E; background: #fff;
   }
   select:disabled, input:disabled { background: #F5F4F0; color: #9A9F92; cursor: not-allowed; }
-  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+  /* auto-fit이라 폭이 넓어질수록 열이 계속 늘어난다. 1200px에서는 한 줄에
+     대여섯 칸이 되어 어떤 값이 한 묶음인지 읽히지 않는다. 세 열에서 멈춘다. */
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; max-width: 760px; }
   .field { margin-bottom: 14px; }
   .hint { font-size: 12px; color: #7A8177; margin: 6px 0 0; line-height: 1.6; }
 
