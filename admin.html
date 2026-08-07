@@ -8,8 +8,16 @@
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; background: #F5F4F0; color: #1E251E; }
+  /* 관리사무소는 두 화면을 오간다. 어느 쪽에 있는지 보이면서 한 번에 넘어가도록
+     manage.html과 같은 마크업·같은 값을 쓴다. */
+  .topnav { display: flex; gap: 6px; margin: 0 0 18px; flex-wrap: wrap; }
+  .topnav a { padding: 8px 14px; border-radius: 9px; font-size: 14px; font-weight: 600; text-decoration: none; color: #3C443B; background: #fff; border: 1px solid #D8D6CD; }
+  .topnav a:hover { background: #F5F4F0; }
+  .topnav a.here { background: #1F6D57; color: #fff; border-color: #1F6D57; }
   .wrap { min-height: 100vh; display: flex; justify-content: center; padding: 28px 16px 80px; }
-  .inner { width: 100%; max-width: 940px; }
+  /* manage.html과 같은 폭. 두 화면을 오갈 때 레이아웃이 튀지 않고, 서식 좌표
+     피커도 넓어져 칸을 잡기 수월하다. */
+  .inner { width: 100%; max-width: 1200px; }
   .eyebrow { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: .02em; color: #7A8177; margin-bottom: 6px; }
   h1 { text-align: center; margin: 0 0 20px; font-size: 24px; font-weight: 700; letter-spacing: -.01em; }
   h2 { font-size: 15px; font-weight: 700; margin: 0 0 12px; color: #3C443B; }
@@ -121,6 +129,11 @@
   <div class="inner">
     <div class="eyebrow">관리자</div>
     <h1>신청서 설정</h1>
+
+    <nav class="topnav">
+      <a href="manage.html">예약 확인</a>
+      <a href="admin.html" class="here">설정</a>
+    </nav>
 
     <!-- manage.html과 같은 계정·같은 토큰을 쓴다. 한쪽에서 로그인하면 여기도 열린다. -->
     <section class="card" id="loginCard" hidden>
