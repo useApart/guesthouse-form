@@ -106,11 +106,17 @@ create policy "설정은 누구나 읽는다"
 -- 쓰기는 로그인한 직원만. manage.html이 쓰는 계정과 같다.
 create policy "로그인한 직원만 고친다"
   on app_config for update to authenticated using (true) with check (true);
+
+-- 정책과 GRANT는 다른 층이다. RLS는 '어떤 행을 볼 수 있나'를, GRANT는 '테이블을
+-- 건드릴 수 있나'를 정한다. 이 프로젝트는 "Automatically expose new tables"를
+-- 꺼 두어 새 테이블에 권한이 자동으로 붙지 않으므로 직접 준다.
+grant select on public.app_config to anon, authenticated;
+grant update on public.app_config to authenticated;
 ```
 
-**insert·delete 정책은 만들지 않는다.** 행은 하나뿐이고 아래 시딩으로 만든다.
-정책이 없으면 아무도 못 지운다 — 설정 행이 사라지면 동기화가 빈 설정을 커밋해
-사이트가 기본값으로 떨어지므로, 실수로라도 지워지면 안 된다.
+**insert·delete는 정책도 GRANT도 주지 않는다.** 행은 하나뿐이고 아래 시딩으로
+만든다. 권한이 없으면 아무도 못 지운다 — 설정 행이 사라지면 동기화가 빈 설정을
+커밋해 사이트가 기본값으로 떨어지므로, 실수로라도 지워지면 안 된다.
 
 `updated_at`은 트리거로 갱신한다.
 

@@ -78,9 +78,16 @@ create policy "설정은 누구나 읽는다"
 drop policy if exists "로그인한 직원만 고친다" on app_config;
 create policy "로그인한 직원만 고친다"
   on app_config for update to authenticated using (true) with check (true);
+
+-- 정책만으로는 부족하다. RLS는 '어떤 행을 볼 수 있나'를 정하고 GRANT는
+-- '테이블을 건드릴 수 있나'를 정한다. 이 프로젝트는 "Automatically expose new
+-- tables"를 꺼 두었으므로(README의 Supabase 설정 1번) 새 테이블에는 권한이
+-- 자동으로 붙지 않는다. 빠뜨리면 42501 permission denied가 난다.
+grant select on public.app_config to anon, authenticated;
+grant update on public.app_config to authenticated;
 ```
 
-**insert·delete 정책은 만들지 않는다.** 행이 사라지면 동기화가 멈추고 설정을 되돌릴 길이 없어진다.
+**insert·delete 정책도 GRANT도 주지 않는다.** 행이 사라지면 동기화가 멈추고 설정을 되돌릴 길이 없어진다.
 
 - [ ] **Step 2: 갱신 추적 트리거**
 

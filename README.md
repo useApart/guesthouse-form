@@ -165,10 +165,19 @@ tokens 에서 이 저장소 하나만 선택하고 **Contents: Read and write** 
 3. 같은 문서의 확인 쿼리로 중복 방지가 동작하는지 봅니다.
    **겹치는 예약이 실패해야** 정상입니다.
 4. Authentication → Users에서 관리사무소 계정을 만듭니다(Auto Confirm User 켜기).
-5. Settings → API에서 Project URL과 **anon public** 키를 복사해
+5. `docs/superpowers/plans/2026-08-06-admin-login.md`의 Task 1 SQL을 실행해
+   설정 원본 테이블 `app_config`를 만들고 현재 `config.json`으로 시딩합니다.
+   **정책(policy)만이 아니라 `grant`까지 함께 실행해야 합니다** — 1번에서 자동
+   노출을 껐기 때문에 새 테이블에 권한이 자동으로 붙지 않습니다.
+6. Settings → API에서 Project URL과 **anon public** 키를 복사해
    `admin.html`의 "요금 · 계좌" 탭 → "예약 기능"에 넣고 스위치를 켭니다.
 
 **`service_role` 키는 쓰지 않습니다.** 그 키는 권한 제한을 통째로 무시합니다.
+
+`admin.html`에 들어갔을 때 **"저장된 설정을 불러오지 못했습니다"** 토스트가 뜨면
+5번이 빠진 것입니다. 브라우저 개발자도구 Network 탭에서 `app_config` 요청을 보면
+`PGRST205`(테이블 없음)인지 `42501`(권한 없음)인지 구분됩니다. 앞이면 테이블
+생성부터, 뒤면 `grant`만 실행하면 됩니다.
 
 무료 프로젝트는 한 주 동안 접속이 전혀 없으면 일시정지됩니다. 그러면 Supabase
 대시보드에서 Restore를 눌러 살려야 합니다.
