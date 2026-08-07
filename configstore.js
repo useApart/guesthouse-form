@@ -8,6 +8,10 @@ import { buildRequest, send } from './reservations.js';
 
 const ROW = '/rest/v1/app_config?id=eq.1';
 
+// 서식 이미지를 담는 Storage 버킷. 공개 버킷이라 읽기는 인증이 필요 없고,
+// 올리기만 로그인한 직원으로 막는다.
+const BUCKET = 'form';
+
 function usable(reservation) {
   return Boolean(reservation && reservation.enabled);
 }
@@ -38,6 +42,45 @@ export function loadStoredConfig(reservation) {
   const req = buildLoadConfigRequest(reservation);
   if (!req) return Promise.resolve(null);
   return send(req).then((rows) => (rows && rows[0] ? rows[0].config : null));
+}
+
+// ---- 서식 이미지 ----
+// 원본은 Storage지만 주민 화면은 저장소의 정적 파일만 읽는다. 동기화 워크플로가
+// 이 주소로 받아 저장소에 커밋한다 — Supabase가 멈춰도 서식이 사라지지 않는다.
+export function publicImageUrl(reservation, name) {
+  if (!reservation || !reservation.url || !name) return '';
+  return `${reservation.url}/storage/v1/object/public/${BUCKET}/${name}`;
+}
+
+// Storage는 경로도 본문 형식도 REST와 다르다(파일을 그대로 싣는다).
+// buildRequest는 JSON 본문을 전제하므로 여기서 따로 조립한다.
+export function buildUploadImageRequest(reservation, accessToken, name, file) {
+  if (!usable(reservation)) return null;
+  // 익명 키로는 올릴 수 없다. 서버도 거부하므로 요청을 만들지 않는다.
+  if (!accessToken) return null;
+  if (!name || !file) return null;
+
+  return {
+    url: `${reservation.url}/storage/v1/object/${BUCKET}/${name}`,
+    options: {
+      method: 'POST',
+      headers: {
+        apikey: reservation.anonKey,
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': file.type || 'application/octet-stream',
+        // 이름에 분 단위 시각이 들어가므로 부딪히는 것 자체가 이상 신호다.
+        // 덮어쓰기를 허용하면 옛 이미지가 사라져 되돌리기가 무의미해진다.
+        'x-upsert': 'false',
+      },
+      body: file,
+    },
+  };
+}
+
+export function uploadFormImage(reservation, accessToken, name, file) {
+  const req = buildUploadImageRequest(reservation, accessToken, name, file);
+  if (!req) return Promise.reject(new Error('이미지를 올릴 수 없는 상태입니다.'));
+  return send(req).then(() => name);
 }
 
 // 실패하면 error.status가 붙은 Error로 reject한다. 네트워크·HTTP 실패(401, 500

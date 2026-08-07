@@ -89,6 +89,25 @@ grant update on public.app_config to authenticated;
 
 **insert·delete 정책도 GRANT도 주지 않는다.** 행이 사라지면 동기화가 멈추고 설정을 되돌릴 길이 없어진다.
 
+- [ ] **Step 1-2: 서식 이미지 버킷**
+
+서식 이미지도 로그인만으로 바꿀 수 있어야 하므로 Storage에 둔다. 브라우저에서 GitHub 토큰이 사라지는 마지막 조각이다.
+
+```sql
+-- 공개 버킷이라 읽기는 인증이 필요 없고(주민 화면과 동기화 워크플로가 그냥
+-- 받는다), 올리기만 로그인한 직원으로 막는다.
+insert into storage.buckets (id, name, public)
+values ('form', 'form', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "서식 이미지는 로그인한 직원만 올린다" on storage.objects;
+create policy "서식 이미지는 로그인한 직원만 올린다"
+  on storage.objects for insert to authenticated
+  with check (bucket_id = 'form');
+```
+
+**update·delete 정책은 만들지 않는다.** 파일 이름에 시각이 들어가 매번 새로 올리고, 옛 이미지가 지워지면 되돌리기가 무의미해진다.
+
 - [ ] **Step 2: 갱신 추적 트리거**
 
 ```sql

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sameConfig, nextConfigText } from './scripts/sync-config.mjs';
+import { sameConfig, nextConfigText, imageToFetch } from './scripts/sync-config.mjs';
 
 const CONFIG = { version: 1, site: { org: '원흥', title: '신청서' }, fields: [{ id: 'a' }, { id: 'b' }] };
 const TEXT = `${JSON.stringify(CONFIG, null, 2)}\n`;
@@ -55,4 +55,38 @@ test('저장된 설정이 비었으면 쓰지 않고 실패한다', () => {
   assert.throws(() => nextConfigText({}, TEXT), /비었/);
   assert.throws(() => nextConfigText([1, 2], TEXT), /비었/);
   assert.throws(() => nextConfigText('문자열', TEXT), /비었/);
+});
+
+// ---- 서식 이미지 미러링 ----
+
+const has = (...names) => (f) => names.includes(f);
+
+test('설정이 가리키는 이미지가 저장소에 없으면 받아 온다', () => {
+  // 이 미러링이 없으면 Supabase가 멈출 때 서식 이미지가 통째로 사라진다.
+  assert.equal(imageToFetch({ form: { image: 'form-20260807-1430.jpg' } }, has()), 'form-20260807-1430.jpg');
+});
+
+test('이미 있는 이미지는 다시 받지 않는다', () => {
+  assert.equal(imageToFetch({ form: { image: 'form.jpg' } }, has('form.jpg')), null);
+});
+
+test('절대 URL은 저장소 파일이 아니므로 건드리지 않는다', () => {
+  assert.equal(imageToFetch({ form: { image: 'https://x.supabase.co/a.jpg' } }, has()), null);
+  assert.equal(imageToFetch({ form: { image: 'data:image/png;base64,AAA' } }, has()), null);
+});
+
+test('경로가 섞인 이름은 받지 않는다 — 저장소 바깥에 쓰게 둘 이유가 없다', () => {
+  assert.equal(imageToFetch({ form: { image: '../secret.jpg' } }, has()), null);
+  assert.equal(imageToFetch({ form: { image: 'sub/form.jpg' } }, has()), null);
+  // String.raw로 쓴다. 따옴표 안에 그냥 쓰면 \b가 백스페이스로 해석돼
+  // 역슬래시를 검사하지 못하는 테스트가 된다.
+  assert.equal(imageToFetch({ form: { image: String.raw`a\b.jpg` } }, has()), null);
+});
+
+test('이미지 이름이 없거나 문자열이 아니면 아무것도 하지 않는다', () => {
+  assert.equal(imageToFetch({ form: { image: '' } }, has()), null);
+  assert.equal(imageToFetch({ form: {} }, has()), null);
+  assert.equal(imageToFetch({}, has()), null);
+  assert.equal(imageToFetch(null, has()), null);
+  assert.equal(imageToFetch({ form: { image: 123 } }, has()), null);
 });
