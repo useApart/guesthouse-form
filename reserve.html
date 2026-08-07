@@ -79,8 +79,15 @@
   .frow-static { padding-top: 0; }
   .frow-slabel { font-size: 12px; color: #9A9F92; margin-bottom: 8px; }
   .dong-ho { display: flex; align-items: center; gap: 8px; }
-  .dong-ho input { flex: 1; min-width: 0; height: 42px; border: 1px solid #DDDBD2; border-radius: 9px; padding: 0 12px; font-size: 16px; font-family: inherit; color: #1E251E; background: #fff; }
-  .dong-ho input:focus { outline: none; border-color: #B7B5AC; }
+  .dong-ho input, .dong-ho select { flex: 1; min-width: 0; height: 42px; border: 1px solid #DDDBD2; border-radius: 9px; padding: 0 12px; font-size: 16px; font-family: inherit; color: #1E251E; background: #fff; }
+  .dong-ho input:focus, .dong-ho select:focus { outline: none; border-color: #B7B5AC; }
+  /* iOS 사파리는 기본 select에 화살표를 그리지 않아 입력칸과 구분되지 않는다.
+     기본 모양을 끄고 화살표를 직접 그린다(외부 파일 없이 data URI로). */
+  .dong-ho select {
+    appearance: none; -webkit-appearance: none; padding-right: 30px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239A9F92' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 11px center; background-size: 11px;
+  }
   .dh-dash { color: #9A9F92; font-weight: 600; }
   .choice-row { display: flex; gap: 8px; }
   .choice-btn { flex: 1; height: 44px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; border: 1px solid #DDDBD2; background: #fff; color: #3C443B; }
@@ -169,7 +176,8 @@
         <div class="frow"><div class="frow-body frow-static">
           <div class="frow-slabel">동·호수</div>
           <div class="dong-ho">
-            <input type="text" id="lkDong" inputmode="numeric" placeholder="동" maxlength="4">
+            <!-- 동 목록은 설정에서 오므로 boot()에서 채운다. -->
+            <select id="lkDong"></select>
             <span class="dh-dash">-</span>
             <input type="text" id="lkHo" inputmode="numeric" placeholder="호" maxlength="3">
           </div>
@@ -241,7 +249,9 @@
 
 <script type="module">
 import { countNights, calcAmount } from './calc.js';
-import { DEFAULT_CONFIG, clone, loadConfig, formFields, domIds } from './config.js';
+import {
+  DEFAULT_CONFIG, clone, loadConfig, formFields, domIds, unitField, dongOptions,
+} from './config.js';
 import {
   fetchCalendar, bookedNights, nightStatus, availableHouses, toDateStr,
   makeSecret, submitReservation, myReservations, cancelWithPin,
@@ -464,6 +474,24 @@ function formatPhone(value) {
   return `${digits.slice(0, a)}-${rest.slice(0, -4)}-${rest.slice(-4)}`;
 }
 
+// 동은 단지에 실재하는 번호만 고르게 셀렉트로 받는다. 신청 폼과 조회 폼이
+// 같은 목록을 써야 하므로 채우는 곳을 하나로 둔다.
+function fillDongSelect(node, field) {
+  node.textContent = '';
+  node.appendChild(el('option', null, { value: '', textContent: '동 선택' }));
+  for (const n of dongOptions(field)) {
+    node.appendChild(el('option', null, { value: n, textContent: `${n}동` }));
+  }
+  return node;
+}
+
+// 동을 고르면 곧바로 호수 칸으로 넘긴다. 모바일에서 두 번 탭하지 않아도
+// 키보드가 바로 올라온다.
+function advanceToHo(dong, ho) {
+  if (!dong || !ho) return;
+  dong.addEventListener('change', () => { if (dong.value) ho.focus(); });
+}
+
 function buildForm() {
   const host = $('fieldList');
   host.textContent = '';
@@ -475,10 +503,7 @@ function buildForm() {
       const body = el('div', 'frow-body frow-static');
       body.appendChild(el('div', 'frow-slabel', { textContent: field.label }));
       const wrap = el('div', 'dong-ho');
-      wrap.appendChild(el('input', null, {
-        type: 'text', id: `${field.id}Dong`, inputMode: 'numeric',
-        placeholder: `동 (${field.dongLength}자리)`, maxLength: field.dongLength,
-      }));
+      wrap.appendChild(fillDongSelect(el('select', null, { id: `${field.id}Dong` }), field));
       wrap.appendChild(el('span', 'dh-dash', { textContent: '-' }));
       wrap.appendChild(el('input', null, {
         type: 'text', id: `${field.id}Ho`, inputMode: 'numeric',
@@ -542,10 +567,10 @@ function buildForm() {
 function attachFormListeners() {
   for (const field of reserveFields()) {
     if (field.input === 'unit') {
-      for (const id of domIds(field)) {
-        const node = $(id);
-        if (node) filterInput(node, CHARSET_PATTERNS.digits);
-      }
+      // 동은 목록에서 고르고, 호만 숫자로 받는다.
+      const ho = $(`${field.id}Ho`);
+      if (ho) filterInput(ho, CHARSET_PATTERNS.digits);
+      advanceToHo($(`${field.id}Dong`), ho);
     } else if (field.input === 'phone') {
       const node = $(field.id);
       if (node) {
@@ -628,7 +653,12 @@ function restoreSaved() {
   try {
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
     for (const id of rememberedIds()) {
-      if (saved[id] && $(id)) $(id).value = saved[id];
+      const node = $(id);
+      if (!saved[id] || !node) continue;
+      node.value = saved[id];
+      // 동 목록에 없는 옛 저장값이면 셀렉트가 빈칸으로 남는다. 안내 문구가
+      // 다시 보이도록 되돌린다.
+      if (node.selectedIndex === -1) node.value = '';
     }
   } catch { /* 저장값이 깨졌으면 빈 폼으로 시작한다 */ }
 }
@@ -996,6 +1026,10 @@ function boot(loaded) {
   showStep(1);
   // 기기가 바뀐 주민을 위한 보조 경로. 예약 기능이 켜져 있을 때만 뜬다.
   $('lookupCard').hidden = false;
+
+  // 조회 폼의 동 목록도 신청 폼과 같은 설정에서 나온다.
+  fillDongSelect($('lkDong'), unitField(config));
+  advanceToHo($('lkDong'), $('lkHo'));
 
   refreshCalendar().then(renderMine);
 }

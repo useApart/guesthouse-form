@@ -60,7 +60,8 @@
       "printed": true,
       "visible": true,
       "required": true,
-      "dongLength": 4,
+      "dongStart": 1301,
+      "dongEnd": 1316,
       "hoLength": 3,
       "remember": true,
       "tallBox": true

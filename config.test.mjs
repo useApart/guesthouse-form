@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   DEFAULT_CONFIG, rectToPoint, clone, normalizeConfig, parseConfig,
-  formFields, printedCells, packRows, derive, domIds,
+  formFields, printedCells, packRows, derive, domIds, unitField, dongOptions,
 } from './config.js';
 
 // 리팩터 전 index.html이 하드코딩하고 있던 값. 설정 기반으로 바꾼 뒤에도
@@ -234,9 +234,44 @@ test('최소 숙박일수가 최대보다 크면 최대를 끌어올린다', () 
 test('동·호수는 화면에서 두 칸, 서식에서는 한 칸이다', () => {
   const unit = DEFAULT_CONFIG.fields.find((f) => f.id === 'unit');
   assert.equal(unit.input, 'unit');
-  assert.equal(unit.dongLength, 4);
+  assert.equal(unit.dongStart, 1301);
+  assert.equal(unit.dongEnd, 1316);
   assert.equal(unit.hoLength, 3);
   assert.ok(unit.rect, '서식에는 한 칸으로 찍힌다');
+});
+
+test('dongOptions는 시작~끝을 문자열로 펼친다', () => {
+  const unit = unitField(DEFAULT_CONFIG);
+  const list = dongOptions(unit);
+  assert.equal(list.length, 16);
+  assert.equal(list[0], '1301');
+  assert.equal(list[15], '1316');
+  // unit이 아닌 항목이나 없는 항목에는 목록이 없다.
+  assert.deepEqual(dongOptions(null), []);
+  assert.deepEqual(dongOptions(DEFAULT_CONFIG.fields.find((f) => f.id === 'name')), []);
+});
+
+test('동 끝 번호가 시작보다 작으면 최소 한 개는 남긴다', () => {
+  // 그대로 두면 고를 동이 하나도 없어 신청 자체가 막힌다.
+  const config = withFields({ unit: { dongStart: 1310, dongEnd: 1301 } });
+  const unit = unitField(config);
+  assert.equal(unit.dongStart, 1310);
+  assert.equal(unit.dongEnd, 1310);
+  assert.deepEqual(dongOptions(unit), ['1310']);
+});
+
+test('동 범위가 지나치게 넓으면 목록 길이를 제한한다', () => {
+  // 끝 번호에 0을 하나 더 찍어도 셀렉트에 수만 개가 쌓이면 안 된다.
+  const config = withFields({ unit: { dongStart: 1301, dongEnd: 13160 } });
+  assert.equal(dongOptions(unitField(config)).length, 1000);
+});
+
+test('unitField는 동·호수 항목이 없으면 null을 준다', () => {
+  const config = normalizeConfig({
+    ...clone(DEFAULT_CONFIG),
+    fields: DEFAULT_CONFIG.fields.filter((f) => f.id !== 'unit').map(clone),
+  });
+  assert.equal(unitField(config), null);
 });
 
 test('printedCells는 rect 없는 항목과 printed:false를 뺀다', () => {

@@ -108,7 +108,13 @@
 
   /* ---- 지난 예약 검색 ---- */
   .search-row { display: flex; align-items: center; gap: 8px; }
-  .search-row input { flex: 1; min-width: 0; height: 46px; border: 1px solid #DDDBD2; border-radius: 10px; padding: 0 12px; font-size: 16px; font-family: inherit; color: #1E251E; background: #fff; }
+  .search-row input, .search-row select { flex: 1; min-width: 0; height: 46px; border: 1px solid #DDDBD2; border-radius: 10px; padding: 0 12px; font-size: 16px; font-family: inherit; color: #1E251E; background: #fff; }
+  /* iOS 사파리는 기본 select에 화살표를 그리지 않아 입력칸과 구분되지 않는다. */
+  .search-row select {
+    appearance: none; -webkit-appearance: none; padding-right: 30px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239A9F92' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 11px center; background-size: 11px;
+  }
   .search-row .dash { color: #9A9F92; font-weight: 600; }
   .search-row .btn { flex: 0 0 auto; height: 46px; }
   .hist-row { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid #F0EEE7; font-size: 14px; }
@@ -205,7 +211,8 @@
         <div class="card">
           <h2>세대로 찾기</h2>
           <div class="search-row">
-            <input type="text" id="qDong" inputmode="numeric" placeholder="동" maxlength="4">
+            <!-- 동 목록은 설정에서 오므로 부팅할 때 채운다. -->
+            <select id="qDong"></select>
             <span class="dash">-</span>
             <input type="text" id="qHo" inputmode="numeric" placeholder="호" maxlength="3">
             <button type="button" class="btn btn-secondary" id="searchUnitBtn">찾기</button>
@@ -243,7 +250,9 @@
 
 <script type="module">
 import { countNights, calcAmount } from './calc.js';
-import { DEFAULT_CONFIG, clone, loadConfig, printedCells, rectToPoint } from './config.js';
+import {
+  DEFAULT_CONFIG, clone, loadConfig, printedCells, rectToPoint, unitField, dongOptions,
+} from './config.js';
 import {
   signIn, listReservations, patchReservation, setHouse,
   findByHousehold, findByName, summarize, monthGrid,
@@ -739,7 +748,7 @@ function renderHistory() {
 
 function searchUnit(dong, ho) {
   if (!String(dong || '').trim() || !String(ho || '').trim()) {
-    showToast('동과 호를 모두 입력해 주세요.');
+    showToast('동을 고르고 호를 입력해 주세요.');
     return;
   }
   lastSearch = { kind: 'unit', dong, ho };
@@ -786,8 +795,21 @@ function showResult(title, rows) {
   $('resultCard').hidden = false;
 }
 
+// 동은 단지에 실재하는 번호만 고르게 셀렉트로 받는다. 목록은 신청 화면과 같은
+// 설정(unit 항목의 dongStart~dongEnd)에서 온다.
+function fillDongSelect() {
+  const sel = $('qDong');
+  sel.textContent = '';
+  sel.appendChild(el('option', null, { value: '', textContent: '동 선택' }));
+  for (const n of dongOptions(unitField(config))) {
+    sel.appendChild(el('option', null, { value: n, textContent: `${n}동` }));
+  }
+}
+
 $('searchUnitBtn').addEventListener('click', () => searchUnit($('qDong').value, $('qHo').value));
 $('searchNameBtn').addEventListener('click', () => searchName($('qName').value));
+// 동을 고르면 곧바로 호 칸으로 넘어간다.
+$('qDong').addEventListener('change', () => { if ($('qDong').value) $('qHo').focus(); });
 $('qHo').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('searchUnitBtn').click(); });
 $('qName').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('searchNameBtn').click(); });
 
@@ -918,6 +940,7 @@ $('sheetSave').addEventListener('click', () => {
 
 loadConfig().then((loaded) => {
   config = loaded;
+  fillDongSelect();
 
   if (!config.reservation.enabled) {
     $('offText').innerHTML =

@@ -20,10 +20,11 @@ export const DEFAULT_CONFIG = {
       placeholder: '', maxlength: 20, remember: true, charset: 'korean' },
 
     // 화면에서는 동·호를 따로 받고, 서식에는 'N동 M호' 한 줄로 찍는다.
+    // 동은 단지에 실재하는 번호만 고르게 목록으로 받는다(dongStart~dongEnd).
     { id: 'unit', label: '동·호수', input: 'unit', width: 'half',
       rect: { x: 231, y: 257, w: 403, h: 26 },
       printed: true, visible: true, required: true,
-      dongLength: 4, hoLength: 3, remember: true, tallBox: true },
+      dongStart: 1301, dongEnd: 1316, hoLength: 3, remember: true, tallBox: true },
 
     { id: 'phone', label: '연락처', input: 'phone', width: 'half',
       rect: { x: 231, y: 287, w: 403, h: 25 },
@@ -143,6 +144,10 @@ const SYSTEM_IDS = ['checkIn', 'checkOut', 'period', 'nights', 'amount', 'people
 // 숨기면 숙박일수·금액 계산이 불가능해지는 항목. 유일한 예외다.
 const ALWAYS_VISIBLE_IDS = ['checkIn', 'checkOut'];
 
+// 동 목록의 최대 길이. 관리자가 끝 번호에 0을 하나 더 찍어도 셀렉트에 수만 개가
+// 쌓여 화면이 멎는 일은 없어야 한다.
+const MAX_DONG_SPAN = 999;
+
 function positiveNumber(value, fallback) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
@@ -209,7 +214,12 @@ function normalizeField(raw, form, fallback) {
       : base.defaultToday === true;
   }
   if (field.input === 'unit') {
-    field.dongLength = Math.round(positiveNumber(raw.dongLength, base.dongLength || 4));
+    // 동은 목록에서 고르므로 자리수가 아니라 범위를 받는다.
+    field.dongStart = Math.round(positiveNumber(raw.dongStart, base.dongStart || 1301));
+    const end = Math.round(positiveNumber(raw.dongEnd, base.dongEnd || field.dongStart));
+    // 끝이 시작보다 작으면 고를 동이 하나도 없어 신청 자체가 막힌다. 최소 하나는
+    // 남기고, 위로는 상한을 둔다.
+    field.dongEnd = Math.min(Math.max(end, field.dongStart), field.dongStart + MAX_DONG_SPAN);
     field.hoLength = Math.round(positiveNumber(raw.hoLength, base.hoLength || 3));
   }
   if (field.input === 'readout') {
@@ -393,6 +403,21 @@ export function printedCells(config) {
 // "실제 입력칸"을 대상으로 하는 처리는 이 목록을 써야 한다.
 export function domIds(field) {
   return field.input === 'unit' ? [field.id + 'Dong', field.id + 'Ho'] : [field.id];
+}
+
+// 동·호수를 받는 항목. 신청서·예약·조회·관리자 검색이 모두 같은 동 목록을
+// 써야 하므로 찾는 방법을 한 곳에 둔다.
+export function unitField(config) {
+  return config.fields.find((f) => f.input === 'unit') || null;
+}
+
+// 셀렉트에 넣을 동 번호. 단지의 동 번호는 1301~1316처럼 연속 범위라 목록을
+// 통째로 저장하지 않고 시작·끝만 설정에 두고 여기서 펼친다.
+export function dongOptions(field) {
+  if (!field || field.input !== 'unit') return [];
+  const out = [];
+  for (let n = field.dongStart; n <= field.dongEnd; n++) out.push(String(n));
+  return out;
 }
 
 // index.html이 쓰던 하드코딩 상수들(POS·REQUIRED·SAVED_FIELDS·CLEARABLE·

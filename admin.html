@@ -346,7 +346,7 @@ document.querySelectorAll('.tab').forEach((tab) => {
 
 const SAMPLE = {
   applyDate: '2026.7.28', deposit: '2026.7.28', name: '홍길동',
-  unit: '101동 1201호', phone: '010-1234-5678',
+  unit: '1301동 1201호', phone: '010-1234-5678',
   period: '2026.7.28 ~ 7.30', nights: '2일', amount: '70,000원', people: '3명',
 };
 
@@ -913,7 +913,9 @@ function buildFieldExtra(field) {
     parts.push(miniInput('안내 문구', field.placeholder || '', (v) => { field.placeholder = v; }));
   }
   if (field.input === 'unit') {
-    parts.push(miniInput('동 자리수', field.dongLength, (v) => { field.dongLength = Number(v); }, 'number'));
+    // 동은 신청 화면에서 목록으로 고른다. 여기 두 값이 그 목록의 처음과 끝이다.
+    parts.push(miniInput('동 시작 번호', field.dongStart, (v) => { field.dongStart = Number(v); }, 'number'));
+    parts.push(miniInput('동 끝 번호', field.dongEnd, (v) => { field.dongEnd = Number(v); }, 'number'));
     parts.push(miniInput('호 자리수', field.hoLength, (v) => { field.hoLength = Number(v); }, 'number'));
   }
   if (field.input === 'readout') {
