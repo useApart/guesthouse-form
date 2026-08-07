@@ -2,9 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { seoulYesterday, formatMessage } from './scripts/notify-usage.mjs';
 
-test('한국 시간 아침 7시에 돌면 어제는 하루 전이다', () => {
-  // UTC 22:00 = KST 다음날 07:00. 워크플로가 실제로 도는 시각이다.
-  assert.equal(seoulYesterday(new Date('2026-08-05T22:00:00Z')), '2026-08-05');
+test('한국 시간 자정 직후에 돌면 방금 끝난 하루를 집계한다', () => {
+  // UTC 15:07 = KST 다음날 00:07. 워크플로가 실제로 도는 시각이다.
+  assert.equal(seoulYesterday(new Date('2026-08-05T15:07:00Z')), '2026-08-05');
+});
+
+test('실행이 몇 시간 밀려도 집계 대상 날짜는 그대로다', () => {
+  // GitHub은 예약 실행을 늦추거나 건너뛴다. 한국 시간으로 그날이 가기 전에만
+  // 돌면 seoulYesterday가 같은 날을 준다 — 지연이 곧 오집계가 되면 안 된다.
+  assert.equal(seoulYesterday(new Date('2026-08-05T18:00:00Z')), '2026-08-05'); // KST 03:00
+  assert.equal(seoulYesterday(new Date('2026-08-06T14:00:00Z')), '2026-08-05'); // KST 23:00
 });
 
 test('UTC 자정을 넘어도 한국 날짜가 밀리지 않는다', () => {
@@ -20,8 +27,8 @@ test('한국 시간 자정 직전과 직후에서 날짜가 정확히 갈린다'
 });
 
 test('월초에는 지난달 말일로 넘어간다', () => {
-  // KST 09-01 07:00
-  assert.equal(seoulYesterday(new Date('2026-08-31T22:00:00Z')), '2026-08-31');
+  // KST 09-01 00:07
+  assert.equal(seoulYesterday(new Date('2026-08-31T15:07:00Z')), '2026-08-31');
 });
 
 test('건수가 있으면 두 줄로 보낸다', () => {
