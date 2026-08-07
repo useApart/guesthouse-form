@@ -49,13 +49,19 @@ const WIRED = [
 ];
 
 for (const [page, source] of WIRED) {
-  test(`${page}: 이미지를 만드는 두 버튼 모두 집계를 부른다`, () => {
+  test(`${page}: 이미지를 만드는 모든 경로가 집계를 부른다`, () => {
     const html = readFileSync(new URL(`./${page}`, import.meta.url), 'utf8');
     assert.match(html, /import \{ bumpUsage \} from '\.\/usage\.js';/);
 
+    // 문자로 보내기 · 공유 시트 · 저장. 경로가 늘거나 줄면 이 숫자도 같이 고쳐야
+    // 한다 — 그 순간이 "새 경로에서 집계를 빠뜨렸나" 확인할 유일한 시점이다.
+    const all = html.match(/bumpUsage\(/g) || [];
+    assert.equal(all.length, 3, '이미지를 만드는 경로마다 한 번씩 불러야 한다');
+
     // 관리자 미리보기(admin.html의 iframe)에서는 운영 카운터가 아니라 null을 보내야 한다.
+    // 개수를 따로 세지 않고 전체와 맞춰, 가드를 빠뜨린 호출이 하나라도 있으면 잡는다.
     const re = new RegExp(`bumpUsage\\(isPreview \\? null : config\\.reservation, '${source}'\\)`, 'g');
-    const calls = html.match(re) || [];
-    assert.equal(calls.length, 2, '"보내기"와 "저장" 두 곳에서 불러야 하고, 두 곳 다 미리보기를 가드해야 한다');
+    const guarded = html.match(re) || [];
+    assert.equal(guarded.length, all.length, '집계를 부르는 모든 곳이 미리보기를 가드해야 한다');
   });
 }

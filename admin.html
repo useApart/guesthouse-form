@@ -216,6 +216,14 @@
         <div class="field"><label for="s-org">기관명 (제목 위 작은 글씨)</label><input type="text" id="s-org"></div>
         <div class="field"><label for="s-title">제목</label><input type="text" id="s-title"></div>
       </div>
+      <div class="field">
+        <label for="s-phone">관리사무소 문자 번호</label>
+        <input type="text" id="s-phone" inputmode="tel">
+      </div>
+      <p class="hint">
+        폰에서 "이미지 만들어 보내기"를 누르면 신청서가 복사되고 이 번호로 문자 앱이 열립니다.<br>
+        비워 두면 예전처럼 공유 시트만 열립니다.
+      </p>
 
       <h2 style="margin-top:22px;">게스트하우스</h2>
       <div id="houseList"></div>
@@ -1015,6 +1023,7 @@ function renderValues() {
   const s = state.config.site;
   bindValue('s-org', () => s.org, (v) => { s.org = v; });
   bindValue('s-title', () => s.title, (v) => { s.title = v; });
+  bindValue('s-phone', () => s.phone, (v) => { s.phone = v; });
 
   const rs = state.config.reservation;
   bindChecked('rs-enabled', () => rs.enabled, (on) => { rs.enabled = on; });

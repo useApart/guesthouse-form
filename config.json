@@ -2,7 +2,8 @@
   "version": 1,
   "site": {
     "org": "원흥LH13단지주거복지지원센터",
-    "title": "게스트하우스 신청서"
+    "title": "게스트하우스 신청서",
+    "phone": "031-965-7502"
   },
   "form": {
     "image": "form.jpg",

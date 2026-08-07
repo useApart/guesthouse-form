@@ -3,7 +3,13 @@
 export const DEFAULT_CONFIG = {
   version: 1,
 
-  site: { org: '원흥LH13단지주거복지지원센터', title: '게스트하우스 신청서' },
+  // phone은 폰에서 "이미지 만들어 보내기"를 눌렀을 때 열리는 문자 수신자다.
+  // 비워 두면 그 경로를 끄고 예전처럼 공유 시트만 연다.
+  site: {
+    org: '원흥LH13단지주거복지지원센터',
+    title: '게스트하우스 신청서',
+    phone: '031-965-7502',
+  },
 
   form: { image: 'form.jpg', width: 707, height: 1000 },
 
@@ -364,6 +370,9 @@ function normalizeSite(raw) {
   return {
     org: nonEmptyString(raw.org, base.org),
     title: nonEmptyString(raw.title, base.title),
+    // 빈 문자열이 "문자 보내기를 쓰지 않음"이라는 유효한 뜻이므로
+    // nonEmptyString으로 기본값을 되살리면 안 된다.
+    phone: typeof raw.phone === 'string' ? raw.phone.trim() : base.phone,
   };
 }
 
@@ -409,6 +418,14 @@ export function domIds(field) {
 // 써야 하므로 찾는 방법을 한 곳에 둔다.
 export function unitField(config) {
   return config.fields.find((f) => f.input === 'unit') || null;
+}
+
+// 문자 앱을 열 주소. 하이픈·공백을 지운다 — 그대로 넘기면 수신자를 못 알아보는
+// 기기가 있다. 번호가 비어 있으면 빈 문자열을 주고, 부르는 쪽은 그걸로
+// "문자 보내기를 쓰지 않음"을 판단한다.
+export function smsHref(phone) {
+  const number = String(phone || '').replace(/[^0-9+]/g, '');
+  return number ? `sms:${number}` : '';
 }
 
 // 셀렉트에 넣을 동 번호. 단지의 동 번호는 1301~1316처럼 연속 범위라 목록을

@@ -111,6 +111,8 @@
         <button type="button" class="btn btn-primary" id="sendBtn" disabled>이미지 만들어 보내기</button>
         <button type="button" class="btn btn-secondary" id="saveBtn" disabled>이미지 저장</button>
       </div>
+      <!-- 폰에서 문자 번호가 설정돼 있을 때만 보인다. applySiteTexts() 참조. -->
+      <p id="sendHint" class="hint" hidden></p>
       <p id="status" class="status-msg"></p>
     </div>
   </div>
@@ -132,7 +134,9 @@
 <p class="build" id="build"></p>
 
 <script type="module">
-import { DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packRows } from './config.js';
+import {
+  DEFAULT_CONFIG, clone, loadConfig, normalizeConfig, printedCells, packRows, smsHref,
+} from './config.js';
 import { bumpUsage } from './usage.js';
 import { detectMobile } from './device.js';
 
@@ -573,8 +577,47 @@ import { detectMobile } from './device.js';
   // 폰이면 저장에 공유 시트를 쓴다(사진함). PC면 파일로 내려받는다.
   var isMobile = detectMobile();
 
+  // 신청서를 클립보드에 그림으로 넣는다. 문자에 이미지를 자동으로 첨부하는 방법은
+  // 웹에 없으므로(sms:에는 첨부 항목이 없다) 주민이 붙여넣을 수 있게만 해 준다.
+  //
+  // blob을 기다린 뒤에 write를 부르면 iOS 사파리가 "사용자 제스처가 끝났다"고 보고
+  // 거부한다. ClipboardItem에 Promise를 그대로 넘기는 형태만 통과한다.
+  // 클립보드는 JPEG를 받지 않는다(크로미움은 image/png만 허용) — 그래서 PNG로 뜬다.
+  function copyImageToClipboard() {
+    if (!navigator.clipboard || !window.ClipboardItem || !window.isSecureContext) {
+      return Promise.reject(new Error('클립보드 이미지 복사를 지원하지 않습니다.'));
+    }
+    var out = buildComposite();
+    var blob = new Promise(function (resolve, reject) {
+      out.toBlob(function (b) {
+        if (b) resolve(b); else reject(new Error('이미지 생성에 실패했습니다.'));
+      }, 'image/png');
+    });
+    return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+  }
+
   $('sendBtn').addEventListener('click', function () {
     if (imageState !== 'ready') return;
+
+    // 폰이고 번호가 설정돼 있으면 문자 경로를 먼저 쓴다. PC에는 문자 앱이 없으므로
+    // 예전처럼 공유 시트를 연다.
+    var sms = isMobile ? smsHref(config.site.phone) : '';
+    if (sms) {
+      copyImageToClipboard().then(function () {
+        bumpUsage(isPreview ? null : config.reservation, 'hand');
+        location.href = sms;
+      }).catch(function () {
+        // 클립보드 이미지가 막힌 환경. 조용히 공유 시트로 바꾸면 주민은 왜 문자
+        // 앱이 안 열렸는지 모른 채 다른 곳으로 보낸다.
+        setStatus('이미지를 복사하지 못해 공유로 엽니다.');
+        shareFile();
+      });
+      return;
+    }
+    shareFile();
+  });
+
+  function shareFile() {
     toJpegFile().then(function (file) {
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         // 공유 시트가 실제로 뜨는 경우만 센다. 시트를 취소해도 이미지는 이미
@@ -592,7 +635,7 @@ import { detectMobile } from './device.js';
     }).catch(function (err) {
       setStatus('이미지를 만들지 못했습니다: ' + err.message);
     });
-  });
+  }
 
   $('saveBtn').addEventListener('click', function () {
     if (imageState !== 'ready') return;
@@ -653,6 +696,23 @@ import { detectMobile } from './device.js';
     }
   }
 
+  // 문자 앱으로 넘어간 뒤에는 이 페이지를 못 보므로, 누르기 전에 읽도록 버튼
+  // 아래에 계속 띄워 둔다. 붙여넣기를 잊으면 빈 문자가 그대로 나간다.
+  function applySendHint() {
+    var hint = $('sendHint');
+    hint.textContent = '';
+    hint.hidden = !(isMobile && smsHref(config.site.phone));
+    if (hint.hidden) return;
+    // 번호는 관리자가 넣는 값이라 innerHTML로 끼워 넣지 않는다.
+    var strong = document.createElement('b');
+    strong.textContent = config.site.phone;
+    hint.append('신청서가 복사된 채 ', strong, ' 문자 화면이 열립니다.');
+    hint.append(document.createElement('br'));
+    var how = document.createElement('b');
+    how.textContent = '길게 눌러 "붙여넣기"';
+    hint.append('입력란을 ', how, ' 한 뒤 보내 주세요.');
+  }
+
   function boot(loaded) {
     config = loaded;
     buildCells();
@@ -660,6 +720,7 @@ import { detectMobile } from './device.js';
     applySizes();
     $('siteOrg').textContent = config.site.org;
     $('siteTitle').textContent = config.site.title;
+    applySendHint();
     initBoards();
     formImage.src = config.form.image;
     syncButtons();

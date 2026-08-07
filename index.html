@@ -115,6 +115,10 @@
   .btn-secondary:disabled:hover { background: #fff; }
   .btn-primary:disabled:hover { background: #1F6D57; }
   .status-msg { margin: -8px 0 0; font-size: 13px; color: #7A8177; min-height: 1.2em; }
+  /* 문자 앱으로 넘어가고 나면 이 페이지의 안내는 안 보인다. 토스트가 아니라
+     버튼 옆에 계속 떠 있어야 누르기 전에 읽는다. */
+  .send-hint { margin: -4px 0 0; font-size: 13px; color: #7A8177; line-height: 1.5; }
+  .send-hint b { color: #1F6D57; }
   .account { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 12px; padding: 16px; border-radius: 12px; background: #F5F4F0; margin-top: 6px; }
   .account .acc-info { min-width: 0; flex: 1 1 200px; }
   .account .num { font-size: 15px; font-weight: 700; word-break: break-word; }
@@ -158,6 +162,8 @@
         <button type="button" id="share" class="btn btn-primary" disabled>이미지 만들어 보내기</button>
         <button type="button" id="download" class="btn btn-secondary" disabled>이미지 저장</button>
       </div>
+      <!-- 폰에서 문자 번호가 설정돼 있을 때만 보인다. boot()의 applySiteTexts() 참조. -->
+      <p id="sendHint" class="send-hint" hidden></p>
       <p id="status" class="status-msg"></p>
 
       <div class="account">
@@ -177,7 +183,7 @@
 import { countNights, calcAmount } from './calc.js';
 import {
   DEFAULT_CONFIG, clone, loadConfig, normalizeConfig,
-  formFields, printedCells, derive, domIds, dongOptions,
+  formFields, printedCells, derive, domIds, dongOptions, smsHref,
 } from './config.js';
 import { bumpUsage } from './usage.js';
 import { detectMobile } from './device.js';
@@ -325,6 +331,23 @@ function applySiteTexts() {
   document.title = config.site.title;
   $('accountNumber').textContent = config.account.bank + ' ' + config.account.number;
   $('accountHolder').textContent = config.account.holder;
+
+  // 문자 앱으로 넘어간 뒤에는 이 페이지를 못 보므로, 누르기 전에 읽도록 버튼
+  // 아래에 계속 띄워 둔다. 붙여넣기를 잊으면 빈 문자가 그대로 나간다.
+  const hint = $('sendHint');
+  hint.textContent = '';
+  hint.hidden = !(isMobile && smsHref(config.site.phone));
+  if (hint.hidden) return;
+  // 번호는 관리자가 넣는 값이라 innerHTML로 끼워 넣지 않는다.
+  hint.append(
+    '신청서가 복사된 채 ',
+    el('b', null, { textContent: config.site.phone }),
+    ' 문자 화면이 열립니다.',
+    el('br'),
+    '입력란을 ',
+    el('b', null, { textContent: '길게 눌러 "붙여넣기"' }),
+    ' 한 뒤 보내 주세요.'
+  );
 }
 
 // 'loading' | 'ready' | 'error'. 이미지가 준비되지 않은 동안은 버튼을 잠그고 캔버스에 아무것도 그리지 않는다.
@@ -596,8 +619,40 @@ function syncButtons() {
   }
 }
 
+// 신청서를 클립보드에 그림으로 넣는다. 문자에 이미지를 자동으로 첨부하는 방법은
+// 웹에 없으므로(sms:에는 첨부 항목이 없다) 주민이 붙여넣을 수 있게만 해 준다.
+//
+// blob을 await한 뒤에 write를 부르면 iOS 사파리가 "사용자 제스처가 끝났다"고 보고
+// 거부한다. ClipboardItem에 Promise를 그대로 넘기는 형태만 통과한다.
+// 클립보드는 JPEG를 받지 않는다(크로미움은 image/png만 허용) — 그래서 PNG로 뜬다.
+function copyImageToClipboard() {
+  if (!navigator.clipboard || !window.ClipboardItem || !window.isSecureContext) {
+    return Promise.reject(new Error('클립보드 이미지 복사를 지원하지 않습니다.'));
+  }
+  const blob = new Promise((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('이미지 생성에 실패했습니다.'))), 'image/png');
+  });
+  return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+}
+
 $('share').addEventListener('click', async () => {
   try {
+    // 폰이고 번호가 설정돼 있으면 문자 경로를 먼저 쓴다. PC에는 문자 앱이 없으므로
+    // 예전처럼 공유 시트를 연다.
+    const sms = isMobile ? smsHref(config.site.phone) : '';
+    if (sms) {
+      try {
+        await copyImageToClipboard();
+        bumpUsage(isPreview ? null : config.reservation, 'typed');
+        location.href = sms;
+        return;
+      } catch {
+        // 클립보드 이미지가 막힌 환경. 조용히 공유 시트로 바꾸면 주민은 왜 문자
+        // 앱이 안 열렸는지 모른 채 다른 곳으로 보낸다.
+        showToast('이미지를 복사하지 못해 공유로 엽니다.');
+      }
+    }
+
     const file = await toJpegFile();
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       // 공유 시트가 실제로 뜨는 경우만 센다. await 하지 않는다 — 집계가 늦거나

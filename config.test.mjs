@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   DEFAULT_CONFIG, rectToPoint, clone, normalizeConfig, parseConfig,
-  formFields, printedCells, packRows, derive, domIds, unitField, dongOptions,
+  formFields, printedCells, packRows, derive, domIds, unitField, dongOptions, smsHref,
 } from './config.js';
 
 // 리팩터 전 index.html이 하드코딩하고 있던 값. 설정 기반으로 바꾼 뒤에도
@@ -272,6 +272,28 @@ test('unitField는 동·호수 항목이 없으면 null을 준다', () => {
     fields: DEFAULT_CONFIG.fields.filter((f) => f.id !== 'unit').map(clone),
   });
   assert.equal(unitField(config), null);
+});
+
+test('smsHref는 하이픈·공백을 지우고 sms: 주소를 만든다', () => {
+  assert.equal(smsHref('031-965-7502'), 'sms:0319657502');
+  assert.equal(smsHref(' 010 1234 5678 '), 'sms:01012345678');
+  assert.equal(smsHref('+82-31-965-7502'), 'sms:+82319657502');
+});
+
+test('smsHref는 번호가 없으면 빈 문자열을 준다', () => {
+  // 부르는 쪽이 이 빈 문자열로 "문자 보내기를 쓰지 않음"을 판단한다.
+  assert.equal(smsHref(''), '');
+  assert.equal(smsHref(null), '');
+  assert.equal(smsHref(undefined), '');
+  assert.equal(smsHref('번호없음'), '');
+});
+
+test('site.phone은 빈 문자열을 그대로 지킨다', () => {
+  // 빈 값이 "문자 보내기를 안 씀"이라는 뜻이므로 기본 번호로 되살리면 안 된다.
+  assert.equal(normalizeConfig({ site: { phone: '' } }).site.phone, '');
+  assert.equal(normalizeConfig({ site: { phone: ' 031-965-7502 ' } }).site.phone, '031-965-7502');
+  // 아예 없으면 기본값을 쓴다.
+  assert.equal(normalizeConfig({ site: {} }).site.phone, DEFAULT_CONFIG.site.phone);
 });
 
 test('printedCells는 rect 없는 항목과 printed:false를 뺀다', () => {
