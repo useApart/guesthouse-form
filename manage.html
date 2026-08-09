@@ -168,7 +168,8 @@
     <h1>게스트하우스 예약</h1>
 
     <div class="topbar">
-      <nav class="topnav">
+      <!-- 로그인해야 의미가 있는 탭이라 로그인 여부로 여닫는다. showList/showLogin 참조. -->
+      <nav class="topnav" id="topNav" hidden>
         <a href="manage.html" class="here">예약 확인</a>
         <a href="admin.html">설정</a>
       </nav>
@@ -371,7 +372,8 @@ function shortDate(checkIn, checkOut) {
 
 function showLogin(msg) {
   $('listArea').hidden = true;
-  // 새로고침·로그아웃은 목록과 짝이다. 상단에 옮겨 놓았으므로 같이 감춘다.
+  // 상단 탭·새로고침·로그아웃은 로그인해야 의미가 있으므로 같이 감춘다.
+  $('topNav').hidden = true;
   $('topActions').hidden = true;
   $('loginCard').hidden = false;
   if (msg) $('loginMsg').textContent = msg;
@@ -380,6 +382,7 @@ function showLogin(msg) {
 function showList() {
   $('loginCard').hidden = true;
   $('listArea').hidden = false;
+  $('topNav').hidden = false;
   $('topActions').hidden = false;
   loadList();
 }
