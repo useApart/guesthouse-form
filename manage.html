@@ -27,16 +27,6 @@
   /* 관리사무소는 거의 항상 PC다. 좁은 폭을 유지하면 화면 대부분이 빈 여백이 된다. */
   .inner { width: 100%; max-width: 1200px; }
 
-  /* 세 탭의 내용을 다 합쳐도 PC 화면 하나를 못 채운다. 그래서 넓은 화면에서는
-     탭을 접고 좌(처리할 일) · 우(조회 도구)로 나눠 한꺼번에 보여준다.
-     좁은 화면은 그대로 탭을 쓴다 — 다 쌓으면 스크롤이 너무 길어진다. */
-  @media (min-width: 1000px) {
-    .tabs { display: none; }
-    .board { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-    /* 탭 상태를 무시하고 셋 다 편다. dayCard·resultCard의 hidden은 "고른 날짜가
-       없다/검색을 안 했다"는 뜻이므로 그대로 둔다 — 여기서 같이 풀면 빈 카드가 뜬다. */
-    #tabPending[hidden], #tabCalendar[hidden], #tabHistory[hidden] { display: block; }
-  }
   .eyebrow { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: .02em; color: #7A8177; margin-bottom: 6px; }
   h1 { text-align: center; margin: 0 0 20px; font-size: 24px; font-weight: 700; letter-spacing: -.01em; }
   h2 { font-size: 15px; font-weight: 700; margin: 0 0 12px; color: #3C443B; }
@@ -163,6 +153,21 @@
   .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1E251E; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; text-align: center; z-index: 200; }
   .toast.show { opacity: 1; }
   .build { margin: 20px 0 16px; text-align: center; font-size: 11px; color: #9A9F92; }
+
+  /* 세 탭의 내용을 다 합쳐도 PC 화면 하나를 못 채운다. 그래서 넓은 화면에서는
+     탭을 접고 좌(처리할 일) · 우(조회 도구)로 나눠 한꺼번에 보여준다.
+     좁은 화면은 그대로 탭을 쓴다 — 다 쌓으면 스크롤이 너무 길어진다.
+
+     반드시 스타일시트 끝에 둔다. 미디어 쿼리는 우선순위를 올려주지 않으므로,
+     이 블록이 .tabs 기본 규칙보다 앞에 있으면 나중에 나온 display:flex가 이겨
+     넓은 화면에서도 탭이 그대로 남는다. */
+  @media (min-width: 1000px) {
+    .tabs { display: none; }
+    .board { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    /* 탭 상태를 무시하고 셋 다 편다. dayCard·resultCard의 hidden은 "고른 날짜가
+       없다/검색을 안 했다"는 뜻이므로 그대로 둔다 — 여기서 같이 풀면 빈 카드가 뜬다. */
+    #tabPending[hidden], #tabCalendar[hidden], #tabHistory[hidden] { display: block; }
+  }
 </style>
 </head>
 <body>

@@ -64,8 +64,11 @@ for (const page of PAGES) {
 // 맞춰 본다. .foo[hidden]이나 .foo:not([hidden])으로 막아 두었으면 통과한다.
 const HIDDEN_PAGES = ['index.html', 'draw.html', 'reserve.html', 'manage.html', 'admin.html'];
 
+// 주석을 지우고 돌려준다. 남겨 두면 규칙 앞에 붙은 주석이 선택자로 읽혀
+// @media 블록을 못 알아보고, 주석 안의 예시 코드가 실제 규칙으로 오인된다.
 function styleBlock(html) {
-  return (html.match(/<style>([\s\S]*?)<\/style>/) || ['', ''])[1];
+  const css = (html.match(/<style>([\s\S]*?)<\/style>/) || ['', ''])[1];
+  return css.replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
 // JS가 el.hidden = ... 로 여닫는 id를 모은다.
@@ -102,5 +105,74 @@ for (const page of HIDDEN_PAGES) {
     }
 
     assert.deepEqual(broken, [], `[hidden] 가드를 더해야 한다: ${broken.join(', ')}`);
+  });
+}
+
+// ---- 미디어 쿼리가 뒤에 나온 기본 규칙에 덮이는 경우 ----
+//
+// 넓은 화면에서 탭을 감추려고 @media 안에 .tabs { display: none }을 넣었는데,
+// 그 블록이 .tabs { display: flex }보다 앞에 있어 아무 효과가 없었다. 미디어
+// 쿼리는 우선순위를 올려주지 않으므로 같은 특정성이면 나중에 나온 쪽이 이긴다.
+// 조건문처럼 읽혀서 눈으로는 거의 안 잡힌다.
+
+// 이 저장소의 스타일시트는 중첩이 @media 한 겹뿐이라 이 정도로 충분하다.
+function scanRules(css, offset = 0) {
+  const rules = [];
+  let i = 0;
+  while (i < css.length) {
+    const open = css.indexOf('{', i);
+    if (open === -1) break;
+    const prelude = css.slice(i, open).trim();
+
+    if (prelude.startsWith('@')) {
+      let depth = 1;
+      let j = open + 1;
+      while (j < css.length && depth > 0) {
+        if (css[j] === '{') depth++;
+        else if (css[j] === '}') depth--;
+        j++;
+      }
+      if (prelude.startsWith('@media')) {
+        // 안쪽 규칙은 자기 위치 대신 블록이 끝나는 위치를 갖는다. 뒤에 오는
+        // 기본 규칙에 덮이는지만 보면 되므로 그 값이면 충분하다.
+        for (const r of scanRules(css.slice(open + 1, j - 1))) {
+          rules.push({ selector: r.selector, decls: r.decls, at: offset + j, inMedia: true });
+        }
+      }
+      i = j;
+      continue;
+    }
+
+    const close = css.indexOf('}', open);
+    if (close === -1) break;
+    rules.push({
+      selector: prelude,
+      decls: css.slice(open + 1, close),
+      at: offset + open,
+      inMedia: false,
+    });
+    i = close + 1;
+  }
+  return rules;
+}
+
+const hasDisplay = (decls) => /(^|[;{\s])display\s*:/.test(decls);
+const selectorsOf = (rule) => rule.selector.split(',').map((s) => s.trim()).filter(Boolean);
+
+for (const page of HIDDEN_PAGES) {
+  test(`${page}: 미디어 쿼리의 display가 뒤에 나온 규칙에 덮이지 않는다`, () => {
+    const rules = scanRules(styleBlock(read(page)));
+    const inMedia = rules.filter((r) => r.inMedia && hasDisplay(r.decls));
+    const base = rules.filter((r) => !r.inMedia && hasDisplay(r.decls));
+    const broken = [];
+
+    for (const m of inMedia) {
+      for (const sel of selectorsOf(m)) {
+        const shadow = base.find((b) => b.at > m.at && selectorsOf(b).includes(sel));
+        if (shadow) broken.push(sel);
+      }
+    }
+
+    assert.deepEqual(broken, [], `@media 블록을 이 선택자들보다 뒤로 옮겨야 한다: ${broken.join(', ')}`);
   });
 }
