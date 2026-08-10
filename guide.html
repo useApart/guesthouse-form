@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>관리사무소 사용 안내 · 게스트하우스</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; background: #F5F4F0; color: #1E251E; line-height: 1.6; }
+  .wrap { min-height: 100vh; display: flex; justify-content: center; padding: 32px 16px 80px; }
+  .inner { width: 100%; max-width: 780px; }
+  .eyebrow { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: .02em; color: #7A8177; margin-bottom: 6px; }
+  h1 { text-align: center; margin: 0 0 18px; font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
+
+  .topnav { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 18px; }
+  .topnav a { padding: 8px 14px; border-radius: 9px; font-size: 14px; font-weight: 600; text-decoration: none; color: #3C443B; background: #fff; border: 1px solid #D8D6CD; }
+  .topnav a:hover { background: #F5F4F0; }
+  .topnav a.here { background: #1F6D57; color: #fff; border-color: #1F6D57; }
+
+  .toc { background: #fff; border: 1px solid #E8E6DE; border-radius: 16px; padding: 18px 22px; margin-bottom: 20px; }
+  .toc h2 { margin: 0 0 10px; font-size: 15px; color: #3C443B; }
+  .toc ol { margin: 0; padding-left: 20px; }
+  .toc li { margin: 4px 0; }
+  .toc a { color: #1F6D57; text-decoration: none; font-weight: 600; }
+  .toc a:hover { text-decoration: underline; }
+
+  .card { background: #fff; border-radius: 20px; border: 1px solid #E8E6DE; box-shadow: 0 1px 3px rgba(30,37,30,.04); padding: 24px 26px; margin-bottom: 18px; }
+  .card h2 { margin: 0 0 6px; font-size: 20px; font-weight: 700; scroll-margin-top: 16px; }
+  .card h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background: #1F6D57; color: #fff; font-size: 15px; margin-right: 8px; vertical-align: middle; }
+  .card h3 { margin: 20px 0 6px; font-size: 16px; font-weight: 700; color: #26302A; }
+  .card p { margin: 8px 0; }
+  ol.steps { margin: 8px 0; padding-left: 22px; }
+  ol.steps li { margin: 8px 0; }
+  ul.plain { margin: 8px 0; padding-left: 20px; }
+  ul.plain li { margin: 6px 0; }
+  .pill { display: inline-block; padding: 1px 9px; border-radius: 7px; font-size: 13px; font-weight: 700; vertical-align: baseline; }
+  .pill.green { background: #EAF3EF; color: #1F6D57; border: 1px solid #1F6D57; }
+  .pill.red { background: #FCEEEC; color: #B5473A; border: 1px solid #E7A79E; }
+  .pill.gray { background: #F0EEE7; color: #3C443B; border: 1px solid #D8D6CD; }
+
+  .callout { border-radius: 12px; padding: 12px 16px; margin: 14px 0; font-size: 14px; }
+  .callout.tip { background: #EAF3EF; border: 1px solid #BFE0D3; }
+  .callout.warn { background: #FCEEEC; border: 1px solid #F0C9C2; }
+  .callout b { font-weight: 700; }
+
+  .qa { margin: 12px 0; }
+  .qa summary { cursor: pointer; font-weight: 700; color: #26302A; padding: 10px 0; border-top: 1px solid #ECEAE3; }
+  .qa summary:hover { color: #1F6D57; }
+  .qa[open] summary { color: #1F6D57; }
+  .qa p { margin: 4px 0 12px; color: #3C443B; }
+
+  .toplink { display: inline-block; margin-top: 8px; font-size: 13px; color: #9A9F92; text-decoration: none; }
+  .toplink:hover { color: #1F6D57; }
+
+  code { background: #F0EEE7; padding: 1px 6px; border-radius: 6px; font-size: 13px; }
+  .foot { text-align: center; font-size: 12px; color: #9A9F92; margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="inner">
+    <div class="eyebrow" id="top">관리사무소</div>
+    <h1>게스트하우스 시스템 사용 안내</h1>
+
+    <nav class="topnav">
+      <a href="manage.html">예약 확인</a>
+      <a href="admin.html">설정</a>
+      <a href="guide.html" class="here">도움말</a>
+    </nav>
+
+    <div class="toc">
+      <h2>차례</h2>
+      <ol>
+        <li><a href="#s0">이 시스템은 이렇게 돌아갑니다</a></li>
+        <li><a href="#s1">시작하기 — 접속과 로그인</a></li>
+        <li><a href="#s2">매일 하는 일 — 예약 확인·확정</a></li>
+        <li><a href="#s3">달력으로 한눈에 보기</a></li>
+        <li><a href="#s4">세대·이름으로 찾기</a></li>
+        <li><a href="#s5">설정 바꾸기 (요금·동 목록·공휴일 등)</a></li>
+        <li><a href="#s6">자주 묻는 질문</a></li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2 id="s0">이 시스템은 이렇게 돌아갑니다</h2>
+      <p>주민과 관리사무소가 쓰는 화면이 나뉘어 있습니다.</p>
+      <h3>주민이 쓰는 화면</h3>
+      <ul class="plain">
+        <li><b>신청서 작성</b> — 신청서를 채워 이미지로 만들어 문자로 보냅니다.</li>
+        <li><b>온라인 예약</b> — 날짜를 골라 바로 예약을 넣습니다. 넣은 뒤엔 <span class="pill gray">확인 대기</span> 상태로, 관리사무소가 확정해 줄 때까지 기다립니다.</li>
+      </ul>
+      <h3>관리사무소가 쓰는 화면</h3>
+      <ul class="plain">
+        <li><b>예약 확인</b> (<code>manage.html</code>) — 들어온 예약을 확인하고 <span class="pill green">확정</span>하거나 <span class="pill red">거절</span>합니다. 매일 여기서 일합니다.</li>
+        <li><b>설정</b> (<code>admin.html</code>) — 요금, 게스트하우스 동 목록, 공휴일 규칙, 안내 문구 등을 바꿉니다. 자주 건드릴 필요는 없습니다.</li>
+      </ul>
+      <div class="callout tip">💡 <b>핵심 흐름:</b> 주민이 예약을 넣음 → <b>확인 대기</b> → 관리사무소가 금액을 정해 <b>확정</b> → 그때 주민에게 계좌가 보이고 입금합니다. <b>확정하기 전에는 주민이 계좌를 볼 수 없습니다.</b></div>
+    </div>
+
+    <div class="card">
+      <h2 id="s1"><span class="num">1</span>시작하기 — 접속과 로그인</h2>
+      <ol class="steps">
+        <li>인터넷 주소창에 <b>예약 확인 페이지</b> 주소를 넣습니다. (즐겨찾기 해두면 편합니다.)</li>
+        <li>처음 화면은 <b>로그인</b>입니다. 관리사무소 <b>이메일</b>과 <b>비밀번호</b>를 넣고 <span class="pill green">로그인</span>을 누릅니다.</li>
+        <li>로그인하면 상단에 <b>예약 확인 · 설정 · 도움말</b> 탭과 <b>새로고침 · 로그아웃</b> 버튼이 나타납니다.</li>
+      </ol>
+      <div class="callout tip">💡 예약 확인(<code>manage.html</code>)과 설정(<code>admin.html</code>)은 <b>같은 계정</b>을 씁니다. 한 곳에서 로그인하면 다른 곳도 열립니다.</div>
+      <div class="callout warn">⚠️ 공용 PC라면 일이 끝난 뒤 <b>로그아웃</b>을 눌러 주세요. 로그인 상태가 그대로 남습니다.</div>
+      <a class="toplink" href="#top">↑ 위로</a>
+    </div>
+
+    <div class="card">
+      <h2 id="s2"><span class="num">2</span>매일 하는 일 — 예약 확인·확정</h2>
+      <p>로그인하면 <b>확인 필요</b> 탭이 먼저 열립니다. 여기 쌓인 예약을 하나씩 처리합니다.</p>
+      <h3>예약 하나를 처리하는 법</h3>
+      <ol class="steps">
+        <li>예약의 이름·세대·날짜·인원과 <b>자동 계산된 금액</b>을 확인합니다.</li>
+        <li>필요하면 <b>동 배정</b>을 바꿉니다. (예약 안의 배정 칸을 눌러 다른 동으로 옮김)</li>
+        <li>금액이 맞으면 <span class="pill green">확정</span>을 누릅니다. → 그 순간의 금액이 <b>실제 청구 금액</b>이 되고, 주민에게 <b>계좌가 보입니다.</b></li>
+        <li>받을 수 없는 예약이면 <span class="pill red">취소</span>(거절)를 누릅니다.</li>
+      </ol>
+      <div class="callout warn">⚠️ <b>확정 = 금액 확정</b>입니다. 확정을 누르기 전에 금액이 맞는지 꼭 확인하세요. 주민은 확정된 뒤에 그 금액을 보고 입금합니다.</div>
+      <h3>이미 확정한 예약을 고치려면</h3>
+      <ul class="plain">
+        <li><b>금액 저장</b> — 확정 후 금액이 틀린 걸 발견하면 금액만 고쳐 다시 저장할 수 있습니다.</li>
+        <li><b>예약 취소</b> — 확정한 예약도 취소할 수 있습니다.</li>
+        <li><b>신청서</b> 버튼 — 그 예약의 신청서를 이미지로 열어 저장할 수 있습니다.</li>
+      </ul>
+      <div class="callout tip">💡 다른 사람이 방금 넣은 예약이 안 보이면 오른쪽 위 <b>새로고침</b>을 누르세요.</div>
+      <a class="toplink" href="#top">↑ 위로</a>
+    </div>
+
+    <div class="card">
+      <h2 id="s3"><span class="num">3</span>달력으로 한눈에 보기</h2>
+      <p><b>달력</b> 탭을 누르면 한 달 치 예약을 달력으로 봅니다.</p>
+      <ul class="plain">
+        <li>날짜 칸의 점으로 그날 예약이 있는지 알 수 있습니다. (<span class="pill green">확정</span> / <span class="pill gray">대기</span> 색이 다름)</li>
+        <li>날짜를 누르면 그날의 예약 목록이 아래에 나옵니다.</li>
+        <li>위쪽 <b>‹ ›</b> 화살표로 이전·다음 달을 넘깁니다.</li>
+      </ul>
+      <a class="toplink" href="#top">↑ 위로</a>
+    </div>
+
+    <div class="card">
+      <h2 id="s4"><span class="num">4</span>세대·이름으로 찾기</h2>
+      <p><b>지난 예약</b> 탭에서 특정 세대나 사람의 예약을 찾습니다.</p>
+      <ul class="plain">
+        <li><b>세대로 찾기</b> — 동을 고르고 호수를 넣어 <b>찾기</b>. 그 세대의 예약 이력이 나옵니다.</li>
+        <li><b>이름으로 찾기</b> — 이름을 넣어 <b>찾기</b>.</li>
+      </ul>
+      <div class="callout tip">💡 "이 집이 지난달에 왔었나?" 같은 확인에 씁니다.</div>
+      <a class="toplink" href="#top">↑ 위로</a>
+    </div>
+
+    <div class="card">
+      <h2 id="s5"><span class="num">5</span>설정 바꾸기</h2>
+      <p>상단 <b>설정</b> 탭(<code>admin.html</code>)에서 바꿉니다. 자주 건드릴 필요는 없지만, 요금이 바뀌거나 동이 늘면 여기서 고칩니다.</p>
+      <h3>바꿀 수 있는 것</h3>
+      <ul class="plain">
+        <li><b>요금 · 계좌</b> 탭 — 평일/주말 1박 요금, 추가 인원 요금, 기준 인원, 입금 계좌, 화면 안내 문구.</li>
+        <li><b>예약 가능 기간</b> — 최소·최대 숙박일수 (예: 최소 1박, 최대 2박).</li>
+        <li><b>공휴일 요금</b> — "공휴일을 자동으로 판정한다"를 켜면 공휴일이 주말 요금이 됩니다. "공휴일 전날 밤도 주말 요금"도 켤 수 있습니다.</li>
+        <li><b>게스트하우스</b> — 동(집) 목록 추가·수정. 여기서 넣은 동이 예약 배정과 검색에 쓰입니다.</li>
+        <li><b>서식 &amp; 칸 / 항목</b> — 신청서 서식 이미지와 입력 항목을 바꿉니다.</li>
+      </ul>
+      <div class="callout warn">⚠️ <b>바꾼 뒤 꼭 저장하세요.</b> <b>미리보기 &amp; 저장</b> 탭의 <span class="pill green">저장</span> 버튼을 눌러야 실제로 반영됩니다. 저장하지 않고 창을 닫으면 바뀐 내용이 사라집니다.</div>
+      <a class="toplink" href="#top">↑ 위로</a>
+    </div>
+
+    <div class="card">
+      <h2 id="s6"><span class="num">6</span>자주 묻는 질문</h2>
+
+      <details class="qa">
+        <summary>로그인이 안 돼요 / "다시 로그인해 주세요"가 떠요</summary>
+        <p>비밀번호를 다시 확인하세요. 한동안 안 쓰면 로그인이 만료되어 다시 로그인해야 할 수 있습니다. 그래도 안 되면 계정 담당자에게 문의하세요.</p>
+      </details>
+
+      <details class="qa">
+        <summary>방금 들어온 예약이 목록에 안 보여요</summary>
+        <p>오른쪽 위 <b>새로고침</b> 버튼을 누르세요. 화면은 자동으로 계속 갱신되지 않습니다.</p>
+      </details>
+
+      <details class="qa">
+        <summary>확정했는데 금액을 잘못 넣었어요</summary>
+        <p>그 예약에서 <b>금액 저장</b>으로 금액만 고쳐 다시 저장할 수 있습니다. 예약을 취소했다 다시 만들 필요 없습니다.</p>
+      </details>
+
+      <details class="qa">
+        <summary>주민이 "계좌가 안 보인다"고 해요</summary>
+        <p>정상입니다. 계좌는 관리사무소가 <b>확정한 뒤에만</b> 주민에게 보입니다. 확정 전에는 금액이 정해지지 않았기 때문입니다.</p>
+      </details>
+
+      <details class="qa">
+        <summary>공휴일인데 주말 요금(40,000원)이 안 붙어요</summary>
+        <p>설정 → <b>공휴일 요금</b>에서 "공휴일을 자동으로 판정한다"가 켜져 있는지 확인하세요. 규정상 <b>공휴일 밤</b>과 <b>공휴일 전날 밤</b>이 주말 요금입니다. 그 사이에 끼지 않은 평일 밤은 평일 요금입니다.</p>
+      </details>
+
+      <details class="qa">
+        <summary>화면이 바뀐 게 반영이 안 돼요</summary>
+        <p>브라우저에 옛 화면이 남아 있을 수 있습니다. <b>강력 새로고침</b>(윈도우 <code>Ctrl+Shift+R</code>, 맥 <code>Cmd+Shift+R</code>)을 해보세요.</p>
+      </details>
+
+      <details class="qa">
+        <summary>설정을 바꿨는데 그대로예요</summary>
+        <p><b>미리보기 &amp; 저장</b> 탭에서 <b>저장</b>을 눌렀는지 확인하세요. 저장해야 반영됩니다.</p>
+      </details>
+
+      <a class="toplink" href="#top">↑ 위로</a>
+    </div>
+
+    <p class="foot">관리사무소 내부용 안내 · 궁금한 점은 시스템 담당자에게 문의하세요.</p>
+  </div>
+</div>
+</body>
+</html>
