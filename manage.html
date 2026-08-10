@@ -16,6 +16,10 @@
   .topbar-actions { display: flex; gap: 8px; }
   .topbar-actions .btn { height: 38px; font-size: 13px; padding: 0 14px; }
   .topnav { display: flex; gap: 6px; flex-wrap: wrap; }
+  /* display를 선언한 요소는 hidden 속성만으로 숨겨지지 않는다 — [hidden]의
+     display:none은 브라우저 기본값이라 작성자 규칙에 진다. 여기를 빠뜨려
+     로그인 화면에 탭과 버튼이 그대로 남았다. */
+  .topnav[hidden], .topbar-actions[hidden] { display: none; }
   .topnav a { padding: 8px 14px; border-radius: 9px; font-size: 14px; font-weight: 600; text-decoration: none; color: #3C443B; background: #fff; border: 1px solid #D8D6CD; }
   .topnav a:hover { background: #F5F4F0; }
   .topnav a.here { background: #1F6D57; color: #fff; border-color: #1F6D57; }

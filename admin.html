@@ -11,6 +11,9 @@
   /* 관리사무소는 두 화면을 오간다. 어느 쪽에 있는지 보이면서 한 번에 넘어가도록
      manage.html과 같은 마크업·같은 값을 쓴다. */
   .topnav { display: flex; gap: 6px; margin: 0 0 18px; flex-wrap: wrap; }
+  /* display를 선언한 요소는 hidden 속성만으로 숨겨지지 않는다 — [hidden]의
+     display:none은 브라우저 기본값이라 작성자 규칙에 진다. */
+  .topnav[hidden] { display: none; }
   .topnav a { padding: 8px 14px; border-radius: 9px; font-size: 14px; font-weight: 600; text-decoration: none; color: #3C443B; background: #fff; border: 1px solid #D8D6CD; }
   .topnav a:hover { background: #F5F4F0; }
   .topnav a.here { background: #1F6D57; color: #fff; border-color: #1F6D57; }

@@ -52,3 +52,55 @@ for (const page of PAGES) {
     assert.deepEqual(missing, [], `HTML에 없는 id에 리스너를 붙였다: ${missing.join(', ')}`);
   });
 }
+
+// ---- hidden이 CSS에 지는 요소 ----
+//
+// hidden 속성을 붙였는데도 화면에 그대로 남는 사고가 세 번 났다(상단 탭, 상단
+// 버튼, 예약 단계 표시줄). [hidden]의 display:none은 브라우저 기본 스타일이라
+// .foo { display: flex } 같은 작성자 규칙에 진다. JS는 멀쩡히 hidden을 켜므로
+// 코드만 읽어서는 보이지 않고, 화면을 직접 봐야 드러난다.
+//
+// 그래서 "JS가 hidden을 토글하는 요소"와 "그 클래스에 display가 선언됐는지"를
+// 맞춰 본다. .foo[hidden]이나 .foo:not([hidden])으로 막아 두었으면 통과한다.
+const HIDDEN_PAGES = ['index.html', 'draw.html', 'reserve.html', 'manage.html', 'admin.html'];
+
+function styleBlock(html) {
+  return (html.match(/<style>([\s\S]*?)<\/style>/) || ['', ''])[1];
+}
+
+// JS가 el.hidden = ... 로 여닫는 id를 모은다.
+function toggledIds(html) {
+  const ids = new Set();
+  for (const m of html.matchAll(/\$\('([\w-]+)'\)\.hidden\s*=/g)) ids.add(m[1]);
+  for (const m of html.matchAll(/getElementById\('([\w-]+)'\)\.hidden\s*=/g)) ids.add(m[1]);
+  return [...ids];
+}
+
+function classesOf(html, id) {
+  const tag = (html.match(new RegExp(`<[^>]*id="${id}"[^>]*>`)) || [''])[0];
+  return ((tag.match(/class="([^"]*)"/) || ['', ''])[1] || '').split(/\s+/).filter(Boolean);
+}
+
+for (const page of HIDDEN_PAGES) {
+  test(`${page}: hidden으로 여닫는 요소가 CSS의 display에 지지 않는다`, () => {
+    const html = read(page);
+    const css = styleBlock(html);
+    const broken = [];
+
+    for (const id of toggledIds(html)) {
+      for (const cls of classesOf(html, id)) {
+        // String.raw가 필요하다. 그냥 템플릿 리터럴에 쓰면 \s·\.가 s·.로 죽어
+        // 엉뚱한 것을 찾는, 늘 통과하는 테스트가 된다.
+        const declaresDisplay = new RegExp(
+          String.raw`(^|[,}\s])\.${cls}\s*\{[^}]*display\s*:`, 'm'
+        ).test(css);
+        const guarded = new RegExp(
+          String.raw`\.${cls}\[hidden\]|\.${cls}:not\(\[hidden\]\)`
+        ).test(css);
+        if (declaresDisplay && !guarded) broken.push(`#${id}(.${cls})`);
+      }
+    }
+
+    assert.deepEqual(broken, [], `[hidden] 가드를 더해야 한다: ${broken.join(', ')}`);
+  });
+}

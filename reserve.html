@@ -20,6 +20,10 @@
 
   /* ---- 단계 표시 ---- */
   .steps { display: flex; gap: 6px; margin-bottom: 16px; }
+  /* display를 선언한 요소는 hidden 속성만으로 숨겨지지 않는다 — [hidden]의
+     display:none은 브라우저 기본값이라 작성자 규칙에 진다. 이게 없으면 예약
+     기능이 꺼져 "준비 중"만 떠야 할 때도 단계 표시줄이 같이 보인다. */
+  .steps[hidden] { display: none; }
   .step { flex: 1; height: 4px; border-radius: 2px; background: #E2E0D8; }
   .step.done { background: #1F6D57; }
 
