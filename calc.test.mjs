@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { countNights, calcAmount } from './calc.js';
+import { countNights, calcAmount, isCheckoutAllowed } from './calc.js';
 import { DEFAULT_CONFIG } from './config.js';
 
 // 2026-07-27(월) ~ 2026-07-29(수): 월·화 두 밤 모두 평일
@@ -153,4 +153,42 @@ test('요금표와 공휴일 판정을 함께 넘길 수 있다', () => {
     calcAmount(values, { pricing, isHoliday: holidaysOn('2026-07-28') }),
     50000
   );
+});
+
+// ---- 퇴실일로 누를 수 있는 날 ----
+// 달력이 못 누르게 막는 규칙과 눌렀을 때 거절하는 규칙이 같아야 한다.
+
+const STAY = { minNights: 1, maxNights: 2 };
+
+test('최소~최대 박수 안이면 퇴실일이 될 수 있다', () => {
+  assert.equal(isCheckoutAllowed('2026-08-10', '2026-08-11', STAY), true); // 1박
+  assert.equal(isCheckoutAllowed('2026-08-10', '2026-08-12', STAY), true); // 2박
+});
+
+test('최대 박수를 넘으면 퇴실일이 될 수 없다', () => {
+  // 이 날짜들이 달력에서 회색으로 잠긴다.
+  assert.equal(isCheckoutAllowed('2026-08-10', '2026-08-13', STAY), false); // 3박
+  assert.equal(isCheckoutAllowed('2026-08-10', '2026-08-31', STAY), false);
+});
+
+test('최소 박수를 못 채우면 퇴실일이 될 수 없다', () => {
+  assert.equal(isCheckoutAllowed('2026-08-10', '2026-08-11', { minNights: 2, maxNights: 3 }), false);
+  assert.equal(isCheckoutAllowed('2026-08-10', '2026-08-12', { minNights: 2, maxNights: 3 }), true);
+});
+
+test('같은 날이나 거꾸로 된 날은 퇴실일이 아니다', () => {
+  // 이 경우는 '다시 고르기'로 처리되므로 달력에서는 열어 둔다(reserve.html 참조).
+  assert.equal(isCheckoutAllowed('2026-08-10', '2026-08-10', STAY), false);
+  assert.equal(isCheckoutAllowed('2026-08-10', '2026-08-09', STAY), false);
+});
+
+test('빈 값이나 깨진 날짜는 퇴실일이 아니다', () => {
+  assert.equal(isCheckoutAllowed('', '2026-08-11', STAY), false);
+  assert.equal(isCheckoutAllowed('2026-08-10', '', STAY), false);
+  assert.equal(isCheckoutAllowed('2026-08-10', '2026-02-30', STAY), false);
+});
+
+test('달을 넘어가도 박수로만 따진다', () => {
+  assert.equal(isCheckoutAllowed('2026-08-31', '2026-09-01', STAY), true);
+  assert.equal(isCheckoutAllowed('2026-08-31', '2026-09-03', STAY), false);
 });

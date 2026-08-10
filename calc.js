@@ -21,6 +21,17 @@ export function countNights(checkIn, checkOut) {
   return nights > 0 ? nights : 0;
 }
 
+// 입실일을 고른 뒤, 그 날짜를 퇴실일로 누를 수 있는지.
+//
+// 달력이 "누를 수 없게 막을 때"와 눌렀을 때 "거절할 때"가 반드시 같은 규칙을 써야
+// 한다. 두 곳에 각각 적어 두면 한쪽만 고쳤을 때 막아 놓고 통과시키거나 열어 놓고
+// 거절하는 상태가 된다.
+export function isCheckoutAllowed(checkIn, checkOut, stay) {
+  const nights = countNights(checkIn, checkOut);
+  if (nights === 0) return false; // 같은 날이거나 거꾸로면 퇴실일이 아니다
+  return nights >= stay.minNights && nights <= stay.maxNights;
+}
+
 // 요금 계산에 필요한 두 가지를 이름 있는 옵션으로 받는다.
 //   pricing          관리자가 바꿀 수 있는 요금표. 생략하면 내장 기본값
 //   isHoliday(date)  해당 날짜가 공휴일이면 true. 생략하면 항상 false
