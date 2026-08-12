@@ -108,6 +108,26 @@ for (const page of HIDDEN_PAGES) {
   });
 }
 
+// ---- 설정 저장은 '지금 붙어 있는 연결'로 ----
+//
+// 저장에 편집 중인 reservation을 넘기면, 아직 켜지지도 않은 설정으로 요청을 만든다.
+// 실제로 '예약 신청 받기'를 끄는 순간 usable()이 거짓이 되어 요청이 만들어지지
+// 않았고, 저장이 거절돼 예약을 끌 방법이 아예 없었다. 화면을 열어 눌러 보지 않으면
+// 드러나지 않는 자리라 정적으로 고정한다.
+test('admin.html: 설정 저장에 편집 중인 연결을 쓰지 않는다', () => {
+  const html = read('admin.html');
+  const calls = html.match(/saveStoredConfig\([^,]*,/g) || [];
+
+  assert.ok(calls.length >= 1, 'saveStoredConfig를 부르는 곳이 없다');
+  for (const call of calls) {
+    assert.match(
+      call,
+      /saveStoredConfig\(liveReservation\(\),/,
+      `저장은 liveReservation()으로 해야 한다: ${call}`
+    );
+  }
+});
+
 // ---- 미디어 쿼리가 뒤에 나온 기본 규칙에 덮이는 경우 ----
 //
 // 넓은 화면에서 탭을 감추려고 @media 안에 .tabs { display: none }을 넣었는데,

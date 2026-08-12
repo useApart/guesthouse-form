@@ -270,15 +270,12 @@
       <div class="checks" style="margin-bottom:14px;">
         <label><input type="checkbox" id="rs-enabled">달력에서 예약 신청을 받는다</label>
       </div>
-      <div class="grid2">
-        <div class="field"><label for="rs-url">Supabase Project URL</label><input type="text" id="rs-url" placeholder="https://xxxx.supabase.co"></div>
-        <div class="field"><label for="rs-key">anon public key</label><input type="text" id="rs-key" placeholder="eyJ..."></div>
-      </div>
       <p class="hint">
-        꺼져 있으면 <code>reserve.html</code>과 <code>manage.html</code>이 "준비 중" 안내만 띄웁니다.
-        주소나 키가 비어 있으면 켜도 자동으로 꺼집니다.<br>
-        <strong>service_role key는 절대 넣지 마세요</strong> — 그 키는 권한 제한을 통째로 무시합니다.
+        꺼 두면 <code>reserve.html</code>과 <code>manage.html</code>이 "준비 중" 안내만 띄웁니다.
       </p>
+      <!-- 연결 정보는 보여주기만 한다. 여기서 고칠 수 있게 두면 잘못 저장했을 때
+           로그인도 그 주소로 가서 이 화면 자체가 안 열린다. renderValues 참조. -->
+      <p class="hint" id="rsConn"></p>
 
       <h2 style="margin-top:22px;">로그인</h2>
       <div id="authArea"></div>
@@ -1051,8 +1048,14 @@ function renderValues() {
 
   const rs = state.config.reservation;
   bindChecked('rs-enabled', () => rs.enabled, (on) => { rs.enabled = on; });
-  bindValue('rs-url', () => rs.url, (v) => { rs.url = v; });
-  bindValue('rs-key', () => rs.anonKey, (v) => { rs.anonKey = v; });
+
+  // 주소·키는 읽기 전용이다. 어느 프로젝트에 붙어 있는지 확인할 수 있으면 충분하고,
+  // 고칠 수 있게 두면 한 번의 오타로 관리사무소가 화면 밖에 갇힌다.
+  // 익명 키는 공개되어도 되는 값이지만 길기만 하므로 앞부분만 보여준다.
+  $('rsConn').textContent = rs.url
+    ? `연결된 곳: ${rs.url} (익명 키 ${rs.anonKey.slice(0, 12)}…)`
+      + ' · 바꾸려면 Supabase SQL Editor에서 app_config를 고칩니다.'
+    : '연결된 Supabase가 없습니다. README의 "예약 시스템 설정"을 따라 주세요.';
 
   renderHouseList();
 }
@@ -1261,6 +1264,20 @@ function updateSaveState() {
 // 바뀐 경우에만 실제 호출로 확인한다 — 매번 하면 저장이 느려진다.
 // 저장(save)과 되돌리기(restore) 둘 다 이 함수를 쓴다 — 로직을 두 곳에 두면
 // 한쪽만 고치는 사고가 난다.
+// 저장에 쓸 연결. 편집 중인 값이 아니라 지금 실제로 붙어 있는 값이어야 한다.
+//
+// 편집 중인 값을 쓰면 아직 켜지지도 않은 설정으로 요청을 만들게 된다. 실제로
+// '예약 신청 받기'를 끄는 순간 usable()이 거짓이 되어 요청이 만들어지지 않았고,
+// 저장이 "저장할 수 없는 상태입니다"로 거절돼 예약을 끌 방법이 아예 없었다.
+function liveReservation() {
+  try {
+    return JSON.parse(state.savedText).reservation;
+  } catch {
+    // 아직 아무것도 못 읽은 상태. 그때는 편집본이 곧 지금 값이다.
+    return state.config.reservation;
+  }
+}
+
 function verifyReservation(next) {
   const saved = state.savedText ? JSON.parse(state.savedText).reservation : null;
   const changed = !saved
@@ -1311,7 +1328,7 @@ $('save').addEventListener('click', () => {
         return null;
       }
 
-      return saveStoredConfig(state.config.reservation, state.staffToken, config).then(() => {
+      return saveStoredConfig(liveReservation(), state.staffToken, config).then(() => {
         state.config = config;
         state.savedText = text;
         if (state.imageUrl) { URL.revokeObjectURL(state.imageUrl); state.imageUrl = null; }
@@ -1388,7 +1405,7 @@ function restore(sha) {
       // 이 커밋은 검증 기능이 생기기 전 것일 수 있다 — 되돌리기도 저장과 같은
       // 방식으로 확인해야 스스로를 잠그지 않는다.
       return verifyReservation(restored.reservation)
-        .then(() => saveStoredConfig(state.config.reservation, state.staffToken, restored))
+        .then(() => saveStoredConfig(liveReservation(), state.staffToken, restored))
         .then(() => {
           state.config = restored;
           state.savedText = `${JSON.stringify(restored, null, 2)}\n`;
